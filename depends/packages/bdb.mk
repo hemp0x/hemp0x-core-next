@@ -8,7 +8,7 @@ $(package)_build_subdir=build_unix
 define $(package)_set_vars
 $(package)_config_opts=--disable-shared --enable-cxx --disable-replication
 $(package)_config_opts_mingw32=--enable-mingw
-$(package)_config_opts_linux=--with-pic
+$(package)_config_opts_linux=--with-pic --with-mutex=POSIX/pthreads
 $(package)_cxxflags=-std=c++11
 endef
 

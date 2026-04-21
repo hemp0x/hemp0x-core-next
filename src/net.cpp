@@ -1485,7 +1485,12 @@ void ThreadMapPort()
     struct IGDdatas data;
     int r;
 
+#if defined(MINIUPNPC_API_VERSION) && MINIUPNPC_API_VERSION >= 18
+    char wanaddr[64];
+    r = UPNP_GetValidIGD(devlist, &urls, &data, lanaddr, sizeof(lanaddr), wanaddr, sizeof(wanaddr));
+#else
     r = UPNP_GetValidIGD(devlist, &urls, &data, lanaddr, sizeof(lanaddr));
+#endif
     if (r == 1)
     {
         if (fDiscover) {

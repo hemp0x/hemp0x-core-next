@@ -413,16 +413,17 @@ Node relay options:
 .HP
 \fB\-bytespersigop\fR
 .IP
-Equivalent bytes per sigop in transactions for relay and mining
+Equivalent bytes per sigop in transactions for relay and block-template policy
 (default: 20)
 .HP
 \fB\-datacarrier\fR
 .IP
-Relay and mine data carrier transactions (default: 1)
+Relay and consider data carrier transactions for block templates (default: 1)
 .HP
 \fB\-datacarriersize\fR
 .IP
-Maximum size of data in data carrier transactions we relay and mine
+Maximum size of data in data carrier transactions we relay or include in
+block templates
 (default: 83)
 .HP
 \fB\-mempoolreplacement\fR
@@ -432,7 +433,7 @@ Enable transaction replacement in the memory pool (default: 1)
 \fB\-minrelaytxfee=\fR<amt>
 .IP
 Fees (in HEMP/kB) smaller than this are considered zero fee for relaying,
-mining and transaction creation (default: 0.00001)
+block-template policy, and transaction creation (default: 0.00001)
 .HP
 \fB\-whitelistrelay\fR
 .IP

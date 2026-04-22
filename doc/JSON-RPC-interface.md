@@ -104,7 +104,7 @@ current mempool state.
 
 The mempool state returned via an RPC is consistent with itself and with the
 chain state at the time of the call. Thus, the mempool state only encompasses
-transactions that are considered mine-able by the node at the time of the RPC.
+transactions that are eligible for inclusion in a block template at the time of the RPC.
 
 The mempool state returned via an RPC reflects all effects of mempool and chain
 state related RPCs that returned prior to this call.

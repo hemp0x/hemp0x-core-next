@@ -39,7 +39,7 @@ std::map<std::string, CBlock> mapHEMPKAWBlockTemplates;
 
 static UniValue LocalBlockGenerationDisabled()
 {
-    throw JSONRPCError(RPC_METHOD_NOT_FOUND, "Local block generation has been removed from Core release binaries");
+    throw JSONRPCError(RPC_METHOD_NOT_FOUND, "This compatibility RPC is disabled in Core release binaries; use getblocktemplate/submitblock with external pool software");
 }
 
 unsigned int ParseConfirmTarget(const UniValue& value)
@@ -121,7 +121,7 @@ UniValue generatetoaddress(const JSONRPCRequest& request)
     if (request.fHelp || request.params.size() < 2 || request.params.size() > 3)
         throw std::runtime_error(
             "generatetoaddress nblocks address (maxtries)\n"
-            "\nLocal block generation has been removed from Core release binaries.\n"
+            "\nThis compatibility RPC is disabled in Core release binaries.\n"
             "\nArguments:\n"
             "1. nblocks      (numeric, required) Ignored.\n"
             "2. address      (string, required) Ignored.\n"
@@ -1135,7 +1135,7 @@ UniValue getgenerate(const JSONRPCRequest& request)
     if (request.fHelp || request.params.size() != 0)
         throw std::runtime_error(
             "getgenerate\n"
-            "\nLocal block generation has been removed from Core release binaries.\n"
+            "\nThis compatibility RPC is disabled in Core release binaries.\n"
         );
 
     return LocalBlockGenerationDisabled();
@@ -1146,7 +1146,7 @@ UniValue setgenerate(const JSONRPCRequest& request)
     if (request.fHelp || request.params.size() < 1 || request.params.size() > 2)
         throw std::runtime_error(
             "setgenerate generate ( genproclimit )\n"
-            "\nLocal block generation has been removed from Core release binaries.\n"
+            "\nThis compatibility RPC is disabled in Core release binaries.\n"
             "\nArguments:\n"
             "1. generate         (boolean, required) Ignored.\n"
             "2. genproclimit     (numeric, optional) Ignored.\n"
@@ -1167,11 +1167,10 @@ static const CRPCCommand commands[] =
     { "mining",             "pprpcsb",                &pprpcsb,                {"header_hash","mix_hash", "nonce"} },
     { "mining",             "getkawpowhash",          &getkawpowhash,          {"header_hash", "mix_hash", "nonce", "height"} },
 
-    /* Coin generation */
-    { "generating",         "getgenerate",            &getgenerate,            {}  },
-    { "generating",         "setgenerate",            &setgenerate,            {"generate", "genproclimit"}  },
-
-    { "generating",         "generatetoaddress",      &generatetoaddress,      {"nblocks","address","maxtries"} },
+    /* Disabled compatibility RPCs; hidden from the general help list. */
+    { "hidden",             "getgenerate",            &getgenerate,            {}  },
+    { "hidden",             "setgenerate",            &setgenerate,            {"generate", "genproclimit"}  },
+    { "hidden",             "generatetoaddress",      &generatetoaddress,      {"nblocks","address","maxtries"} },
 
     { "util",               "estimatefee",            &estimatefee,            {"nblocks"} },
     { "util",               "estimatesmartfee",       &estimatesmartfee,       {"conf_target", "estimate_mode"} },

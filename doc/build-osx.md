@@ -68,7 +68,8 @@ compiled in `disable-wallet` mode with:
 
 In this case there is no dependency on Berkeley DB 4.8 and SQLite.
 
-Mining is also possible in disable-wallet mode using the `getblocktemplate` RPC call.
+External pool software can request block templates in disable-wallet mode using the
+`getblocktemplate` RPC call.
 
 ## Running
 Hemp0x Core is now available at `./src/hemp0xd`

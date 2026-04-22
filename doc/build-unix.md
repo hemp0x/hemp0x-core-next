@@ -177,8 +177,8 @@ disable-wallet mode with:
 
 In this case there is no dependency on Berkeley DB 4.8.
 
-Mining is also possible in disable-wallet mode, but only using the `getblocktemplate` RPC
-call not `getwork`.
+External pool software can request block templates in disable-wallet mode with the
+`getblocktemplate` RPC. The legacy `getwork` RPC is not supported.
 
 Additional Configure Flags
 --------------------------

@@ -3393,14 +3393,14 @@ UniValue generate(const JSONRPCRequest& request)
     if (request.fHelp || request.params.size() < 1 || request.params.size() > 2) {
         throw std::runtime_error(
             "generate nblocks ( maxtries )\n"
-            "\nLocal block generation has been removed from Core release binaries.\n"
+            "\nThis compatibility RPC is disabled in Core release binaries.\n"
             "\nArguments:\n"
             "1. nblocks      (numeric, required) Ignored.\n"
             "2. maxtries     (numeric, optional) Ignored.\n"
         );
     }
 
-    throw JSONRPCError(RPC_METHOD_NOT_FOUND, "Local block generation has been removed from Core release binaries");
+    throw JSONRPCError(RPC_METHOD_NOT_FOUND, "This compatibility RPC is disabled in Core release binaries; use getblocktemplate/submitblock with external pool software");
 }
 
 UniValue rescanblockchain(const JSONRPCRequest& request)
@@ -3549,7 +3549,7 @@ static const CRPCCommand commands[] =
     { "wallet",             "removeprunedfunds",        &removeprunedfunds,        {"txid"} },
     { "wallet",             "rescanblockchain",         &rescanblockchain,         {"start_height", "stop_height"} },
 
-    { "generating",         "generate",                 &generate,                 {"nblocks","maxtries"} },
+    { "hidden",             "generate",                 &generate,                 {"nblocks","maxtries"} },
 };
 
 void RegisterWalletRPCCommands(CRPCTable &t)

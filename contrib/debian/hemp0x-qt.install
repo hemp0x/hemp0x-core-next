@@ -1,6 +1,0 @@
-usr/local/bin/hemp0x-qt usr/bin
-share/pixmaps/hemp0x32.xpm usr/share/pixmaps
-share/pixmaps/hemp0x16.xpm usr/share/pixmaps
-share/pixmaps/hemp0x128.png usr/share/pixmaps
-debian/hemp0x-qt.desktop usr/share/applications
-debian/hemp0x-qt.protocol usr/share/kde4/services/

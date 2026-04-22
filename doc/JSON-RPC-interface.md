@@ -1,9 +1,6 @@
 # JSON-RPC Interface
 
-The headless daemon `hemp0xd` has the JSON-RPC API enabled by default, the GUI
-`hemp0x-qt` has it disabled by default. This can be changed with the `-server`
-option. In the GUI it is possible to execute RPC methods in the Debug Console
-Dialog.
+The headless daemon `hemp0xd` has the JSON-RPC API enabled by default.
 
 ## Versioning
 

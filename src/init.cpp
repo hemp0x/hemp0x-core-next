@@ -108,7 +108,7 @@ static const char* FEE_ESTIMATES_FILENAME="fee_estimates.dat";
 // Thread management and startup/shutdown:
 //
 // The network-processing threads are all part of a thread group
-// created by AppInit() or the Qt main() function.
+// created by AppInit().
 //
 // A clean exit happens when StartShutdown() or the SIGTERM
 // signal handler sets fRequestShutdown, which makes main thread's
@@ -119,11 +119,6 @@ static const char* FEE_ESTIMATES_FILENAME="fee_estimates.dat";
 // threads that should only be stopped after the main network-processing
 // threads have exited.
 //
-// Shutdown for Qt is very similar, only it uses a QTimer to detect
-// fRequestShutdown getting set, and then does the normal Qt
-// shutdown thing.
-//
-
 std::atomic<bool> fRequestShutdown(false);
 std::atomic<bool> fRequestRestart(false);
 std::atomic<bool> fDumpMempoolLater(false);
@@ -144,7 +139,7 @@ bool ShutdownRequested()
 /**
  * This is a minimally invasive approach to shutdown on LevelDB read errors from the
  * chainstate, while keeping user interface out of the common library, which is shared
- * between hemp0xd, and hemp0x-qt and non-server tools.
+ * between hemp0xd and non-server tools.
 */
 class CCoinsViewErrorCatcher final : public CCoinsViewBacked
 {

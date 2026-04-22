@@ -11,8 +11,7 @@
 
 /**
  * Name of client reported in the 'version' message. Report the same name
- * for both hemp0xd and hemp0x-qt, to make it harder for attackers to
- * target servers or GUI users specifically.
+ * for hemp0xd and command-line tools.
  */
 const std::string CLIENT_NAME("Hemp0x");
 

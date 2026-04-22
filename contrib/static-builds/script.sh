@@ -44,10 +44,10 @@ make HOST=x86_64-linux-gnu $MAKEOPTS
 cd ~/hemp0x
 export PATH=$PWD/depends/x86_64-linux-gnu/native/bin:$PATH
 ./autogen.sh
-CONFIG_SITE=$PWD/depends/x86_64-linux-gnu/share/config.site ./configure --prefix=/ --disable-ccache --disable-maintainer-mode --disable-dependency-tracking --enable-glibc-back-compat --enable-reduce-exports --disable-bench --disable-gui-tests CFLAGS="-O2 -g" CXXFLAGS="-O2 -g" LDFLAGS="-static-libstdc++"
-make $MAKEOPTS 
+CONFIG_SITE=$PWD/depends/x86_64-linux-gnu/share/config.site ./configure --prefix=/ --disable-ccache --disable-maintainer-mode --disable-dependency-tracking --enable-glibc-back-compat --enable-reduce-exports --disable-bench CFLAGS="-O2 -g" CXXFLAGS="-O2 -g" LDFLAGS="-static-libstdc++"
+make $MAKEOPTS
 make -C src check-security
-make -C src check-symbols 
+make -C src check-symbols
 mkdir ~/linux64
 make install DESTDIR=~/linux64/$DISTNAME
 cd ~/linux64
@@ -118,10 +118,10 @@ unset HOST_ID_SALT
 cd ~/hemp0x
 export PATH=$PWD/depends/i686-pc-linux-gnu/native/bin:$PATH
 ./autogen.sh
-CONFIG_SITE=$PWD/depends/i686-pc-linux-gnu/share/config.site ./configure --prefix=/ --disable-ccache --disable-maintainer-mode --disable-dependency-tracking --enable-glibc-back-compat --enable-reduce-exports --disable-bench --disable-gui-tests CFLAGS="-O2 -g" CXXFLAGS="-O2 -g" LDFLAGS="-static-libstdc++"
-make $MAKEOPTS 
+CONFIG_SITE=$PWD/depends/i686-pc-linux-gnu/share/config.site ./configure --prefix=/ --disable-ccache --disable-maintainer-mode --disable-dependency-tracking --enable-glibc-back-compat --enable-reduce-exports --disable-bench CFLAGS="-O2 -g" CXXFLAGS="-O2 -g" LDFLAGS="-static-libstdc++"
+make $MAKEOPTS
 make -C src check-security
-make -C src check-symbols 
+make -C src check-symbols
 mkdir -p ~/linux32
 make install DESTDIR=~/linux32/$DISTNAME
 cd ~/linux32
@@ -147,8 +147,8 @@ make HOST=arm-linux-gnueabihf $MAKEOPTS
 cd ~/hemp0x
 export PATH=$PWD/depends/arm-linux-gnueabihf/native/bin:$PATH
 ./autogen.sh
-CONFIG_SITE=$PWD/depends/arm-linux-gnueabihf/share/config.site ./configure --prefix=/ --disable-ccache --disable-maintainer-mode --disable-dependency-tracking --enable-glibc-back-compat --enable-reduce-exports --disable-bench --disable-gui-tests CFLAGS="-O2 -g" CXXFLAGS="-O2 -g" LDFLAGS="-static-libstdc++"
-make $MAKEOPTS 
+CONFIG_SITE=$PWD/depends/arm-linux-gnueabihf/share/config.site ./configure --prefix=/ --disable-ccache --disable-maintainer-mode --disable-dependency-tracking --enable-glibc-back-compat --enable-reduce-exports --disable-bench CFLAGS="-O2 -g" CXXFLAGS="-O2 -g" LDFLAGS="-static-libstdc++"
+make $MAKEOPTS
 make -C src check-security
 mkdir -p ~/linuxARM
 make install DESTDIR=~/linuxARM/$DISTNAME
@@ -174,8 +174,8 @@ make HOST=aarch64-linux-gnu $MAKEOPTS
 cd ~/hemp0x
 export PATH=$PWD/depends/aarch64-linux-gnu/native/bin:$PATH
 ./autogen.sh
-CONFIG_SITE=$PWD/depends/aarch64-linux-gnu/share/config.site ./configure --prefix=/ --disable-ccache --disable-maintainer-mode --disable-dependency-tracking --enable-glibc-back-compat --enable-reduce-exports --disable-bench --disable-gui-tests CFLAGS="-O2 -g" CXXFLAGS="-O2 -g" LDFLAGS="-static-libstdc++"
-make $MAKEOPTS 
+CONFIG_SITE=$PWD/depends/aarch64-linux-gnu/share/config.site ./configure --prefix=/ --disable-ccache --disable-maintainer-mode --disable-dependency-tracking --enable-glibc-back-compat --enable-reduce-exports --disable-bench CFLAGS="-O2 -g" CXXFLAGS="-O2 -g" LDFLAGS="-static-libstdc++"
+make $MAKEOPTS
 make -C src check-security
 mkdir -p ~/linuxaarch64
 make install DESTDIR=~/linuxaarch64/$DISTNAME
@@ -196,7 +196,7 @@ echo @@@
 echo @@@ "Building windows 64 binaries"
 echo @@@
 
-update-alternatives --set x86_64-w64-mingw32-g++ /usr/bin/x86_64-w64-mingw32-g++-posix 
+update-alternatives --set x86_64-w64-mingw32-g++ /usr/bin/x86_64-w64-mingw32-g++-posix
 mkdir -p ~/release/unsigned/
 mkdir -p ~/sign/win64
 PATH=$(echo "$PATH" | sed -e 's/:\/mnt.*//g') # strip out problematic Windows %PATH% imported var
@@ -205,8 +205,8 @@ make HOST=x86_64-w64-mingw32 $MAKEOPTS
 cd ~/hemp0x
 export PATH=$PWD/depends/x86_64-w64-mingw32/native/bin:$PATH
 ./autogen.sh
-CONFIG_SITE=$PWD/depends/x86_64-w64-mingw32/share/config.site ./configure --prefix=/ --disable-ccache --disable-maintainer-mode --disable-dependency-tracking --enable-reduce-exports --disable-bench --disable-gui-tests CFLAGS="-O2 -g" CXXFLAGS="-O2 -g"
-make $MAKEOPTS 
+CONFIG_SITE=$PWD/depends/x86_64-w64-mingw32/share/config.site ./configure --prefix=/ --disable-ccache --disable-maintainer-mode --disable-dependency-tracking --enable-reduce-exports --disable-bench CFLAGS="-O2 -g" CXXFLAGS="-O2 -g"
+make $MAKEOPTS
 make -C src check-security
 make deploy
 rename 's/-setup\.exe$/-setup-unsigned.exe/' *-setup.exe
@@ -240,16 +240,16 @@ echo @@@
 echo @@@ "Building windows 32 binaries"
 echo @@@
 
-update-alternatives --set i686-w64-mingw32-g++ /usr/bin/i686-w64-mingw32-g++-posix 
+update-alternatives --set i686-w64-mingw32-g++ /usr/bin/i686-w64-mingw32-g++-posix
 mkdir -p ~/sign/win32
-PATH=$(echo "$PATH" | sed -e 's/:\/mnt.*//g') 
+PATH=$(echo "$PATH" | sed -e 's/:\/mnt.*//g')
 cd ~/hemp0x/depends
 make HOST=i686-w64-mingw32 $MAKEOPTS
 cd ~/hemp0x
 export PATH=$PWD/depends/i686-w64-mingw32/native/bin:$PATH
 ./autogen.sh
-CONFIG_SITE=$PWD/depends/i686-w64-mingw32/share/config.site ./configure --prefix=/ --disable-ccache --disable-maintainer-mode --disable-dependency-tracking --enable-reduce-exports --disable-bench --disable-gui-tests CFLAGS="-O2 -g" CXXFLAGS="-O2 -g"
-make $MAKEOPTS 
+CONFIG_SITE=$PWD/depends/i686-w64-mingw32/share/config.site ./configure --prefix=/ --disable-ccache --disable-maintainer-mode --disable-dependency-tracking --enable-reduce-exports --disable-bench CFLAGS="-O2 -g" CXXFLAGS="-O2 -g"
+make $MAKEOPTS
 make -C src check-security
 make deploy
 rename 's/-setup\.exe$/-setup-unsigned.exe/' *-setup.exe
@@ -285,33 +285,20 @@ echo @@@
 
 mkdir -p ~/hemp0x/depends/SDKs
 cp ~/MacOSX10.11.sdk.tar.gz ~/hemp0x/depends/SDKs/MacOSX10.11.sdk.tar.gz
-cd ~/hemp0x/depends/SDKs && tar -xf MacOSX10.11.sdk.tar.gz 
-rm -rf MacOSX10.11.sdk.tar.gz 
+cd ~/hemp0x/depends/SDKs && tar -xf MacOSX10.11.sdk.tar.gz
+rm -rf MacOSX10.11.sdk.tar.gz
 cd ~/hemp0x/depends
 make $MAKEOPTS HOST="x86_64-apple-darwin14"
 cd ~/hemp0x
 ./autogen.sh
-CONFIG_SITE=$PWD/depends/x86_64-apple-darwin14/share/config.site ./configure --prefix=/ --disable-ccache --disable-maintainer-mode --disable-dependency-tracking --enable-reduce-exports --disable-bench --disable-gui-tests GENISOIMAGE=$PWD/depends/x86_64-apple-darwin14/native/bin/genisoimage
-make $MAKEOPTS 
+CONFIG_SITE=$PWD/depends/x86_64-apple-darwin14/share/config.site ./configure --prefix=/ --disable-ccache --disable-maintainer-mode --disable-dependency-tracking --enable-reduce-exports --disable-bench
+make $MAKEOPTS
 mkdir -p ~/OSX
 export PATH=$PWD/depends/x86_64-apple-darwin14/native/bin:$PATH
 make install-strip DESTDIR=~/OSX/$DISTNAME
-make osx_volname
-make deploydir
-mkdir -p unsigned-app-$DISTNAME
-cp osx_volname unsigned-app-$DISTNAME/
-cp contrib/macdeploy/detached-sig-apply.sh unsigned-app-$DISTNAME
-cp contrib/macdeploy/detached-sig-create.sh unsigned-app-$DISTNAME
-cp $PWD/depends/x86_64-apple-darwin14/native/bin/dmg $PWD/depends/x86_64-apple-darwin14/native/bin/genisoimage unsigned-app-$DISTNAME
-cp $PWD/depends/x86_64-apple-darwin14/native/bin/x86_64-apple-darwin14-codesign_allocate unsigned-app-$DISTNAME/codesign_allocate
-cp $PWD/depends/x86_64-apple-darwin14/native/bin/x86_64-apple-darwin14-pagestuff unsigned-app-$DISTNAME/pagestuff
-mv dist unsigned-app-$DISTNAME
-cd unsigned-app-$DISTNAME
-find . | sort | tar --no-recursion --mode='u+rw,go+r-w,a+X' --owner=0 --group=0 -c -T - | gzip -9n > ~/sign/$DISTNAME-osx-unsigned.tar.gz
+cd ~/OSX
+find . | sort | tar --no-recursion --mode='u+rw,go+r-w,a+X' --owner=0 --group=0 -c -T - | gzip -9n > ~/release/$DISTNAME-osx.tar.gz
 cd ~/hemp0x
-make deploy
-$PWD/depends/x86_64-apple-darwin14/native/bin/dmg dmg "Hemp0x-Core.dmg" ~/release/unsigned/$DISTNAME-osx-unsigned.dmg
-rm -rf unsigned-app-$DISTNAME dist osx_volname dpi36.background.tiff dpi72.background.tiff
 cd ~/OSX
 find . -name "lib*.la" -delete
 find . -name "lib*.a" -delete

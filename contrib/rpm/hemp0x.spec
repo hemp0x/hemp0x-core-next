@@ -1,17 +1,7 @@
 %define bdbv 4.8.30
 %global selinux_variants mls strict targeted
 
-%if 0%{?_no_gui:1}
-%define _buildqt 0
-%define buildargs --with-gui=no
-%else
-%define _buildqt 1
-%if 0%{?_use_qt4}
-%define buildargs --with-qrencode --with-gui=qt4
-%else
-%define buildargs --with-qrencode --with-gui=qt5
-%endif
-%endif
+%define buildargs --without-gui
 
 Name:		hemp0x
 Version:	0.12.0
@@ -29,7 +19,6 @@ Source10:	https://raw.githubusercontent.com/hemp0x/hemp0x/v%{version}/contrib/de
 #man pages
 Source20:	https://raw.githubusercontent.com/hemp0x/hemp0x/v%{version}/doc/man/hemp0xd.1
 Source21:	https://raw.githubusercontent.com/hemp0x/hemp0x/v%{version}/doc/man/hemp0x-cli.1
-Source22:	https://raw.githubusercontent.com/hemp0x/hemp0x/v%{version}/doc/man/hemp0x-qt.1
 
 #selinux
 Source30:	https://raw.githubusercontent.com/hemp0x/hemp0x/v%{version}/contrib/rpm/hemp0x.te
@@ -57,36 +46,6 @@ Patch0:		hemp0x-0.12.0-libressl.patch
 Hemp0x is a digital cryptographic currency that uses peer-to-peer technology to
 operate with no central authority or banks; managing transactions and the
 issuing of hemp0xs is carried out collectively by the network.
-
-%if %{_buildqt}
-%package core
-Summary:	Peer to Peer Cryptographic Currency
-Group:		Applications/System
-Obsoletes:	%{name} < %{version}-%{release}
-Provides:	%{name} = %{version}-%{release}
-%if 0%{?_use_qt4}
-BuildRequires:	qt-devel
-%else
-BuildRequires:	qt5-qtbase-devel
-# for /usr/bin/lrelease-qt5
-BuildRequires:	qt5-linguist
-%endif
-BuildRequires:	protobuf-devel
-BuildRequires:	qrencode-devel
-BuildRequires:	%{_bindir}/desktop-file-validate
-# for icon generation from SVG
-BuildRequires:	%{_bindir}/inkscape
-BuildRequires:	%{_bindir}/convert
-
-%description core
-Hemp0x is a digital cryptographic currency that uses peer-to-peer technology to
-operate with no central authority or banks; managing transactions and the
-issuing of hemp0xs is carried out collectively by the network.
-
-This package contains the Qt based graphical client and node. If you are looking
-to run a Hemp0x wallet, this is probably the package you want.
-%endif
-
 
 %package libs
 Summary:	Hemp0x shared libraries
@@ -241,70 +200,9 @@ for selinuxvariant in %{selinux_variants}; do
 	install -p -m 644 SELinux/hemp0x.pp.${selinuxvariant} %{buildroot}%{_datadir}/selinux/${selinuxvariant}/hemp0x.pp
 done
 
-%if %{_buildqt}
-# qt icons
-install -D -p share/pixmaps/hemp0x.ico %{buildroot}%{_datadir}/pixmaps/hemp0x.ico
-install -p share/pixmaps/nsis-header.bmp %{buildroot}%{_datadir}/pixmaps/
-install -p share/pixmaps/nsis-wizard.bmp %{buildroot}%{_datadir}/pixmaps/
-install -p %{SOURCE100} %{buildroot}%{_datadir}/pixmaps/hemp0x.svg
-%{_bindir}/inkscape %{SOURCE100} --export-png=%{buildroot}%{_datadir}/pixmaps/hemp0x16.png -w16 -h16
-%{_bindir}/inkscape %{SOURCE100} --export-png=%{buildroot}%{_datadir}/pixmaps/hemp0x32.png -w32 -h32
-%{_bindir}/inkscape %{SOURCE100} --export-png=%{buildroot}%{_datadir}/pixmaps/hemp0x64.png -w64 -h64
-%{_bindir}/inkscape %{SOURCE100} --export-png=%{buildroot}%{_datadir}/pixmaps/hemp0x128.png -w128 -h128
-%{_bindir}/inkscape %{SOURCE100} --export-png=%{buildroot}%{_datadir}/pixmaps/hemp0x256.png -w256 -h256
-%{_bindir}/convert -resize 16x16 %{buildroot}%{_datadir}/pixmaps/hemp0x256.png %{buildroot}%{_datadir}/pixmaps/hemp0x16.xpm
-%{_bindir}/convert -resize 32x32 %{buildroot}%{_datadir}/pixmaps/hemp0x256.png %{buildroot}%{_datadir}/pixmaps/hemp0x32.xpm
-%{_bindir}/convert -resize 64x64 %{buildroot}%{_datadir}/pixmaps/hemp0x256.png %{buildroot}%{_datadir}/pixmaps/hemp0x64.xpm
-%{_bindir}/convert -resize 128x128 %{buildroot}%{_datadir}/pixmaps/hemp0x256.png %{buildroot}%{_datadir}/pixmaps/hemp0x128.xpm
-%{_bindir}/convert %{buildroot}%{_datadir}/pixmaps/hemp0x256.png %{buildroot}%{_datadir}/pixmaps/hemp0x256.xpm
-touch %{buildroot}%{_datadir}/pixmaps/*.png -r %{SOURCE100}
-touch %{buildroot}%{_datadir}/pixmaps/*.xpm -r %{SOURCE100}
-
-# Desktop File - change the touch timestamp if modifying
-mkdir -p %{buildroot}%{_datadir}/applications
-cat <<EOF > %{buildroot}%{_datadir}/applications/hemp0x-core.desktop
-[Desktop Entry]
-Encoding=UTF-8
-Name=Hemp0x
-Comment=Hemp0x P2P Cryptocurrency
-Comment[fr]=Hemp0x, monnaie virtuelle cryptographique pair à pair
-Comment[tr]=Hemp0x, eşten eşe kriptografik sanal para birimi
-Exec=hemp0x-qt %u
-Terminal=false
-Type=Application
-Icon=hemp0x128
-MimeType=x-scheme-handler/hemp0x;
-Categories=Office;Finance;
-EOF
-# change touch date when modifying desktop
-touch -a -m -t 201511100546 %{buildroot}%{_datadir}/applications/hemp0x-core.desktop
-%{_bindir}/desktop-file-validate %{buildroot}%{_datadir}/applications/hemp0x-core.desktop
-
-# KDE protocol - change the touch timestamp if modifying
-mkdir -p %{buildroot}%{_datadir}/kde4/services
-cat <<EOF > %{buildroot}%{_datadir}/kde4/services/hemp0x-core.protocol
-[Protocol]
-exec=hemp0x-qt '%u'
-protocol=hemp0x
-input=none
-output=none
-helper=true
-listing=
-reading=false
-writing=false
-makedir=false
-deleting=false
-EOF
-# change touch date when modifying protocol
-touch -a -m -t 201511100546 %{buildroot}%{_datadir}/kde4/services/hemp0x-core.protocol
-%endif
-
 # man pages
 install -D -p %{SOURCE20} %{buildroot}%{_mandir}/man1/hemp0xd.1
 install -p %{SOURCE21} %{buildroot}%{_mandir}/man1/hemp0x-cli.1
-%if %{_buildqt}
-install -p %{SOURCE22} %{buildroot}%{_mandir}/man1/hemp0x-qt.1
-%endif
 
 # nuke these, we do extensive testing of binaries in %%check before packaging
 rm -f %{buildroot}%{_bindir}/test_*
@@ -371,22 +269,6 @@ fi
 %clean
 rm -rf %{buildroot}
 
-%if %{_buildqt}
-%files core
-%defattr(-,root,root,-)
-%license COPYING db-%{bdbv}.NC-LICENSE
-%doc COPYING hemp0x.conf.example doc/README.md doc/bips.md doc/files.md doc/multiwallet-qt.md doc/reduce-traffic.md doc/release-notes.md doc/tor.md
-%attr(0755,root,root) %{_bindir}/hemp0x-qt
-%attr(0644,root,root) %{_datadir}/applications/hemp0x-core.desktop
-%attr(0644,root,root) %{_datadir}/kde4/services/hemp0x-core.protocol
-%attr(0644,root,root) %{_datadir}/pixmaps/*.ico
-%attr(0644,root,root) %{_datadir}/pixmaps/*.bmp
-%attr(0644,root,root) %{_datadir}/pixmaps/*.svg
-%attr(0644,root,root) %{_datadir}/pixmaps/*.png
-%attr(0644,root,root) %{_datadir}/pixmaps/*.xpm
-%attr(0644,root,root) %{_mandir}/man1/hemp0x-qt.1*
-%endif
-
 %files libs
 %defattr(-,root,root,-)
 %license COPYING
@@ -428,13 +310,6 @@ rm -rf %{buildroot}
 
 
 %changelog
-* Fri Feb 26 2016 Alice Wonder <buildmaster@librelamp.com> - 0.12.0-2
-- Rename Qt package from hemp0x to hemp0x-core
-- Make building of the Qt package optional
-- When building the Qt package, default to Qt5 but allow building
--  against Qt4
-- Only run SELinux stuff in post scripts if it is not set to disabled
-
 * Wed Feb 24 2016 Alice Wonder <buildmaster@librelamp.com> - 0.12.0-1
 - Initial spec file for 0.12.0 release
 

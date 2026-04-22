@@ -1,21 +1,5 @@
 
 Debian
 ====================
-This directory contains files used to package hemp0xd/hemp0x-qt
-for Debian-based Linux systems. If you compile hemp0xd/hemp0x-qt yourself, there are some useful files here.
-
-## hemp0x: URI support ##
-
-
-hemp0x-qt.desktop  (Gnome / Open Desktop)
-To install:
-
-	sudo desktop-file-install hemp0x-qt.desktop
-	sudo update-desktop-database
-
-If you build yourself, you will either need to modify the paths in
-the .desktop file or copy or symlink your hemp0x-qt binary to `/usr/bin`
-and the `../../share/pixmaps/hemp0x128.png` to `/usr/share/pixmaps`
-
-hemp0x-qt.protocol (KDE)
-
+This directory contains files used to package hemp0xd, hemp0x-cli, and
+hemp0x-tx for Debian-based Linux systems.

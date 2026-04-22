@@ -30,7 +30,6 @@ LIBHEMP0X_CONSENSUS=libhemp0x_consensus.a
 LIBHEMP0X_CLI=libhemp0x_cli.a
 LIBHEMP0X_UTIL=libhemp0x_util.a
 LIBHEMP0X_CRYPTO=crypto/libhemp0x_crypto.a
-LIBHEMP0XQT=qt/libhemp0xqt.a
 LIBSECP256K1=secp256k1/libsecp256k1.la
 
 if ENABLE_ZMQ
@@ -242,7 +241,7 @@ obj/build.h: FORCE
 	  "$(abs_top_srcdir)"
 libhemp0x_util_a-clientversion.$(OBJEXT): obj/build.h
 
-# server: shared between hemp0xd and hemp0x-qt
+# server: shared by hemp0xd
 libhemp0x_server_a_CPPFLAGS = $(AM_CPPFLAGS) $(HEMP0X_INCLUDES) $(MINIUPNPC_CPPFLAGS) $(EVENT_CFLAGS) $(EVENT_PTHREADS_CFLAGS)
 libhemp0x_server_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libhemp0x_server_a_SOURCES = \
@@ -309,8 +308,7 @@ libhemp0x_zmq_a_SOURCES = \
 endif
 
 
-# wallet: shared between hemp0xd and hemp0x-qt, but only linked
-# when wallet enabled
+# wallet: linked into hemp0xd when wallet support is enabled
 libhemp0x_wallet_a_CPPFLAGS = $(AM_CPPFLAGS) $(HEMP0X_INCLUDES)
 libhemp0x_wallet_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libhemp0x_wallet_a_SOURCES = \
@@ -415,7 +413,7 @@ libhemp0x_consensus_a_SOURCES = \
   LibBoolEE.h \
   $(HEMP0X_CORE_H)
 
-# common: shared between hemp0xd, and hemp0x-qt and non-server tools
+# common: shared between hemp0xd and non-server tools
 libhemp0x_common_a_CPPFLAGS = $(AM_CPPFLAGS) $(HEMP0X_INCLUDES)
 libhemp0x_common_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libhemp0x_common_a_SOURCES = \
@@ -465,7 +463,7 @@ libhemp0x_util_a_SOURCES += compat/glibc_compat.cpp
 AM_LDFLAGS += $(COMPAT_LDFLAGS)
 endif
 
-# cli: shared between hemp0x-cli and hemp0x-qt
+# cli: shared by hemp0x-cli
 libhemp0x_cli_a_CPPFLAGS = $(AM_CPPFLAGS) $(HEMP0X_INCLUDES)
 libhemp0x_cli_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libhemp0x_cli_a_SOURCES = \
@@ -628,12 +626,4 @@ endif
 
 if ENABLE_BENCH
 include Makefile.bench.include
-endif
-
-if ENABLE_QT
-include Makefile.qt.include
-endif
-
-if ENABLE_QT_TESTS
-include Makefile.qttest.include
 endif

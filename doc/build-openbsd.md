@@ -4,8 +4,6 @@ OpenBSD build guide
 
 This guide describes how to build hemp0xd and command-line utilities on OpenBSD.
 
-As OpenBSD is most common as a server OS, we will not bother with the GUI.
-
 Preparation
 -------------
 
@@ -13,7 +11,6 @@ Run the following as root to install the base dependencies for building:
 
 ```bash
 pkg_add git gmake libevent libtool boost
-pkg_add qt5 # (optional for enabling the GUI)
 pkg_add autoconf # (select highest version, e.g. 2.69)
 pkg_add automake # (select highest version, e.g. 1.16)
 pkg_add python # (select highest version, e.g. 3.8)
@@ -136,14 +133,14 @@ Make sure `BDB_PREFIX` and `BOOST_PREFIX` are set to the appropriate paths from 
 
 To configure with wallet:
 ```bash
-./configure --with-gui=no --with-boost=$BOOST_PREFIX \
+./configure --without-gui --with-boost=$BOOST_PREFIX \
     CC=egcc CXX=eg++ CPP=ecpp \
     BDB_LIBS="-L${BDB_PREFIX}/lib -ldb_cxx-4.8" BDB_CFLAGS="-I${BDB_PREFIX}/include"
 ```
 
 To configure without wallet:
 ```bash
-./configure --disable-wallet --with-gui=no --with-boost=$BOOST_PREFIX \
+./configure --disable-wallet --without-gui --with-boost=$BOOST_PREFIX \
     CC=egcc CXX=eg++ CPP=ecpp
 ```
 
@@ -170,7 +167,7 @@ pkg_add llvm boost
 ```
 
 ```bash
-./configure --disable-wallet --with-gui=no CC=clang CXX=clang++
+./configure --disable-wallet --without-gui CC=clang CXX=clang++
 gmake
 ```
 

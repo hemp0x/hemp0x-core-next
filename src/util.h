@@ -103,7 +103,6 @@ namespace BCLog
         MEMPOOLREJ = (1 << 16),
         LIBEVENT = (1 << 17),
         COINDB = (1 << 18),
-        QT = (1 << 19),
         LEVELDB = (1 << 20),
         REWARDS = (1 << 21),
         ALL = ~(uint32_t) 0,

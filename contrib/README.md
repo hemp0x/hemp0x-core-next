@@ -13,7 +13,7 @@ Construct a linear, no-fork, best version of the blockchain.
 
 ### [Qos](/contrib/qos) ###
 
-A Linux bash script that will set up traffic control (tc) to limit the outgoing bandwidth for connections to the Hemp0x network. This means one can have an always-on hemp0xd instance running, and another local hemp0xd/hemp0x-qt instance which connects to this node and receives blocks from it.
+A Linux bash script that will set up traffic control (tc) to limit the outgoing bandwidth for connections to the Hemp0x network. This means one can have an always-on hemp0xd instance running and another local hemp0xd instance which connects to this node and receives blocks from it.
 
 ### [Seeds](/contrib/seeds) ###
 Utility to generate the pnSeed[] array that is compiled into the client.
@@ -22,8 +22,8 @@ Build Tools and Keys
 ---------------------
 
 ### [Debian](/contrib/debian) ###
-Contains files used to package hemp0xd/hemp0x-qt
-for Debian-based Linux systems. If you compile hemp0xd/hemp0x-qt yourself, there are some useful files here.
+Contains files used to package hemp0xd, hemp0x-cli, and hemp0x-tx
+for Debian-based Linux systems.
 
 ### [Gitian-descriptors](/contrib/gitian-descriptors) ###
 Files used during the gitian build process. For more information about gitian, see the [the Hemp0x Core documentation repository](https://github.com/hemp0x-core/docs).
@@ -31,8 +31,8 @@ Files used during the gitian build process. For more information about gitian, s
 ### [Gitian-keys](/contrib/gitian-keys)
 PGP keys used for signing Hemp0x Core [Gitian release](/doc/release-process.md) results.
 
-### [MacDeploy](/contrib/macdeploy) ###
-Scripts and notes for Mac builds. 
+### [macOS SDK](/contrib/macdeploy) ###
+Mac SDK extraction helper for cross builds.
 
 ### [RPM](/contrib/rpm) ###
 RPM spec file for building hemp0x-core on RPM based distributions.

@@ -14,11 +14,6 @@ To add more hemp0xd tests, add `BOOST_AUTO_TEST_CASE` functions to the existing
 .cpp files in the `test/` directory or add new .cpp files that
 implement new BOOST_AUTO_TEST_SUITE sections.
 
-To run the hemp0x-qt tests manually, launch `src/qt/test/test_hemp0x-qt`
-
-To add more hemp0x-qt tests, add them to the `src/qt/test/` directory and
-the `src/qt/test/test_main.cpp` file.
-
 To display progress information the unit tests should be run as follows:
 
 `test_runner --show_progress=true --colour_output=true`

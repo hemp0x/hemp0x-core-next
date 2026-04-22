@@ -35,7 +35,7 @@ Loops through blocks and transactions and pins asset issuance meta-data and then
 
 * Install ipfsapi with ```pip3 install ipfsapi```
 
-* Run hemp0xd or hemp0x-qt with parameter to use zmq: ```-zmqpubrawtx=tcp://127.0.0.1:28766```
+* Run hemp0xd with parameter to use zmq: ```-zmqpubrawtx=tcp://127.0.0.1:28766```
 
 Optional Arguments
 ```  
@@ -50,4 +50,3 @@ Optional Arguments
   -d, --debug           Print debug info.
  ```
 Run: ```python ipfs_pinner.py```
-

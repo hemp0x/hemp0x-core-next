@@ -17,15 +17,9 @@ The following are some helpful notes on how to run Hemp0x on your native platfor
 
 2) Install distribution-specific dependencies listed below.
 
-3) Run the GUI wallet or only the Hemp0x core deamon
+3) Run the Hemp0x Core daemon
 
-   a. GUI wallet:
-
-   `./hemp0x-qt`
-
-   b. Core deamon:
-
-   `./hemp0xd -deamon`
+   `./hemp0xd -daemon`
 
 #### Ubuntu 16.04, 17.04/17.10 and 18.04
 
@@ -41,19 +35,11 @@ The wallet requires version 4.8 of the Berkeley DB. The easiest way to get it is
 
 ```
 
-The GUI wallet requires the QR Code encoding library. Install with:
-
-`sudo apt install libqrencode3`
-
 #### Fedora 27
 
 Install general dependencies:
 
 `sudo dnf install zeromq libevent boost libdb4-cxx miniupnpc`
-
-The GUI wallet requires the QR Code encoding library and Google's data interchange format Protocol Buffers. Install with:
-
-`sudo dnf install qrencode protobuf`
 
 #### CentOS 7
 
@@ -64,38 +50,15 @@ sudo yum install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noa
 sudo yum install zeromq libevent boost libdb4-cxx miniupnpc
 ```
 
-The GUI wallet requires the QR Code encoding library and Google's data interchange format Protocol Buffers. Install with:
-
-`sudo yum install qrencode protobuf`
-
 ### OS X
 
-1) Download Hemp0x-Qt.dmg.
-
-2) Double click the DMG to mount it.
-
-3) Drag Hemp0x Core icon to the Applications Folder
-
-![alt tag](https://i.imgur.com/GLhBFUV.png)
-
-4) Open the Applications folder and Launch Hemp0x Core. The client will begin synchronizing with the network.
-
-![alt tag](https://i.imgur.com/v3962qo.png)
-
-Note: You may get the follow error on first launch:
-```
-Dyld Error Message:
-  Library not loaded: @loader_path/libboost_system-mt.dylib
-  Referenced from: /Applications/Hemp0x-Qt.app/Contents/Frameworks/libboost_thread-mt.dylib
-  Reason: image not found
-```
-To resolve, you will need to copy libboost_system.dylib to libboost_system-mt.dylib in the /Applications/Hemp0x-Qt.app/Contents/Frameworks folder
+Build from source and run `./src/hemp0xd`.
 
 ### Windows
 
 1) Download windows-x86_64.zip and unpack executables to desired folder.
 
-2) Double click the hemp0x-qt.exe to launch it.
+2) Run `hemp0xd.exe` or control a running daemon with `hemp0x-cli.exe`.
 
 ### Need Help?
 

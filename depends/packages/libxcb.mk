@@ -13,9 +13,8 @@ define $(package)_preprocess_cmds
   sed "s/pthread-stubs//" -i configure
 endef
 
-# Don't install xcb headers to the default path in order to work around a qt
-# build issue: https://bugreports.qt.io/browse/QTBUG-34748
-# When using qt's internal libxcb, it may end up finding the real headers in
+# Don't install xcb headers to the default path. Some consumers can otherwise
+# pick up the wrong headers from the staging prefix.
 # depends staging. Use a non-default path to avoid that.
 
 define $(package)_config_cmds

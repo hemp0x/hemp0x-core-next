@@ -26,7 +26,7 @@ Sources 10-19 should be reserved for miscellaneous configuration files.
 Currently only `Source10` is used, for the example `hemp0x.conf` file.
 
 Sources 20-29 should be reserved for man pages. Currently only `Source20`
-through `Source23` are used.
+and `Source21` are used.
 
 Sources 30-39 should be reserved for SELinux related files. Currently only
 `Source30` through `Source32` are used. Until those files are in a tagged
@@ -55,8 +55,7 @@ master branch.
 
 The packages specified in the `BuildRequires` are specified according to the
 package naming convention currently used in CentOS 7 and EPEL for CentOS 7. You
-may need to change some of the package names for other distributions. This is
-most likely to be the case with the Qt packages.
+may need to change some of the package names for other distributions.
 
 ## BerkeleyDB
 
@@ -69,32 +68,6 @@ the distribution may make in the future will not result in a problem for users.
 The problem that can exist, clients built against different versions of
 BerkeleyDB may not be able read each other's `wallet.dat` file which can make it
 difficult for a user to recover from backup in the event of a system failure.
-
-## Graphical User Interface and Qt Version
-
-The RPM spec file will by default build the GUI client linked against the Qt5
-libraries. If you wish instead to link against the Qt4 libraries you need to
-pass the switch `-D '_use_qt4 1'` at build time to the `rpmbuild` or `mock`
-command used to build the packages.
-
-If you would prefer not to build the GUI at all, you can pass the switch
-`-D '_no_gui 1'` to the `rpmbuild` or `mock` build command.
-
-## Desktop and KDE Files
-
-The desktop and KDE meta files are created in the spec file itself with the
-`cat` command. This is done to allow easy distribution specific changes without
-needing to use any patches. A specific timestamp is given to the files so that
-it does not they do not appear to have been updated every time the package is
-built. If you do make changes to them, you probably should update timestamp
-assigned to them in the `touch` command that specifies the timestamp.
-
-## SVG, PNG, and XPM Icons
-
-The `hemp0x.svg` file is from the source listed as `Source100`. It is used as
-the source for the PNG and XPM files. The generated PNG and XPM files are given
-the same timestamp as the source SVG file as a means of indicating they are
-derived from it.
 
 ## Systemd
 
@@ -170,14 +143,7 @@ Linux distribution. For the distributions he packages for, they currently all
 use the same version of BerkeleyDB so that difference is *probably* just
 academic.
 
-3. As of his 10.11.2 package he did not allow for building against LibreSSL,
-specifying a build without the Qt GUI, or specifying which version of the Qt
-libraries to use.
-
-4. I renamed the `hemp0x` package that contains the Qt GUI to `hemp0x-core` as
-that appears to be how the general population refers to it, in contrast to
-`hemp0x-xt` or `hemp0x-classic`. I wanted to make sure the general population
-knows what they are getting when installing the GUI package.
+3. As of his 10.11.2 package he did not allow for building against LibreSSL.
 
 As far as minor differences, I generally prefer to assign the file permissions
 in the `%files` portion of an RPM spec file rather than specifying the

@@ -18,12 +18,12 @@ To Build
 
 ```bash
 ./autogen.sh
-./configure
+./configure --without-gui
 make
 make install # optional
 ```
 
-This will build hemp0x-qt as well if the dependencies are met.
+This builds the no-GUI daemon, CLI, wallet, and command-line tools.
 
 On most Linux distros the "fPIC" flag needs to be set.  If this flag is not specified it is possible that the build will fail with an error similar to:
 ```bash
@@ -55,9 +55,6 @@ Optional dependencies:
  ------------|------------------|----------------------
  miniupnpc   | UPnP Support     | Firewall-jumping support
  libdb4.8    | Berkeley DB      | Wallet storage (only needed when wallet enabled)
- qt          | GUI              | GUI toolkit (only needed when GUI enabled)
- protobuf    | Payments in GUI  | Data interchange format used for payment protocol (only needed when GUI enabled)
- libqrencode | QR codes in GUI  | Optional for generating QR codes (only needed when GUI enabled)
  univalue    | Utility          | JSON parsing and encoding (bundled version will be used unless --with-system-univalue passed to configure)
  libzmq3     | ZMQ notification | Optional, allows generating ZMQ notifications (requires ZMQ version >= 4.x)
 
@@ -86,14 +83,6 @@ Optional:
 ZMQ dependencies (provides ZMQ API):
 
     sudo dnf install zeromq-devel
-
-To build with Qt 5 you need the following:
-
-    sudo dnf install qt5-qttools-devel qt5-qtbase-devel protobuf-devel
-
-libqrencode (optional) can be installed with:
-
-    sudo dnf install qrencode-devel
 
 Notes
 -----

@@ -60,7 +60,6 @@ the pull request affects. Valid areas as:
   - *Consensus* for changes to consensus critical code
   - *Depends* for changes to depends
   - *Docs* for changes to the documentation
-  - *GUI* for changes to hemp0x-qt
   - *Mining* for changes to the mining code
   - *Net* or *P2P* for changes to the peer-to-peer network code
   - *RPC/REST/ZMQ* for changes to the RPC, REST or ZMQ APIs
@@ -81,12 +80,11 @@ Examples:
 
     Consensus: Add new opcode for RIP-XXXX OP_CHECKAWESOMESIG
     Net: Automatically create hidden service, listen on Tor
-    GUI: Add feed bump button
+    Wallet: Add wallet RPC test coverage
     Trivial: Fix typo in init.cpp
 
-Note that translations should not be submitted as pull requests, please see
-[Translation Process](https://github.com/hemp0x/hemp0x-core/blob/master/doc/translation_process.md) 
-for more information on helping with translations.
+Note that the old bundled Qt translation workflow has been removed with the
+legacy Qt wallet.
 
 If a pull request is specifically not to be considered for merging (yet) please
 prefix the title with [WIP] or use [Tasks Lists](https://help.github.com/articles/basic-writing-and-formatting-syntax/#task-lists)

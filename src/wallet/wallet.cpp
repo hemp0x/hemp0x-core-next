@@ -2515,8 +2515,7 @@ std::map<CTxDestination, std::vector<COutput>> CWallet::ListAssets() const
     // cs_wallet lock before calling it. However, the current caller doesn't
     // acquire this lock yet. There was an attempt to add the missing lock in
     // https://github.com/bitcoin/bitcoin/pull/10340, but that change has been
-    // postponed until after https://github.com/bitcoin/bitcoin/pull/10244 to
-    // avoid adding some extra complexity to the Qt code.
+    // postponed until after https://github.com/bitcoin/bitcoin/pull/10244.
 
     std::map<CTxDestination, std::vector<COutput>> result;
 
@@ -2567,8 +2566,7 @@ std::map<CTxDestination, std::vector<COutput>> CWallet::ListCoins() const
     // cs_wallet lock before calling it. However, the current caller doesn't
     // acquire this lock yet. There was an attempt to add the missing lock in
     // https://github.com/bitcoin/bitcoin/pull/10340, but that change has been
-    // postponed until after https://github.com/bitcoin/bitcoin/pull/10244 to
-    // avoid adding some extra complexity to the Qt code.
+    // postponed until after https://github.com/bitcoin/bitcoin/pull/10244.
 
     std::map<CTxDestination, std::vector<COutput>> result;
 

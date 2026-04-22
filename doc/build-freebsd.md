@@ -12,17 +12,6 @@ Install dependencies:
 `# pkg install autoconf automake boost-libs git gmake libevent libtool pkgconf openssl
 `
 
-Optional dependencies
-----------------------
-Qt5 for GUI
-
-`# pkg install qt5`
-
-libqrencode for QR Code support.
-
-`# pkg install libqrencode`
-
-
 Directory structure
 ------------------
 Hemp0x sources in `$HOME/src`
@@ -61,16 +50,12 @@ This is for `sh` or `bash`.
 
 `export BDB_PREFIX=$HOME/src/db4`
 
-`./configure BDB_LIBS="-L${BDB_PREFIX}/lib -ldb_cxx-4.8" BDB_CFLAGS="-I${BDB_PREFIX}/include" CFLAGS="-fPIC" CXXFLAGS="-fPIC -I/usr/local/include" --prefix=/usr/local MAKE=gmake`
+`./configure --without-gui BDB_LIBS="-L${BDB_PREFIX}/lib -ldb_cxx-4.8" BDB_CFLAGS="-I${BDB_PREFIX}/include" CFLAGS="-fPIC" CXXFLAGS="-fPIC -I/usr/local/include" --prefix=/usr/local MAKE=gmake`
 
 _Adjust to own needs. `--prefix=/usr/local` will install the binaries to `/usr/local/bin`_
 
 
 `gmake -j8`  # 8 for 8 build threads, adjust to fit your setup.
-
-You can now start hemp0x-qt from the build directory.
-
-`src/qt/hemp0x-qt`
 
 hemp0xd and hemp0x-cli are in `src/`
 
@@ -78,7 +63,6 @@ hemp0xd and hemp0x-cli are in `src/`
 __Optional:__
 
 `make install`  # if you want to install the binaries to /usr/local/bin.
-
 
 
 

@@ -71,8 +71,7 @@ void PrepareShutdown();
 /** The help message mode determines what help message to show */
 enum HelpMessageMode
 {
-    HMM_HEMP0XD,
-    HMM_HEMP0X_QT
+    HMM_HEMP0XD
 };
 
 /** Help for options shared between UI and daemon (for -help) */

@@ -17,7 +17,6 @@ AC_CONFIG_AUX_DIR([build-aux])
 AC_CONFIG_MACRO_DIR([build-aux/m4])
 
 HEMP0X_DAEMON_NAME=hemp0xd
-HEMP0X_GUI_NAME=hemp0x-qt
 HEMP0X_CLI_NAME=hemp0x-cli
 HEMP0X_TX_NAME=hemp0x-tx
 
@@ -128,11 +127,6 @@ AC_ARG_ENABLE(tests,
     [use_tests=$enableval],
     [use_tests=yes])
 
-AC_ARG_ENABLE(gui-tests,
-    AS_HELP_STRING([--disable-gui-tests],[do not compile GUI tests (default is to compile if GUI and tests enabled)]),
-    [use_gui_tests=$enableval],
-    [use_gui_tests=$use_tests])
-
 AC_ARG_ENABLE(bench,
     AS_HELP_STRING([--disable-bench],[do not compile benchmarks (default is to compile)]),
     [use_bench=$enableval],
@@ -143,11 +137,14 @@ AC_ARG_ENABLE([extended-functional-tests],
     [use_extended_functional_tests=$enableval],
     [use_extended_functional_tests=no])
 
-AC_ARG_WITH([qrencode],
-  [AS_HELP_STRING([--with-qrencode],
-  [enable QR code support (default is yes if qt is enabled and libqrencode is found)])],
-  [use_qr=$withval],
-  [use_qr=auto])
+AC_ARG_WITH([gui],
+  [AS_HELP_STRING([--without-gui],
+  [build without the removed Qt GUI wallet (the only supported mode)])],
+  [case $withval in
+     no) ;;
+     *) AC_MSG_ERROR([Qt GUI wallet support has been removed; use --without-gui or omit --with-gui]) ;;
+   esac],
+  [])
 
 AC_ARG_ENABLE([hardening],
   [AS_HELP_STRING([--disable-hardening],
@@ -206,8 +203,6 @@ AC_ARG_ENABLE([zmq],
   [disable ZMQ notifications])],
   [use_zmq=$enableval],
   [use_zmq=yes])
-
-AC_ARG_WITH([protoc-bindir],[AS_HELP_STRING([--with-protoc-bindir=BIN_DIR],[specify protoc bin path])], [protoc_bin_path=$withval], [])
 
 AC_ARG_ENABLE(man,
     [AS_HELP_STRING([--disable-man],
@@ -413,7 +408,6 @@ case $host in
 
          openssl_prefix=`$BREW --prefix openssl 2>/dev/null`
          bdb_prefix=`$BREW --prefix berkeley-db 2>/dev/null`
-         qt5_prefix=`$BREW --prefix qt5 2>/dev/null`
          if test x$openssl_prefix != x; then
            PKG_CONFIG_PATH="$openssl_prefix/lib/pkgconfig:$PKG_CONFIG_PATH"
            export PKG_CONFIG_PATH
@@ -421,10 +415,6 @@ case $host in
          if test x$bdb_prefix != x; then
            CPPFLAGS="$CPPFLAGS -I$bdb_prefix/include"
            LIBS="$LIBS -L$bdb_prefix/lib"
-         fi
-         if test x$qt5_prefix != x; then
-           PKG_CONFIG_PATH="$qt5_prefix/lib/pkgconfig:$PKG_CONFIG_PATH"
-           export PKG_CONFIG_PATH
          fi
        fi
      else
@@ -755,12 +745,7 @@ if test x$have_miniupnpc != xno; then
 fi
 fi
 
-HEMP0X_QT_INIT
-
-dnl sets $hemp0x_enable_qt, $hemp0x_enable_qt_test, $hemp0x_enable_qt_dbus
-HEMP0X_QT_CONFIGURE([$use_pkgconfig], [qt5])
-
-if test x$build_hemp0x_cli$build_hemp0x_tx$build_hemp0xd$hemp0x_enable_qt$use_tests$use_bench = xnononononono; then
+if test x$build_hemp0x_cli$build_hemp0x_tx$build_hemp0xd$use_tests$use_bench = xnonononono; then
     use_boost=no
 else
     use_boost=yes
@@ -942,11 +927,7 @@ if test x$use_pkgconfig = xyes; then
     [
       PKG_CHECK_MODULES([SSL], [libssl],, [AC_MSG_ERROR(openssl  not found.)])
       PKG_CHECK_MODULES([CRYPTO], [libcrypto],,[AC_MSG_ERROR(libcrypto  not found.)])
-      HEMP0X_QT_CHECK([PKG_CHECK_MODULES([PROTOBUF], [protobuf], [have_protobuf=yes], [HEMP0X_QT_FAIL(libprotobuf not found)])])
-      if test x$use_qr != xno; then
-        HEMP0X_QT_CHECK([PKG_CHECK_MODULES([QR], [libqrencode], [have_qrencode=yes], [have_qrencode=no])])
-      fi
-      if test x$build_hemp0x_cli$build_hemp0x_tx$build_hemp0xd$hemp0x_enable_qt$use_tests != xnonononono; then
+      if test x$build_hemp0x_cli$build_hemp0x_tx$build_hemp0xd$use_tests != xnononono; then
         PKG_CHECK_MODULES([EVENT], [libevent],, [AC_MSG_ERROR(libevent not found.)])
         if test x$TARGET_OS != xwindows; then
           PKG_CHECK_MODULES([EVENT_PTHREADS], [libevent_pthreads],, [AC_MSG_ERROR(libevent_pthreads not found.)])
@@ -971,7 +952,7 @@ else
   AC_CHECK_HEADER([openssl/ssl.h],, AC_MSG_ERROR(libssl headers missing),)
   AC_CHECK_LIB([ssl],         [main],SSL_LIBS=-lssl, AC_MSG_ERROR(libssl missing))
 
-  if test x$build_hemp0x_cli$build_hemp0x_tx$build_hemp0xd$hemp0x_enable_qt$use_tests != xnonononono; then
+  if test x$build_hemp0x_cli$build_hemp0x_tx$build_hemp0xd$use_tests != xnononono; then
     AC_CHECK_HEADER([event2/event.h],, AC_MSG_ERROR(libevent headers missing),)
     AC_CHECK_LIB([event],[main],EVENT_LIBS=-levent,AC_MSG_ERROR(libevent missing))
     if test x$TARGET_OS != xwindows; then
@@ -1002,11 +983,6 @@ else
     esac
   fi
 
-  HEMP0X_QT_CHECK(AC_CHECK_LIB([protobuf] ,[main],[PROTOBUF_LIBS=-lprotobuf], HEMP0X_QT_FAIL(libprotobuf not found)))
-  if test x$use_qr != xno; then
-    HEMP0X_QT_CHECK([AC_CHECK_LIB([qrencode], [main],[QR_LIBS=-lqrencode], [have_qrencode=no])])
-    HEMP0X_QT_CHECK([AC_CHECK_HEADER([qrencode.h],, have_qrencode=no)])
-  fi
 fi
 
 save_CXXFLAGS="${CXXFLAGS}"
@@ -1020,7 +996,7 @@ dnl univalue check
 
 need_bundled_univalue=yes
 
-if test x$build_hemp0x_cli$build_hemp0x_tx$build_hemp0xd$hemp0x_enable_qt$use_tests$use_bench = xnonononono; then
+if test x$build_hemp0x_cli$build_hemp0x_tx$build_hemp0xd$use_tests$use_bench = xnonononono; then
   need_bundled_univalue=no
 else
 
@@ -1063,8 +1039,6 @@ fi
 AM_CONDITIONAL([EMBEDDED_UNIVALUE],[test x$need_bundled_univalue = xyes])
 AC_SUBST(UNIVALUE_CFLAGS)
 AC_SUBST(UNIVALUE_LIBS)
-
-HEMP0X_QT_PATH_PROGS([PROTOC], [protoc],$protoc_bin_path)
 
 AC_MSG_CHECKING([whether to build hemp0xd])
 AM_CONDITIONAL([BUILD_HEMP0XD], [test x$build_hemp0xd = xyes])
@@ -1144,46 +1118,6 @@ else
   fi
 fi
 
-dnl these are only used when qt is enabled
-BUILD_TEST_QT=""
-if test x$hemp0x_enable_qt != xno; then
-  dnl enable dbus support
-  AC_MSG_CHECKING([whether to build GUI with support for D-Bus])
-  if test x$hemp0x_enable_qt_dbus != xno; then
-    AC_DEFINE([USE_DBUS],[1],[Define if dbus support should be compiled in])
-  fi
-  AC_MSG_RESULT($hemp0x_enable_qt_dbus)
-
-  dnl enable qr support
-  AC_MSG_CHECKING([whether to build GUI with support for QR codes])
-  if test x$have_qrencode = xno; then
-    if test x$use_qr = xyes; then
-     AC_MSG_ERROR("QR support requested but cannot be built. use --without-qrencode")
-    fi
-    AC_MSG_RESULT(no)
-  else
-    if test x$use_qr != xno; then
-      AC_MSG_RESULT(yes)
-      AC_DEFINE([USE_QRCODE],[1],[Define if QR support should be compiled in])
-      use_qr=yes
-    else
-      AC_MSG_RESULT(no)
-    fi
-  fi
-
-  if test x$XGETTEXT = x; then
-    AC_MSG_WARN("xgettext is required to update qt translations")
-  fi
-
-  AC_MSG_CHECKING([whether to build test_hemp0x-qt])
-  if test x$use_gui_tests$hemp0x_enable_qt_test = xyesyes; then
-    AC_MSG_RESULT([yes])
-    BUILD_TEST_QT="yes"
-  else
-    AC_MSG_RESULT([no])
-  fi
-fi
-
 AM_CONDITIONAL([ENABLE_ZMQ], [test "x$use_zmq" = "xyes"])
 
 AC_MSG_CHECKING([whether to build test_hemp0x])
@@ -1202,8 +1136,8 @@ else
   AC_MSG_RESULT([no])
 fi
 
-if test x$build_hemp0x_cli$build_hemp0x_tx$build_hemp0x_libs$build_hemp0xd$hemp0x_enable_qt$use_bench$use_tests = xnonononononono; then
-  AC_MSG_ERROR([No targets! Please specify at least one of: --with-cli --with-tx --with-libs --with-daemon --with-gui --enable-bench or --enable-tests])
+if test x$build_hemp0x_cli$build_hemp0x_tx$build_hemp0x_libs$build_hemp0xd$use_bench$use_tests = xnononononono; then
+  AC_MSG_ERROR([No targets! Please specify at least one of: --with-cli --with-tx --with-libs --with-daemon --enable-bench or --enable-tests])
 fi
 
 AM_CONDITIONAL([TARGET_DARWIN], [test x$TARGET_OS = xdarwin])
@@ -1211,10 +1145,7 @@ AM_CONDITIONAL([BUILD_DARWIN], [test x$BUILD_OS = xdarwin])
 AM_CONDITIONAL([TARGET_WINDOWS], [test x$TARGET_OS = xwindows])
 AM_CONDITIONAL([ENABLE_WALLET],[test x$enable_wallet = xyes])
 AM_CONDITIONAL([ENABLE_TESTS],[test x$BUILD_TEST = xyes])
-AM_CONDITIONAL([ENABLE_QT],[test x$hemp0x_enable_qt = xyes])
-AM_CONDITIONAL([ENABLE_QT_TESTS],[test x$BUILD_TEST_QT = xyes])
 AM_CONDITIONAL([ENABLE_BENCH],[test x$use_bench = xyes])
-AM_CONDITIONAL([USE_QRCODE], [test x$use_qr = xyes])
 AM_CONDITIONAL([USE_LCOV],[test x$use_lcov = xyes])
 AM_CONDITIONAL([GLIBC_BACK_COMPAT],[test x$use_glibc_compat = xyes])
 AM_CONDITIONAL([HARDEN],[test x$use_hardening = xyes])
@@ -1241,7 +1172,6 @@ AC_SUBST(COPYRIGHT_HOLDERS, "_COPYRIGHT_HOLDERS")
 AC_SUBST(COPYRIGHT_HOLDERS_SUBSTITUTION, "_COPYRIGHT_HOLDERS_SUBSTITUTION")
 AC_SUBST(COPYRIGHT_HOLDERS_FINAL, "_COPYRIGHT_HOLDERS_FINAL")
 AC_SUBST(HEMP0X_DAEMON_NAME)
-AC_SUBST(HEMP0X_GUI_NAME)
 AC_SUBST(HEMP0X_CLI_NAME)
 AC_SUBST(HEMP0X_TX_NAME)
 
@@ -1256,7 +1186,6 @@ AC_SUBST(PIE_FLAGS)
 AC_SUBST(SSE42_CXXFLAGS)
 AC_SUBST(LIBTOOL_APP_LDFLAGS)
 AC_SUBST(USE_UPNP)
-AC_SUBST(USE_QRCODE)
 AC_SUBST(BOOST_LIBS)
 AC_SUBST(TESTDEFS)
 AC_SUBST(LEVELDB_TARGET_FLAGS)
@@ -1267,9 +1196,7 @@ AC_SUBST(SSL_LIBS)
 AC_SUBST(EVENT_LIBS)
 AC_SUBST(EVENT_PTHREADS_LIBS)
 AC_SUBST(ZMQ_LIBS)
-AC_SUBST(PROTOBUF_LIBS)
-AC_SUBST(QR_LIBS)
-AC_CONFIG_FILES([Makefile src/Makefile doc/man/Makefile share/setup.nsi share/qt/Info.plist test/config.ini])
+AC_CONFIG_FILES([Makefile src/Makefile doc/man/Makefile share/setup.nsi test/config.ini])
 AC_CONFIG_FILES([contrib/devtools/split-debug.sh],[chmod +x contrib/devtools/split-debug.sh])
 AM_COND_IF([HAVE_DOXYGEN], [AC_CONFIG_FILES([doc/Doxyfile])])
 AC_CONFIG_LINKS([contrib/filter-lcov.py:contrib/filter-lcov.py])
@@ -1333,11 +1260,6 @@ echo "Options used to compile and link:"
 echo "  build hemp0x-cli = $build_hemp0x_cli"
 echo "  build hemp0x-tx  = $build_hemp0x_tx"
 echo "  with wallet     = $enable_wallet"
-echo "  with gui / qt   = $hemp0x_enable_qt"
-if test x$hemp0x_enable_qt != xno; then
-    echo "    qt version    = $hemp0x_qt_got_major_vers"
-    echo "    with qr       = $use_qr"
-fi
 echo "  with zmq        = $use_zmq"
 echo "  with test       = $use_tests"
 echo "  with bench      = $use_bench"

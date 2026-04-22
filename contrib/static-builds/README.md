@@ -83,18 +83,8 @@ sudo make install
 cd ~/
 mkdir win64 && cd win64/
 ```
-Transfer hemp0x-*-win*-unsigned.tar.gz to ~/win64/ from the Ubuntu 18 build machine's ~/sign directory  
-```
-tar xf $DISTNAME-win*-unsigned.tar.gz
-rm $DISTNAME-win*-unsigned.tar.gz
-./detached-sig-create.sh -key /path/to/codesign.pvk
-```
-Enter the passphrase for the key when prompted
-```
-tar xf signature-win.tar.gz 
-osslsigncode attach-signature -in "unsigned/$DISTNAME-win64-setup-unsigned.exe" -out "$DISTNAME-win64-setup.exe" -sigin "win/$DISTNAME-win64-setup-unsigned.exe.pem"
-```
-Transfer hemp0x-*-win*-setup.exe back to the Ubuntu18 build machine to the folder ~/release (to shasum with the rest of the releases)
+Transfer the generated Windows archive back to the Ubuntu 18 build machine to
+the folder ~/release.
 
 
 
@@ -118,17 +108,7 @@ sudo make install
 cd ~/
 mkdir win32 && cd win32/
 ```
-Transfer hemp0x-*-win*-unsigned.tar.gz to ~/win32/ from the Ubuntu 18 build machine's ~/sign directory  
-```
-tar xf $DISTNAME-win*-unsigned.tar.gz
-rm $DISTNAME-win*-unsigned.tar.gz
-./detached-sig-create.sh -key /path/to/codesign.pvk
-```
-Enter the passphrase for the key when prompted
-```
-tar xf signature-win.tar.gz 
-osslsigncode attach-signature -in "unsigned/$DISTNAME-win32-setup-unsigned.exe" -out "$DISTNAME-win32-setup.exe" -sigin "win/$DISTNAME-win32-setup-unsigned.exe.pem"
-```
+Transfer the generated Windows archive back to the Ubuntu 18 build machine.
 Transfer hemp0x-*-win*-setup.exe back to the Ubuntu18 build machine to the folder ~/release (to shasum with the rest of the releases)
 
 
@@ -148,34 +128,11 @@ Transfer hemp0x-*-osx-unsigned.tar.gz to ~/desktop/OSX from the Ubuntu 18 build 
 cd OSX
 tar xf $DISTNAME-osx-unsigned.tar.gz
 ```
-Acquire a code signing certifacte from apple follwoing the instructions here:
-https://developer.apple.com/library/archive/documentation/Security/Conceptual/CodeSigningGuide/Procedures/Procedures.html#//apple_ref/doc/uid/TP40005929-CH4-SW2
-
-Where  "Key ID" is the name of the private key used to generate your codesigning certificate
-```
-./detached-sig-create.sh -s "Key ID" 
-```
-Enter the keychain password and authorize the signature  
-Copy signature-osx.tar.gz back to the ubuntu 18 build machine
-
 From the ubuntu 18 bionic server(required) build machine
 ```
 DISTNAME=hemp0x-2.0.1
-cd ~/sign
-mkdir OSX/
-cp $DISTNAME-osx-unsigned.tar.gz OSX
-cd OSX
-tar -xf $DISTNAME-osx-unsigned.tar.gz 
-```
-Transfer signature-osx.tar.gz to ~/sign/OSX from the MacOS device
-```
-tar -xf signature-osx.tar.gz
-OSX_VOLNAME="$(cat osx_volname)"
-./detached-sig-apply.sh $DISTNAME-osx-unsigned.tar.gz osx
-./genisoimage -no-cache-inodes -D -l -probe -V "${OSX_VOLNAME}" -no-pad -r -dir-mode 0755 -apple -o uncompressed.dmg signed-app
-./dmg dmg uncompressed.dmg ~/release/$DISTNAME-osx.dmg
-cd ~/sign
-rm -rf OSX
+cd ~/release
+sha256sum $DISTNAME-osx.tar.gz
 ```
 
 
@@ -214,6 +171,5 @@ rm SHA256SUMS
 ```
 
 Upload all the releases and SHA256SUMS.asc to github
-
 
 

@@ -11,7 +11,8 @@ with each other, with the help of a P2P network to check for double-spending.
 
 Setup
 -----
-Unpack the files into a directory and run hemp0x-qt.exe.
+Unpack the files into a directory and run hemp0xd.exe, or control a running
+daemon with hemp0x-cli.exe.
 
 Hemp0x Core is the original Hemp0x client and it builds the backbone of the network.
 However, it downloads and stores the entire history of Hemp0x transactions;

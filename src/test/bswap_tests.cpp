@@ -14,7 +14,7 @@ BOOST_FIXTURE_TEST_SUITE(bswap_tests, BasicTestingSetup)
     {
         BOOST_TEST_MESSAGE("Running bSwap Test");
 
-        // Sibling in hemp0x/src/qt/test/compattests.cpp
+        // Matches the compatibility behavior expected by the old GUI tests.
         uint16_t u1 = 0x1234;
         uint32_t u2 = 0x56789abc;
         uint64_t u3 = 0xdef0123456789abc;

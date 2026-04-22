@@ -20,9 +20,8 @@
 
 #if !defined(bswap_16)
 
-// Mac OS X / Darwin features; we include a check for bswap_16 because if it is already defined, protobuf has
-// defined these macros for us already; if it isn't, we do it ourselves. In either case, we get the exact same
-// result regardless which path was taken
+// Mac OS X / Darwin features; define byte-swap macros if the platform has not
+// already provided them.
 #include <libkern/OSByteOrder.h>
 #define bswap_16(x) OSSwapInt16(x)
 #define bswap_32(x) OSSwapInt32(x)

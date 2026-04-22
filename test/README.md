@@ -5,8 +5,8 @@ etc.
 
 There are currently two sets of tests in this directory:
 
-- [functional](/test/functional) which test the functionality of 
-hemp0xd and hemp0x-qt by interacting with them through the RPC and P2P
+- [functional](/test/functional) which test the functionality of
+hemp0xd by interacting with it through the RPC and P2P
 interfaces.
 - [util](test/util) which tests the hemp0x utilities, currently only
 hemp0x-tx.

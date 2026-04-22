@@ -12,10 +12,10 @@ make HOST=x86_64-linux-gnu -j4
 cd ~/hemp0x
 export PATH=$PWD/depends/x86_64-linux-gnu/native/bin:$PATH
 sudo ./autogen.sh
-CONFIG_SITE=$PWD/depends/x86_64-linux-gnu/share/config.site ./configure --prefix=/ --disable-ccache --disable-maintainer-mode --disable-dependency-tracking --enable-glibc-back-compat --enable-reduce-exports --disable-bench --disable-gui-tests CFLAGS="-O2 -g" CXXFLAGS="-O2 -g" LDFLAGS="-static-libstdc++"
-make -j4 
+CONFIG_SITE=$PWD/depends/x86_64-linux-gnu/share/config.site ./configure --prefix=/ --disable-ccache --disable-maintainer-mode --disable-dependency-tracking --enable-glibc-back-compat --enable-reduce-exports --disable-bench CFLAGS="-O2 -g" CXXFLAGS="-O2 -g" LDFLAGS="-static-libstdc++"
+make -j4
 make -C src check-security
-make -C src check-symbols 
+make -C src check-symbols
 mkdir ~/linux64
 make install DESTDIR=~/linux64/$DISTNAME
 cd ~/linux64
@@ -96,9 +96,9 @@ unset HOST_ID_SALT
 cd ~/hemp0x
 export PATH=$PWD/depends/i686-pc-linux-gnu/native/bin:$PATH
 sudo ./autogen.sh
-CONFIG_SITE=$PWD/depends/i686-pc-linux-gnu/share/config.site ./configure --prefix=/ --disable-ccache --disable-maintainer-mode --disable-dependency-tracking --enable-glibc-back-compat --enable-reduce-exports --disable-bench --disable-gui-tests CFLAGS="-O2 -g" CXXFLAGS="-O2 -g" LDFLAGS="-static-libstdc++"
-make -j4 
-make -C src check-security 
+CONFIG_SITE=$PWD/depends/i686-pc-linux-gnu/share/config.site ./configure --prefix=/ --disable-ccache --disable-maintainer-mode --disable-dependency-tracking --enable-glibc-back-compat --enable-reduce-exports --disable-bench CFLAGS="-O2 -g" CXXFLAGS="-O2 -g" LDFLAGS="-static-libstdc++"
+make -j4
+make -C src check-security
 mkdir ~/linux32
 make install DESTDIR=~/linux32/$DISTNAME
 cd ~/linux32
@@ -131,8 +131,8 @@ make HOST=arm-linux-gnueabihf -j4
 cd ~/hemp0x
 export PATH=$PWD/depends/arm-linux-gnueabihf/native/bin:$PATH
 sudo ./autogen.sh
-CONFIG_SITE=$PWD/depends/arm-linux-gnueabihf/share/config.site ./configure --prefix=/ --disable-ccache --disable-maintainer-mode --disable-dependency-tracking --enable-glibc-back-compat --enable-reduce-exports --disable-bench --disable-gui-tests CFLAGS="-O2 -g" CXXFLAGS="-O2 -g" LDFLAGS="-static-libstdc++"
-make -j4 
+CONFIG_SITE=$PWD/depends/arm-linux-gnueabihf/share/config.site ./configure --prefix=/ --disable-ccache --disable-maintainer-mode --disable-dependency-tracking --enable-glibc-back-compat --enable-reduce-exports --disable-bench CFLAGS="-O2 -g" CXXFLAGS="-O2 -g" LDFLAGS="-static-libstdc++"
+make -j4
 make -C src check-security
 mkdir ~/linuxARM
 make install DESTDIR=~/linuxARM/$DISTNAME
@@ -165,8 +165,8 @@ make HOST=aarch64-linux-gnu -j4
 cd ~/hemp0x
 export PATH=$PWD/depends/aarch64-linux-gnu/native/bin:$PATH
 sudo ./autogen.sh
-CONFIG_SITE=$PWD/depends/aarch64-linux-gnu/share/config.site ./configure --prefix=/ --disable-ccache --disable-maintainer-mode --disable-dependency-tracking --enable-glibc-back-compat --enable-reduce-exports --disable-bench --disable-gui-tests CFLAGS="-O2 -g" CXXFLAGS="-O2 -g" LDFLAGS="-static-libstdc++"
-make -j4 
+CONFIG_SITE=$PWD/depends/aarch64-linux-gnu/share/config.site ./configure --prefix=/ --disable-ccache --disable-maintainer-mode --disable-dependency-tracking --enable-glibc-back-compat --enable-reduce-exports --disable-bench CFLAGS="-O2 -g" CXXFLAGS="-O2 -g" LDFLAGS="-static-libstdc++"
+make -j4
 make -C src check-security
 mkdir ~/linuxaarch64
 make install DESTDIR=~/linuxaarch64/$DISTNAME
@@ -204,8 +204,8 @@ make HOST=x86_64-w64-mingw32 -j4
 cd ~/hemp0x
 export PATH=$PWD/depends/x86_64-w64-mingw32/native/bin:$PATH
 sudo ./autogen.sh
-CONFIG_SITE=$PWD/depends/x86_64-w64-mingw32/share/config.site ./configure --prefix=/ --disable-ccache --disable-maintainer-mode --disable-dependency-tracking --enable-reduce-exports --disable-bench --disable-gui-tests CFLAGS="-O2 -g" CXXFLAGS="-O2 -g"
-make -j4 
+CONFIG_SITE=$PWD/depends/x86_64-w64-mingw32/share/config.site ./configure --prefix=/ --disable-ccache --disable-maintainer-mode --disable-dependency-tracking --enable-reduce-exports --disable-bench CFLAGS="-O2 -g" CXXFLAGS="-O2 -g"
+make -j4
 make -C src check-security
 make deploy
 rename 's/-setup\.exe$/-setup-unsigned.exe/' *-setup.exe
@@ -239,7 +239,7 @@ export PATH=$PATH_orig
 
 
 # Signing windows 64 binaries #
-From an Ubuntu 16.04 xenial machine !important (openssl 1.0.2 required)  
+From an Ubuntu 16.04 xenial machine !important (openssl 1.0.2 required)
 This process requires core to have a pvk file (kept secret)and a cert in PEM format(from comodo) as a part of the repo at contrib/windeploy
 ```
 cd ~/
@@ -255,12 +255,12 @@ make
 sudo make install
 cd ~/
 mkdir win64 && cd win64/
-#transfer hemp0x-*-win*-unsigned.tar.gz to ~/win64/  
+#transfer hemp0x-*-win*-unsigned.tar.gz to ~/win64/
 tar xf $DISTNAME-win*-unsigned.tar.gz
 rm $DISTNAME-win*-unsigned.tar.gz
 ./detached-sig-create.sh -key /path/to/codesign.pvk
 #Enter the passphrase for the key when prompted
-tar xf signature-win.tar.gz 
+tar xf signature-win.tar.gz
 osslsigncode attach-signature -in "unsigned/$DISTNAME-win64-setup-unsigned.exe" -out "$DISTNAME-win64-setup.exe" -sigin "win/$DISTNAME-win64-setup-unsigned.exe.pem"
 #transfer hemp0x-*-win*-setup.exe back to the Ubuntu18 build machine to the folder ~/release (to shasum with the rest of the releases)
 ```
@@ -286,8 +286,8 @@ make HOST=i686-w64-mingw32 -j4
 cd ~/hemp0x
 export PATH=$PWD/depends/i686-w64-mingw32/native/bin:$PATH
 sudo ./autogen.sh
-CONFIG_SITE=$PWD/depends/i686-w64-mingw32/share/config.site ./configure --prefix=/ --disable-ccache --disable-maintainer-mode --disable-dependency-tracking --enable-reduce-exports --disable-bench --disable-gui-tests CFLAGS="-O2 -g" CXXFLAGS="-O2 -g"
-make -j4 
+CONFIG_SITE=$PWD/depends/i686-w64-mingw32/share/config.site ./configure --prefix=/ --disable-ccache --disable-maintainer-mode --disable-dependency-tracking --enable-reduce-exports --disable-bench CFLAGS="-O2 -g" CXXFLAGS="-O2 -g"
+make -j4
 make -C src check-security
 make deploy
 rename 's/-setup\.exe$/-setup-unsigned.exe/' *-setup.exe
@@ -321,7 +321,7 @@ export PATH=$PATH_orig
 
 
 # Signing windows 32 binaries #
-From an Ubuntu 16.04 xenial machine !important (openssl 1.0.2 required)  
+From an Ubuntu 16.04 xenial machine !important (openssl 1.0.2 required)
 This process requires core to have a pvk file (kept secret)and a cert in PEM format(from comodo) as a part of the repo at contrib/windeploy
 ```
 cd ~/
@@ -337,12 +337,12 @@ make
 sudo make install
 cd ~/
 mkdir win32 && cd win32/
-#transfer hemp0x-*-win*-unsigned.tar.gz to ~/win32/  
+#transfer hemp0x-*-win*-unsigned.tar.gz to ~/win32/
 tar xf $DISTNAME-win*-unsigned.tar.gz
 rm $DISTNAME-win*-unsigned.tar.gz
 ./detached-sig-create.sh -key /path/to/codesign.pvk
 #Enter the passphrase for the key when prompted
-tar xf signature-win.tar.gz 
+tar xf signature-win.tar.gz
 osslsigncode attach-signature -in "unsigned/$DISTNAME-win32-setup-unsigned.exe" -out "$DISTNAME-win32-setup.exe" -sigin "win/$DISTNAME-win32-setup-unsigned.exe.pem"
 # Transfer hemp0x-*-win*-setup.exe back to the Ubuntu18 build machine to the folder ~/release (to shasum with the rest of the releases)
 ```
@@ -357,7 +357,7 @@ sudo apt install git p7zip-full sleuthkit
 git clone https://github.com/hemp0x/hemp0x-core
 mkdir ~/dmg && cd ~/dmg
 #Register for a developer account with Apple, then download the Xcode 7.3.1 dmg from: https://developer.apple.com/devcenter/download.action?path=/Developer_Tools/Xcode_9.4.1/Xcode_9.4.1.dmg
-#Transfer Xcode_7.3.1.dmg to the target machine into ~/dmg 
+#Transfer Xcode_7.3.1.dmg to the target machine into ~/dmg
 ~/hemp0x/contrib/macdeploy/extract-osx-sdk.sh
 rm -rf 5.hfs MacOSX10.11.sdk Xcode_7.3.1.dmg
 # Save MacOSX10.11.sdk.tar.gz somewhere safe for future builds
@@ -375,29 +375,19 @@ sudo apt install ca-certificates curl g++ git pkg-config autoconf librsvg2-bin l
 git clone https://github.com/hemp0x/hemp0x-core
 mkdir ~/hemp0x/depends/SDKs
 #transfer MacOSX10.11.sdk.tar.gz to the folder hemp0x/depends/SDKs
-cd hemp0x/depends/SDKs && tar -xf MacOSX10.11.sdk.tar.gz 
-rm MacOSX10.11.sdk.tar.gz 
+cd hemp0x/depends/SDKs && tar -xf MacOSX10.11.sdk.tar.gz
+rm MacOSX10.11.sdk.tar.gz
 cd ~/hemp0x/depends
 make -j4 HOST="x86_64-apple-darwin14"
 cd ~/hemp0x
 sudo ./autogen.sh
-CONFIG_SITE=$PWD/depends/x86_64-apple-darwin14/share/config.site ./configure --prefix=/ --disable-ccache --disable-maintainer-mode --disable-dependency-tracking --enable-reduce-exports --disable-bench --disable-gui-tests GENISOIMAGE=$PWD/depends/x86_64-apple-darwin14/native/bin/genisoimage
-make -j4 
+CONFIG_SITE=$PWD/depends/x86_64-apple-darwin14/share/config.site ./configure --prefix=/ --disable-ccache --disable-maintainer-mode --disable-dependency-tracking --enable-reduce-exports --disable-bench
+make -j4
 mkdir ~/OSX
 export PATH=$PWD/depends/x86_64-apple-darwin14/native/bin:$PATH
 make install-strip DESTDIR=~/OSX/$DISTNAME
-make osx_volname
-make deploydir
-mkdir -p unsigned-app-$DISTNAME
-cp osx_volname unsigned-app-$DISTNAME/
-cp contrib/macdeploy/detached-sig-apply.sh unsigned-app-$DISTNAME
-cp contrib/macdeploy/detached-sig-create.sh unsigned-app-$DISTNAME
-cp $PWD/depends/x86_64-apple-darwin14/native/bin/dmg $PWD/depends/x86_64-apple-darwin14/native/bin/genisoimage unsigned-app-$DISTNAME
-cp $PWD/depends/x86_64-apple-darwin14/native/bin/x86_64-apple-darwin14-codesign_allocate unsigned-app-$DISTNAME/codesign_allocate
-cp $PWD/depends/x86_64-apple-darwin14/native/bin/x86_64-apple-darwin14-pagestuff unsigned-app-$DISTNAME/pagestuff
-mv dist unsigned-app-$DISTNAME
-cd unsigned-app-$DISTNAME
-find . | sort | tar --no-recursion --mode='u+rw,go+r-w,a+X' --owner=0 --group=0 -c -T - | gzip -9n > ~/sign/$DISTNAME-osx-unsigned.tar.gz
+cd ~/OSX
+find . | sort | tar --no-recursion --mode='u+rw,go+r-w,a+X' --owner=0 --group=0 -c -T - | gzip -9n > ~/release/$DISTNAME-osx.tar.gz
 cd ~/hemp0x
 make deploy
 $PWD/depends/x86_64-apple-darwin14/native/bin/dmg dmg "Hemp0x-Core.dmg" ~/release/unsigned/$DISTNAME-osx-unsigned.dmg
@@ -429,7 +419,7 @@ tar xf $DISTNAME-osx-unsigned.tar.gz
 #acquire a code signing certifacte from apple follwoing the instructions here:
 #https://developer.apple.com/library/archive/documentation/Security/Conceptual/CodeSigningGuide/Procedures/Procedures.html#//apple_ref/doc/uid/TP40005929-CH4-SW2
 #where  "Key ID" is the name of the private key used to generate your codesigning certificate
-./detached-sig-create.sh -s "Key ID" 
+./detached-sig-create.sh -s "Key ID"
 #Enter the keychain password and authorize the signature
 #Copy signature-osx.tar.gz back to the ubuntu 18 build machine
 ```
@@ -440,7 +430,7 @@ cd ~/sign
 mkdir OSX/
 cp $DISTNAME-osx-unsigned.tar.gz OSX
 cd OSX
-tar -xf $DISTNAME-osx-unsigned.tar.gz 
+tar -xf $DISTNAME-osx-unsigned.tar.gz
 # transfer signature-osx.tar.gz to ~/sign/OSX
 tar -xf signature-osx.tar.gz
 OSX_VOLNAME="$(cat osx_volname)"
@@ -475,9 +465,8 @@ sha256sum $DISTNAME-win64.zip >> SHA256SUMS
 sha256sum $DISTNAME-win64-setup.exe >> SHA256SUMS
 sha256sum $DISTNAME-x86_64-linux-gnu.tar.gz >> SHA256SUMS
 gpg --digest-algo sha256 --clearsign SHA256SUMS
-#enter your password 
+#enter your password
 rm SHA256SUMS
 # Upload all the releases and SHA256SUMS.asc to github
 ```
-
 

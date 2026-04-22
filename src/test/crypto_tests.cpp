@@ -328,7 +328,7 @@ BOOST_FIXTURE_TEST_SUITE(crypto_tests, BasicTestingSetup)
         TestSHA256("This is exactly 64 bytes long, not counting the terminating byte",
                    "ab64eff7e88e2e46165e29f2bce41826bd4c7b3552f6b382a9e7d3af47c245f8");
         TestSHA256("As Hemp0x relies on 80 byte header hashes, we want to have an example for that.",
-                   "4890d7540fe4604653a5108c012bb0d4ec15580dcfda37d85755830ec1037f26");
+                   "ce312cad6b48fe44a7c89ce13c18dda67db184113b1e1664a40b8f082211a549");
         TestSHA256(std::string(1000000, 'a'),
                    "cdc76e5c9914fb9281a1c7e284d73e67f1809a48a497200e046d39ccc7112cd0");
         TestSHA256(test1, "a316d55510b49662420f49d145d42fb83f31ef8dc016aa4e32df049991a91e26");

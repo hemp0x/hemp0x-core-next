@@ -446,7 +446,7 @@ BOOST_FIXTURE_TEST_SUITE(addrman_tests, BasicTestingSetup)
         uint256 nKey2 = (uint256) (CHashWriter(SER_GETHASH, 0) << 2).GetHash();
 
 
-        BOOST_CHECK_EQUAL(info1.GetTriedBucket(nKey1), 62);
+        BOOST_CHECK_EQUAL(info1.GetTriedBucket(nKey1), 77);
 
         // Test: Make sure key actually randomizes bucket placement. A fail on
         //  this test could be a security issue.

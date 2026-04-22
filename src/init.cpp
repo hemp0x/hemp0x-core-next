@@ -199,8 +199,6 @@ void PrepareShutdown()
 #ifdef ENABLE_WALLET
     FlushWallets();
 #endif
-    GenerateHemp0xs(false, 0, GetParams());
-
     MapPort(false);
 
     // Because these depend on each-other, we make sure that neither can be
@@ -1374,10 +1372,6 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
     if (!VerifyWallets())
         return false;
 #endif
-
-    bool fGenerate = gArgs.GetBoolArg("-regtest", false) ? false : DEFAULT_GENERATE;
-    // Generate coins in the background
-    GenerateHemp0xs(fGenerate, gArgs.GetArg("-genproclimit", DEFAULT_GENERATE_THREADS), chainparams);
 
     // ********************************************************* Step 6: network initialization
     // Note that we absolutely cannot open any actual connections

@@ -223,8 +223,6 @@ Threads
 
 - ThreadRPCServer : Remote procedure call handler, listens on port 8766 for connections and services them.
 
-- Hemp0xMiner : Generates hemp0xs (if wallet is enabled).
-
 - Shutdown : Does an orderly shutdown of everything.
 
 Ignoring IDE/editor files

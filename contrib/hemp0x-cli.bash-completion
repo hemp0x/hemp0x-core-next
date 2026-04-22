@@ -97,7 +97,7 @@ _hemp0x_cli() {
             _filedir
             return 0
             ;;
-        getaddednodeinfo|getrawmempool|lockunspent|setgenerate)
+        getaddednodeinfo|getrawmempool|lockunspent)
             COMPREPLY=( $( compgen -W "true false" -- "$cur" ) )
             return 0
             ;;

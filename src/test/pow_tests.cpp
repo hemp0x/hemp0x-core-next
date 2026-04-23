@@ -25,7 +25,7 @@ BOOST_FIXTURE_TEST_SUITE(pow_tests, BasicTestingSetup)
         pindexLast.nHeight = 32255;
         pindexLast.nTime = 1262152739;  // Block #32255
         pindexLast.nBits = 0x1e00ffff;
-        BOOST_CHECK_EQUAL(CalculateNextWorkRequired(&pindexLast, nLastRetargetTime, chainParams->GetConsensus()), (uint64_t)0x1e03fffc);
+        BOOST_CHECK_EQUAL(CalculateNextWorkRequired(&pindexLast, nLastRetargetTime, chainParams->GetConsensus()), (uint64_t)0x1e01b0d4);
     }
 
     /* Test the constraint on the upper bound for next work */
@@ -39,7 +39,7 @@ BOOST_FIXTURE_TEST_SUITE(pow_tests, BasicTestingSetup)
         pindexLast.nHeight = 2015;
         pindexLast.nTime = 1233061996;  // Block #2015
         pindexLast.nBits = 0x1e00ffff;
-        BOOST_CHECK_EQUAL(CalculateNextWorkRequired(&pindexLast, nLastRetargetTime, chainParams->GetConsensus()), (uint64_t)0x1e03fffc);
+        BOOST_CHECK_EQUAL(CalculateNextWorkRequired(&pindexLast, nLastRetargetTime, chainParams->GetConsensus()), (uint64_t)0x1e036609);
     }
 
     /* Test the constraint on the lower bound for actual time taken */
@@ -53,7 +53,7 @@ BOOST_FIXTURE_TEST_SUITE(pow_tests, BasicTestingSetup)
         pindexLast.nHeight = 68543;
         pindexLast.nTime = 1279297671;  // Block #68543
         pindexLast.nBits = 0x1e00ffff;
-        BOOST_CHECK_EQUAL(CalculateNextWorkRequired(&pindexLast, nLastRetargetTime, chainParams->GetConsensus()), (uint64_t)0x1e02648c);
+        BOOST_CHECK_EQUAL(CalculateNextWorkRequired(&pindexLast, nLastRetargetTime, chainParams->GetConsensus()), (uint64_t)0x1d7a8287);
     }
 
     /* Test the constraint on the upper bound for actual time taken */

@@ -14,7 +14,14 @@
 #include "version.h"
 
 #include <stdint.h>
+#include <cstdio>
 #include <fstream>
+
+#ifndef WIN32
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#endif
 
 /**
  * JSON-RPC protocol.  Hemp0x speaks version 1.0 for maximum compatibility,
@@ -79,6 +86,13 @@ static fs::path GetAuthCookieFile(bool temp=false)
     return path;
 }
 
+#ifndef WIN32
+static bool SetAuthCookiePermissions(const fs::path& filepath)
+{
+    return chmod(filepath.string().c_str(), S_IRUSR | S_IWUSR) == 0;
+}
+#endif
+
 bool GenerateAuthCookie(std::string *cookie_out)
 {
     const size_t COOKIE_SIZE = 32;
@@ -86,25 +100,58 @@ bool GenerateAuthCookie(std::string *cookie_out)
     GetRandBytes(rand_pwd, COOKIE_SIZE);
     std::string cookie = COOKIEAUTH_USER + ":" + HexStr(rand_pwd, rand_pwd+COOKIE_SIZE);
 
-    /** the umask determines what permissions are used to create this file -
-     * these are set to 077 in init.cpp unless overridden with -sysperms.
-     */
-    std::ofstream file;
     fs::path filepath_tmp = GetAuthCookieFile(true);
-    file.open(filepath_tmp.string().c_str());
+#ifdef WIN32
+    std::ofstream file(filepath_tmp.string().c_str(), std::ofstream::out | std::ofstream::trunc);
     if (!file.is_open()) {
-        LogPrintf("Unable to open cookie authentication file %s for writing\n", filepath_tmp.string());
+        LogPrintf("Unable to open RPC authentication cookie file for writing\n");
         return false;
     }
     file << cookie;
     file.close();
+#else
+    /** The process umask is set to 077 in init.cpp unless overridden with
+     * -sysperms. Keep that default behavior, but also explicitly restrict the
+     * cookie file itself on POSIX systems.
+     */
+    const int fd = open(filepath_tmp.string().c_str(), O_CREAT | O_TRUNC | O_WRONLY, S_IRUSR | S_IWUSR);
+    if (fd < 0) {
+        LogPrintf("Unable to open RPC authentication cookie file for writing\n");
+        return false;
+    }
+    FILE* file = fdopen(fd, "w");
+    if (file == nullptr) {
+        close(fd);
+        LogPrintf("Unable to open RPC authentication cookie file for writing\n");
+        return false;
+    }
+    const size_t written = fwrite(cookie.data(), 1, cookie.size(), file);
+    const int close_result = fclose(file);
+    if (written != cookie.size() || close_result != 0) {
+        fs::remove(filepath_tmp);
+        LogPrintf("Unable to write RPC authentication cookie file\n");
+        return false;
+    }
+    if (!SetAuthCookiePermissions(filepath_tmp)) {
+        fs::remove(filepath_tmp);
+        LogPrintf("Unable to set restrictive permissions on RPC authentication cookie file\n");
+        return false;
+    }
+#endif
 
     fs::path filepath = GetAuthCookieFile(false);
     if (!RenameOver(filepath_tmp, filepath)) {
-        LogPrintf("Unable to rename cookie authentication file %s to %s\n", filepath_tmp.string(), filepath.string());
+        fs::remove(filepath_tmp);
+        LogPrintf("Unable to rename RPC authentication cookie file into place\n");
         return false;
     }
-    LogPrintf("Generated RPC authentication cookie %s\n", filepath.string());
+#ifndef WIN32
+    if (!SetAuthCookiePermissions(filepath)) {
+        LogPrintf("Unable to set restrictive permissions on RPC authentication cookie file\n");
+        return false;
+    }
+#endif
+    LogPrintf("Generated RPC authentication cookie\n");
 
     if (cookie_out)
         *cookie_out = cookie;

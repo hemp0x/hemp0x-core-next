@@ -158,6 +158,7 @@ BASE_SCRIPTS= [
     'wallet_txn_clone.py --mineblock',
     'interface_rpc.py',
     'rpc_signmessage.py',
+    'rpc_help_compatibility.py',
     'rpc_deprecated.py',
     'wallet_coinbase_category.py',
     'wallet_txn_doublespend.py',

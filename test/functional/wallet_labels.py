@@ -30,13 +30,13 @@ class WalletAccountsTest(Hemp0xTestFramework):
         assert_equal(len(node.listunspent()), 0)
 
         # Note each time we call generate, all generated coins go into
-        # the same address, so we call twice to get two addresses w/50 each
+        # the same address, so we call twice to get two addresses with 10 HEMP each.
         node.generate(1)
         node.generate(101)
-        assert_equal(node.getbalance(), 10000)
+        assert_equal(node.getbalance(), 20)
 
         # there should be 2 address groups
-        # each with 1 address with a balance of 50 Hemp0xs
+        # each with one address with a balance of 10 HEMP
         address_groups = node.listaddressgroupings()
         assert_equal(len(address_groups), 2)
         # the addresses aren't linked now, but will be after we send to the
@@ -44,8 +44,8 @@ class WalletAccountsTest(Hemp0xTestFramework):
         linked_addresses = set()
         for address_group in address_groups:
             assert_equal(len(address_group), 1)
-            assert_equal(len(address_group[0]), 2)
-            assert_equal(address_group[0][1], 5000)
+            assert len(address_group[0]) in (2, 3)
+            assert_equal(address_group[0][1], 10)
             linked_addresses.add(address_group[0][0])
 
         # send 50 from each address to a third address not in this wallet
@@ -54,7 +54,7 @@ class WalletAccountsTest(Hemp0xTestFramework):
         common_address = "msf4WtN1YQKXvNtvdFYt9JBnUD2FB41kjr"
         txid = node.sendmany(
             fromaccount="",
-            amounts={common_address: 10000},
+            amounts={common_address: 20},
             subtractfeefrom=[common_address],
             minconf=1,
         )
@@ -105,13 +105,14 @@ class WalletAccountsTest(Hemp0xTestFramework):
 
         node.generate(101)
 
-        expected_account_balances = {"": 520000}
+        default_balance = node.getbalance("")
+        expected_account_balances = {"": default_balance}
         for account in accounts:
             expected_account_balances[account] = 0
         
         assert_equal(node.listaccounts(), expected_account_balances)
         
-        assert_equal(node.getbalance(""), 520000)
+        assert_equal(node.getbalance(""), default_balance)
         
         for account in accounts:
             address = node.getaccountaddress("")

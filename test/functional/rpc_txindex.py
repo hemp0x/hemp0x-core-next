@@ -63,8 +63,8 @@ class TxIndexTest(Hemp0xTestFramework):
 
         # Check verbose raw transaction results
         verbose = self.nodes[3].getrawtransaction(unspent[0]["txid"], 1)
-        assert_equal(verbose["vout"][0]["valueSat"], 500000000000)
-        assert_equal(verbose["vout"][0]["value"], 5000)
+        assert_equal(verbose["vout"][0]["valueSat"], 1000000000)
+        assert_equal(verbose["vout"][0]["value"], 10)
 
         self.log.info("All Tests Passed")
 

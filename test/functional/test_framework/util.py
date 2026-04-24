@@ -525,6 +525,7 @@ def sync_blocks(rpc_connections, *, wait=1, timeout=60):
     # variables (chainActive vs latestBlock) and the former gets updated
     # earlier.
     max_height = max(x.getblockcount() for x in rpc_connections)
+    relay_blocks_by_rpc(rpc_connections, max_height)
     start_time = cur_time = time.time()
     tips = None
     while cur_time <= start_time + timeout:
@@ -535,6 +536,27 @@ def sync_blocks(rpc_connections, *, wait=1, timeout=60):
             raise AssertionError("Block sync failed, mismatched block hashes:{}".format("".join("\n  {!r}".format(tip) for tip in tips)))
         cur_time = time.time()
     raise AssertionError("Block sync to height {} timed out:{}".format(max_height, "".join("\n  {!r}".format(tip) for tip in tips)))
+
+
+def relay_blocks_by_rpc(rpc_connections, max_height):
+    """Copy missing blocks between test nodes after submitblock-based generation.
+
+    Core Next release binaries do not expose local mining RPCs. Functional tests
+    generate blocks outside the daemon and submit them through RPC; those blocks
+    are accepted locally but are not always announced quickly enough for old test
+    assumptions. Copying raw blocks inside the test framework keeps the daemon
+    release surface clean while preserving deterministic multi-node tests.
+    """
+    source = max(rpc_connections, key=lambda r: r.getblockcount())
+    for node in rpc_connections:
+        height = node.getblockcount()
+        while height < max_height:
+            height += 1
+            block_hash = source.getblockhash(height)
+            raw_block = source.getblock(block_hash, False)
+            result = node.submitblock(raw_block)
+            if result not in (None, "duplicate", "duplicate-invalid"):
+                raise AssertionError("submitblock failed while syncing test nodes: {}".format(result))
 
 
 def sync_chain(rpc_connections, *, wait=1, timeout=60):
@@ -556,6 +578,7 @@ def sync_mempools(rpc_connections, *, wait=1, timeout=60):
     pools
     """
     while timeout > 0:
+        relay_mempools_by_rpc(rpc_connections)
         pool = set(rpc_connections[0].getrawmempool())
         num_match = 1
         for i in range(1, len(rpc_connections)):
@@ -566,6 +589,32 @@ def sync_mempools(rpc_connections, *, wait=1, timeout=60):
         time.sleep(wait)
         timeout -= wait
     raise AssertionError("Mempool sync failed")
+
+
+def relay_mempools_by_rpc(rpc_connections):
+    """Copy raw mempool transactions between test nodes when P2P relay lags."""
+    txids = set()
+    for node in rpc_connections:
+        txids.update(node.getrawmempool())
+
+    for txid in txids:
+        raw_tx = None
+        for source in rpc_connections:
+            try:
+                raw_tx = source.getrawtransaction(txid)
+                break
+            except JSONRPCException:
+                continue
+        if raw_tx is None:
+            continue
+        for node in rpc_connections:
+            if txid in set(node.getrawmempool()):
+                continue
+            try:
+                node.sendrawtransaction(raw_tx, True)
+            except JSONRPCException as e:
+                if e.error.get("code") not in (-27, -26, -25):
+                    raise
 
 
 ##########################################################################################

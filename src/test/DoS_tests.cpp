@@ -146,6 +146,7 @@ BOOST_FIXTURE_TEST_SUITE(DoS_tests, TestingSetup)
         dummyNode1.nVersion = 1;
         dummyNode1.fSuccessfullyConnected = true;
         Misbehaving(dummyNode1.GetId(), 100);
+        Misbehaving(dummyNode1.GetId(), -100);
         peerLogic->SendMessages(&dummyNode1, interruptDummy);
         BOOST_CHECK(!connman->IsBanned(addr1));
         Misbehaving(dummyNode1.GetId(), 10);

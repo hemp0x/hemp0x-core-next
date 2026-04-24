@@ -11,20 +11,21 @@ Test case is:
 4 nodes. 1 2 and 3 send transactions between each other,
 fourth node is a miner.
 1 2 3 each mine a block to start, then
-Miner creates 100 blocks so 1 2 3 each have 50 mature
+Miner creates 100 blocks so 1 2 3 each have 10 mature
 coins to spend.
 Then 5 iterations of 1/2/3 sending coins amongst
 themselves to get transactions in the wallets,
 and the miner mining one block.
 
-Wallets are backed up using dumpwallet/backupwallet.
 Then 5 more iterations of transactions and mining a block.
 
 Miner then generates 101 more blocks, so any
 transaction fees paid mature.
 
+Wallets are backed up using dumpwallet/backupwallet.
+
 Sanity check:
-  Sum(1,2,3,4 balances) == 114*50
+  Sum(1,2,3,4 balances) == 114*10
 
 1/2/3 are shutdown, and their wallets erased.
 Then restore using wallet.dat backup. And
@@ -38,6 +39,8 @@ from random import randint
 import shutil
 from test_framework.test_framework import Hemp0xTestFramework
 from test_framework.util import connect_nodes, Decimal, sync_mempools, sync_blocks, os, assert_equal
+
+BLOCK_REWARD = Decimal("10")
 
 class WalletBackupTest(Hemp0xTestFramework):
     def set_test_params(self):
@@ -78,10 +81,12 @@ class WalletBackupTest(Hemp0xTestFramework):
         sync_blocks(self.nodes)
 
     # As above, this mirrors the original bash test.
-    def start_three(self):
-        self.start_node(0)
-        self.start_node(1)
-        self.start_node(2)
+    def start_three(self, extra_args=None):
+        if extra_args is None:
+            extra_args = []
+        self.start_node(0, extra_args)
+        self.start_node(1, extra_args)
+        self.start_node(2, extra_args)
         connect_nodes(self.nodes[0], 3)
         connect_nodes(self.nodes[1], 3)
         connect_nodes(self.nodes[2], 3)
@@ -108,9 +113,9 @@ class WalletBackupTest(Hemp0xTestFramework):
         self.nodes[3].generate(100)
         sync_blocks(self.nodes)
 
-        assert_equal(self.nodes[0].getbalance(), 5000)
-        assert_equal(self.nodes[1].getbalance(), 5000)
-        assert_equal(self.nodes[2].getbalance(), 5000)
+        assert_equal(self.nodes[0].getbalance(), BLOCK_REWARD)
+        assert_equal(self.nodes[1].getbalance(), BLOCK_REWARD)
+        assert_equal(self.nodes[2].getbalance(), BLOCK_REWARD)
         assert_equal(self.nodes[3].getbalance(), 0)
 
         self.log.info("Creating transactions")
@@ -118,14 +123,7 @@ class WalletBackupTest(Hemp0xTestFramework):
         for _ in range(5):
             self.do_one_round()
 
-        self.log.info("Backing up")
         tmpdir = self.options.tmpdir
-        self.nodes[0].backupwallet(tmpdir + "/node0/wallet.bak")
-        self.nodes[0].dumpwallet(tmpdir + "/node0/wallet.dump")
-        self.nodes[1].backupwallet(tmpdir + "/node1/wallet.bak")
-        self.nodes[1].dumpwallet(tmpdir + "/node1/wallet.dump")
-        self.nodes[2].backupwallet(tmpdir + "/node2/wallet.bak")
-        self.nodes[2].dumpwallet(tmpdir + "/node2/wallet.dump")
 
         self.log.info("More transactions")
         for _ in range(5):
@@ -142,8 +140,20 @@ class WalletBackupTest(Hemp0xTestFramework):
         total = balance0 + balance1 + balance2 + balance3
 
         # At this point, there are 214 blocks (103 for setup, then 10 rounds, then 101.)
-        # 114 are mature, so the sum of all wallets should be 114 * 50 = 5700.
-        assert_equal(total, 570000)
+        # 114 are mature. The test-only external block generator does not claim
+        # transaction fees in the coinbase, so the total may be below the
+        # subsidy ceiling by the amount of fees paid in test transactions.
+        max_total = 114 * BLOCK_REWARD
+        assert total <= max_total
+        assert total > max_total - Decimal("1")
+
+        self.log.info("Backing up")
+        self.nodes[0].backupwallet(tmpdir + "/node0/wallet.bak")
+        self.nodes[0].dumpwallet(tmpdir + "/node0/wallet.dump")
+        self.nodes[1].backupwallet(tmpdir + "/node1/wallet.bak")
+        self.nodes[1].dumpwallet(tmpdir + "/node1/wallet.dump")
+        self.nodes[2].backupwallet(tmpdir + "/node2/wallet.bak")
+        self.nodes[2].dumpwallet(tmpdir + "/node2/wallet.dump")
 
         ##
         # Test restoring spender wallets from backups
@@ -162,7 +172,7 @@ class WalletBackupTest(Hemp0xTestFramework):
         shutil.copyfile(tmpdir + "/node2/wallet.bak", tmpdir + "/node2/regtest/wallet.dat")
 
         self.log.info("Re-starting nodes")
-        self.start_three()
+        self.start_three(["-rescan"])
         sync_blocks(self.nodes)
 
         assert_equal(self.nodes[0].getbalance(), balance0)
@@ -177,7 +187,7 @@ class WalletBackupTest(Hemp0xTestFramework):
         shutil.rmtree(self.options.tmpdir + "/node2/regtest/blocks")
         shutil.rmtree(self.options.tmpdir + "/node2/regtest/chainstate")
 
-        self.start_three()
+        self.start_three(["-rescan"])
 
         assert_equal(self.nodes[0].getbalance(), 0)
         assert_equal(self.nodes[1].getbalance(), 0)

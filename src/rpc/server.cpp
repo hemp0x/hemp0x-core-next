@@ -56,6 +56,16 @@ struct RPCServerInfo
 
 static RPCServerInfo g_rpc_server_info;
 
+static std::string RPCMethodForLog(const std::string& method)
+{
+    static const size_t MAX_LOGGED_RPC_METHOD_LENGTH = 100;
+    std::string sanitized = SanitizeString(method);
+    if (sanitized.size() > MAX_LOGGED_RPC_METHOD_LENGTH) {
+        sanitized = sanitized.substr(0, MAX_LOGGED_RPC_METHOD_LENGTH) + "...";
+    }
+    return sanitized;
+}
+
 struct RPCCommandExecution
 {
     std::list<RPCCommandExecutionInfo>::iterator it;
@@ -456,7 +466,7 @@ void JSONRPCRequest::parse(const UniValue& valRequest)
     if (!valMethod.isStr())
         throw JSONRPCError(RPC_INVALID_REQUEST, "Method must be a string");
     strMethod = valMethod.get_str();
-    LogPrint(BCLog::RPC, "ThreadRPCServer method=%s\n", SanitizeString(strMethod));
+    LogPrint(BCLog::RPC, "ThreadRPCServer method=%s\n", RPCMethodForLog(strMethod));
 
     // Parse params
     UniValue valParams = find_value(request, "params");

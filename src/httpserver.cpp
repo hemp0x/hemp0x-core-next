@@ -210,11 +210,16 @@ static bool InitHTTPAllowList()
         }
         rpc_allow_subnets.push_back(subnet);
     }
-    std::string strAllowed;
-    for (const CSubNet& subnet : rpc_allow_subnets)
-        strAllowed += subnet.ToString() + " ";
-    LogPrint(BCLog::HTTP, "Allowing HTTP connections from: %s\n", strAllowed);
+    const unsigned int configured_subnets = gArgs.GetArgs("-rpcallowip").size();
+    LogPrint(BCLog::HTTP, "Allowing HTTP connections from %u subnet(s): %u local, %u configured by -rpcallowip\n",
+             static_cast<unsigned int>(rpc_allow_subnets.size()), 2U, configured_subnets);
     return true;
+}
+
+static std::string RequestURIForLog(const std::string& uri)
+{
+    const size_t query = uri.find('?');
+    return uri.substr(0, query);
 }
 
 /** HTTP request method as string - use for logging only */
@@ -243,8 +248,8 @@ static void http_request_cb(struct evhttp_request* req, void* arg)
 {
     std::unique_ptr<HTTPRequest> hreq(new HTTPRequest(req));
 
-    LogPrint(BCLog::HTTP, "Received a %s request for %s from %s\n",
-             RequestMethodString(hreq->GetRequestMethod()), hreq->GetURI(), hreq->GetPeer().ToString());
+    LogPrint(BCLog::HTTP, "Received a %s request for %s\n",
+             RequestMethodString(hreq->GetRequestMethod()), RequestURIForLog(hreq->GetURI()));
 
     // Early address-based allow check
     if (!ClientAllowed(hreq->GetPeer())) {
@@ -318,6 +323,7 @@ static bool HTTPBindAddresses(struct evhttp* http)
     if (!gArgs.IsArgSet("-rpcallowip")) { // Default to loopback if not allowing external IPs
         endpoints.push_back(std::make_pair("::1", defaultPort));
         endpoints.push_back(std::make_pair("127.0.0.1", defaultPort));
+        LogPrintf("HTTP: RPC/HTTP interface is limited to loopback addresses by default\n");
         if (gArgs.IsArgSet("-rpcbind")) {
             LogPrintf("WARNING: option -rpcbind was ignored because -rpcallowip was not specified, refusing to allow everyone to connect\n");
         }
@@ -328,9 +334,11 @@ static bool HTTPBindAddresses(struct evhttp* http)
             SplitHostPort(strRPCBind, port, host);
             endpoints.push_back(std::make_pair(host, port));
         }
+        LogPrintf("WARNING: RPC/HTTP interface is configured with -rpcallowip and %u explicit bind endpoint(s); review -rpcbind and -rpcallowip settings carefully\n", static_cast<unsigned int>(endpoints.size()));
     } else { // No specific bind address specified, bind to any
         endpoints.push_back(std::make_pair("::", defaultPort));
         endpoints.push_back(std::make_pair("0.0.0.0", defaultPort));
+        LogPrintf("WARNING: RPC/HTTP interface is configured with -rpcallowip and will bind on all network interfaces; use -rpcbind to narrow exposure\n");
     }
 
     // Bind addresses

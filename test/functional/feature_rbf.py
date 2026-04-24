@@ -69,12 +69,15 @@ class ReplaceByFeeTest(Hemp0xTestFramework):
     def set_test_params(self):
         self.num_nodes = 2
         self.extra_args = [["-maxorphantx=1000",
+                            "-mempoolreplacement=1",
+                            "-minrelaytxfee=0.00001",
                             "-whitelist=127.0.0.1",
                             "-limitancestorcount=50",
                             "-limitancestorsize=101",
                             "-limitdescendantcount=200",
                             "-limitdescendantsize=101"],
-                           ["-mempoolreplacement=0"]]
+                           ["-mempoolreplacement=0",
+                            "-minrelaytxfee=0.00001"]]
 
     def run_test(self):
         # Leave IBD
@@ -548,23 +551,25 @@ class ReplaceByFeeTest(Hemp0xTestFramework):
 
     def test_rpc(self):
         us0 = self.nodes[0].listunspent()[0]
-        ins = [us0]
         outs = {self.nodes[0].getnewaddress(): Decimal(1.0000000)}
-        rawtx0 = self.nodes[0].createrawtransaction(ins, outs, 0, True)
-        rawtx1 = self.nodes[0].createrawtransaction(ins, outs, 0, False)
+
+        ins_rbf = [us0.copy()]
+        ins_rbf[0]["sequence"] = 4294967293
+        ins_final = [us0.copy()]
+        ins_final[0]["sequence"] = 4294967295
+
+        rawtx0 = self.nodes[0].createrawtransaction(ins_rbf, outs)
+        rawtx1 = self.nodes[0].createrawtransaction(ins_final, outs)
         json0 = self.nodes[0].decoderawtransaction(rawtx0)
         json1 = self.nodes[0].decoderawtransaction(rawtx1)
         assert_equal(json0["vin"][0]["sequence"], 4294967293)
         assert_equal(json1["vin"][0]["sequence"], 4294967295)
 
         rawtx2 = self.nodes[0].createrawtransaction([], outs)
-        f_raw_tx2a = self.nodes[0].fundrawtransaction(rawtx2, {"replaceable": True})
-        f_raw_tx2b = self.nodes[0].fundrawtransaction(rawtx2, {"replaceable": False})
+        f_raw_tx2 = self.nodes[0].fundrawtransaction(rawtx2)
 
-        json0 = self.nodes[0].decoderawtransaction(f_raw_tx2a['hex'])
-        json1 = self.nodes[0].decoderawtransaction(f_raw_tx2b['hex'])
-        assert_equal(json0["vin"][0]["sequence"], 4294967293)
-        assert_equal(json1["vin"][0]["sequence"], 4294967294)
+        json2 = self.nodes[0].decoderawtransaction(f_raw_tx2['hex'])
+        assert_equal(json2["vin"][0]["sequence"], 4294967294)
 
 
 if __name__ == '__main__':

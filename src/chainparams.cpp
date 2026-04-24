@@ -91,11 +91,11 @@ bool CChainParams::BIP34() {
 }
 
 bool CChainParams::BIP65() {
-	return consensus.nBIP34Enabled;
+	return consensus.nBIP65Enabled;
 }
 
 bool CChainParams::BIP66() {
-	return consensus.nBIP34Enabled;
+	return consensus.nBIP66Enabled;
 }
 
 bool CChainParams::CSVEnabled() const{

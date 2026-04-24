@@ -1418,6 +1418,19 @@ bool IsInitialSyncSpeedUp()
 
 CBlockIndex *pindexBestForkTip = nullptr, *pindexBestForkBase = nullptr;
 
+static std::string BlockIndexLogString(const CBlockIndex* pindex)
+{
+    if (!pindex) {
+        return "null";
+    }
+
+    return strprintf("height=%d hash=%s work=%s time=%s",
+                     pindex->nHeight,
+                     pindex->GetBlockHash().ToString(),
+                     pindex->nChainWork.GetHex(),
+                     DateTimeStrFormat("%Y-%m-%d %H:%M:%S", pindex->GetBlockTime()));
+}
+
 static void AlertNotify(const std::string& strMessage)
 {
     uiInterface.NotifyAlertChanged();
@@ -3495,6 +3508,17 @@ static bool ActivateBestChainStep(CValidationState& state, const CChainParams& c
         }
         fBlocksDisconnected = true;
     }
+    if (fBlocksDisconnected) {
+        const int nDisconnected = pindexOldTip && pindexFork ? pindexOldTip->nHeight - pindexFork->nHeight : 0;
+        const int nToConnect = pindexFork ? pindexMostWork->nHeight - pindexFork->nHeight : pindexMostWork->nHeight + 1;
+        LogPrintf("%s: reorganizing active chain: old_tip=(%s) fork=(%s) new_tip=(%s) disconnect=%d connect=%d\n",
+                  __func__,
+                  BlockIndexLogString(pindexOldTip),
+                  BlockIndexLogString(pindexFork),
+                  BlockIndexLogString(pindexMostWork),
+                  nDisconnected,
+                  nToConnect);
+    }
 
     // Build list of new blocks to connect.
     std::vector<CBlockIndex*> vpindexToConnect;
@@ -4139,11 +4163,16 @@ static bool ContextualCheckBlockHeader(const CBlockHeader& block, CValidationSta
     if (fGreaterThanMaxReorg && g_connman) {
         int nCurrentNodeCount = g_connman->GetNodeCount(CConnman::CONNECTIONS_ALL);
         bool bIsCurrentChainCaughtUp = (GetTime() - chainActive.Tip()->nTime) <= nMinReorgAge;
-        if ((nCurrentNodeCount >= nMinReorgPeers) && bIsCurrentChainCaughtUp)
+        if ((nCurrentNodeCount >= nMinReorgPeers) && bIsCurrentChainCaughtUp) {
+            LogPrintf("%s: rejecting deep fork candidate: fork_height=%d active_height=%d depth=%d max_depth=%d peers=%d min_peers=%d active_tip_age=%d min_age=%d\n",
+                      __func__, nHeight, chainActive.Height(), chainActive.Height() - (nHeight - 1),
+                      nMaxReorgDepth, nCurrentNodeCount, nMinReorgPeers,
+                      GetTime() - chainActive.Tip()->nTime, nMinReorgAge);
             return state.DoS(10,
                              error("%s: forked chain older than max reorganization depth (height %d), with connections (count %d), and caught up with active chain (%s)",
                                    __func__, nHeight, nCurrentNodeCount, bIsCurrentChainCaughtUp ? "true" : "false"),
                              REJECT_MAXREORGDEPTH, "bad-fork-prior-to-maxreorgdepth");
+        }
     }
 
     // Check proof of work

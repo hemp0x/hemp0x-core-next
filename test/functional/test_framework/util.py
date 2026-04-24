@@ -547,15 +547,18 @@ def relay_blocks_by_rpc(rpc_connections, max_height):
     assumptions. Copying raw blocks inside the test framework keeps the daemon
     release surface clean while preserving deterministic multi-node tests.
     """
-    source = max(rpc_connections, key=lambda r: r.getblockcount())
+    source = max(rpc_connections, key=lambda r: (r.getblockcount(), r.getblockchaininfo()["chainwork"]))
+    source_height = source.getblockcount()
     for node in rpc_connections:
-        height = node.getblockcount()
-        while height < max_height:
-            height += 1
+        common_height = min(node.getblockcount(), source_height)
+        while common_height > 0 and node.getblockhash(common_height) != source.getblockhash(common_height):
+            common_height -= 1
+
+        for height in range(common_height + 1, max_height + 1):
             block_hash = source.getblockhash(height)
             raw_block = source.getblock(block_hash, False)
             result = node.submitblock(raw_block)
-            if result not in (None, "duplicate", "duplicate-invalid"):
+            if result not in (None, "duplicate", "duplicate-invalid", "inconclusive"):
                 raise AssertionError("submitblock failed while syncing test nodes: {}".format(result))
 
 

@@ -7,7 +7,7 @@
 """Test the wallet accounts properly when there are cloned transactions with malleated scriptsigs."""
 
 from test_framework.test_framework import Hemp0xTestFramework
-from test_framework.util import disconnect_nodes, assert_equal, sync_blocks, connect_nodes
+from test_framework.util import Decimal, disconnect_nodes, assert_equal, sync_blocks, connect_nodes
 
 class TxnMallTest(Hemp0xTestFramework):
     def set_test_params(self):
@@ -25,9 +25,29 @@ class TxnMallTest(Hemp0xTestFramework):
         disconnect_nodes(self.nodes[1], 2)
         disconnect_nodes(self.nodes[2], 1)
 
+    def bootstrap_chain_if_needed(self):
+        if self.nodes[0].getblockcount() != 0:
+            return
+
+        connect_nodes(self.nodes[1], 2)
+        connect_nodes(self.nodes[2], 1)
+        for _ in range(2):
+            for peer in range(4):
+                for _ in range(25):
+                    self.nodes[peer].generate(1)
+                sync_blocks(self.nodes)
+        disconnect_nodes(self.nodes[1], 2)
+        disconnect_nodes(self.nodes[2], 1)
+
     def run_test(self):
-        # All nodes should start with 1,250 HEMP:
-        starting_balance = 125000
+        self.bootstrap_chain_if_needed()
+
+        # All nodes should start with 250 HEMP from the cached chain:
+        starting_balance = Decimal("250")
+        fund_foo_amount = Decimal("2.438")
+        fund_bar_amount = Decimal("0.058")
+        tx1_amount = Decimal("0.08")
+        tx2_amount = Decimal("0.04")
         for i in range(4):
             assert_equal(self.nodes[i].getbalance(), starting_balance)
             self.nodes[i].getnewaddress("")  # bug workaround, coins generated assigned to first getnewaddress!
@@ -36,22 +56,22 @@ class TxnMallTest(Hemp0xTestFramework):
         self.nodes[0].settxfee(.001)
 
         node0_address_foo = self.nodes[0].getnewaddress("foo")
-        fund_foo_txid = self.nodes[0].sendfrom("", node0_address_foo, 1219)
+        fund_foo_txid = self.nodes[0].sendfrom("", node0_address_foo, fund_foo_amount)
         fund_foo_tx = self.nodes[0].gettransaction(fund_foo_txid)
 
         node0_address_bar = self.nodes[0].getnewaddress("bar")
-        fund_bar_txid = self.nodes[0].sendfrom("", node0_address_bar, 29)
+        fund_bar_txid = self.nodes[0].sendfrom("", node0_address_bar, fund_bar_amount)
         fund_bar_tx = self.nodes[0].gettransaction(fund_bar_txid)
 
         assert_equal(self.nodes[0].getbalance(""),
-                     starting_balance - 1219 - 29 + fund_foo_tx["fee"] + fund_bar_tx["fee"])
+                     starting_balance - fund_foo_amount - fund_bar_amount + fund_foo_tx["fee"] + fund_bar_tx["fee"])
 
         # Coins are sent to node1_address
         node1_address = self.nodes[1].getnewaddress("from0")
 
         # Send tx1, and another transaction tx2 that won't be cloned 
-        txid1 = self.nodes[0].sendfrom("foo", node1_address, 40, 0)
-        txid2 = self.nodes[0].sendfrom("bar", node1_address, 20, 0)
+        txid1 = self.nodes[0].sendfrom("foo", node1_address, tx1_amount, 0)
+        txid2 = self.nodes[0].sendfrom("bar", node1_address, tx2_amount, 0)
 
         # Construct a clone of tx1, to be malleated 
         rawtx1 = self.nodes[0].getrawtransaction(txid1,1)
@@ -63,12 +83,12 @@ class TxnMallTest(Hemp0xTestFramework):
 
         # createrawtransaction randomizes the order of its outputs, so swap them if necessary.
         # output 0 is at version+#inputs+input+sigstub+sequence+#outputs
-        # 40 HEMP serialized is 00286bee00000000
+        # 0.08 HEMP serialized is 00127a0000000000
         pos0 = 2*(4+1+36+1+4+1)
-        hex40 = "00286bee00000000"
+        hex_tx1_amount = "00127a0000000000"
         output_len = 16 + 2 + 2 * int("0x" + clone_raw[pos0 + 16 : pos0 + 16 + 2], 0)
-        if (rawtx1["vout"][0]["value"] == 40 and clone_raw[pos0 : pos0 + 16] != hex40 or
-            rawtx1["vout"][0]["value"] != 40 and clone_raw[pos0 : pos0 + 16] == hex40):
+        if (rawtx1["vout"][0]["value"] == tx1_amount and clone_raw[pos0 : pos0 + 16] != hex_tx1_amount or
+            rawtx1["vout"][0]["value"] != tx1_amount and clone_raw[pos0 : pos0 + 16] == hex_tx1_amount):
             output0 = clone_raw[pos0 : pos0 + output_len]
             output1 = clone_raw[pos0 + output_len : pos0 + 2 * output_len]
             clone_raw = clone_raw[:pos0] + output1 + output0 + clone_raw[pos0 + 2 * output_len:]
@@ -86,17 +106,17 @@ class TxnMallTest(Hemp0xTestFramework):
         tx1 = self.nodes[0].gettransaction(txid1)
         tx2 = self.nodes[0].gettransaction(txid2)
 
-        # Node0's balance should be starting balance, plus 50HEMP for another
+        # Node0's balance should be starting balance, plus 10 HEMP for another
         # matured block, minus tx1 and tx2 amounts, and minus transaction fees:
         expected = starting_balance + fund_foo_tx["fee"] + fund_bar_tx["fee"]
-        if self.options.mine_block: expected += 5000
+        if self.options.mine_block: expected += 10
         expected += tx1["amount"] + tx1["fee"]
         expected += tx2["amount"] + tx2["fee"]
         assert_equal(self.nodes[0].getbalance(), expected)
 
         # foo and bar accounts should be debited:
-        assert_equal(self.nodes[0].getbalance("foo", 0), 1219 + tx1["amount"] + tx1["fee"])
-        assert_equal(self.nodes[0].getbalance("bar", 0), 29 + tx2["amount"] + tx2["fee"])
+        assert_equal(self.nodes[0].getbalance("foo", 0), fund_foo_amount + tx1["amount"] + tx1["fee"])
+        assert_equal(self.nodes[0].getbalance("bar", 0), fund_bar_amount + tx2["amount"] + tx2["fee"])
 
         if self.options.mine_block:
             assert_equal(tx1["confirmations"], 1)
@@ -130,30 +150,29 @@ class TxnMallTest(Hemp0xTestFramework):
         assert_equal(tx1_clone["confirmations"], 2)
         assert_equal(tx2["confirmations"], 1)
 
-        # Check node0's total balance; should be same as before the clone, + 100 HEMP for 2 matured,
+        # Check node0's total balance; should be same as before the clone, + 20 HEMP for 2 matured,
         # less possible orphaned matured subsidy
-        expected += 10000
+        expected += 20
         if self.options.mine_block:
-            expected -= 5000
+            expected -= 10
         assert_equal(self.nodes[0].getbalance(), expected)
         assert_equal(self.nodes[0].getbalance("*", 0), expected)
 
         # Check node0's individual account balances.
         # "foo" should have been debited by the equivalent clone of tx1
-        assert_equal(self.nodes[0].getbalance("foo"), 1219 + tx1["amount"] + tx1["fee"])
+        assert_equal(self.nodes[0].getbalance("foo"), fund_foo_amount + tx1["amount"] + tx1["fee"])
         # "bar" should have been debited by (possibly unconfirmed) tx2
-        assert_equal(self.nodes[0].getbalance("bar", 0), 29 + tx2["amount"] + tx2["fee"])
+        assert_equal(self.nodes[0].getbalance("bar", 0), fund_bar_amount + tx2["amount"] + tx2["fee"])
         # "" should have starting balance, less funding txes, plus subsidies
         assert_equal(self.nodes[0].getbalance("", 0), starting_balance
-                                                                - 1219
+                                                                - fund_foo_amount
                                                                 + fund_foo_tx["fee"]
-                                                                -   29
+                                                                - fund_bar_amount
                                                                 + fund_bar_tx["fee"]
-                                                                +  10000)
+                                                                +  20)
 
         # Node1's "from0" account balance
         assert_equal(self.nodes[1].getbalance("from0", 0), -(tx1["amount"] + tx2["amount"]))
 
 if __name__ == '__main__':
     TxnMallTest().main()
-

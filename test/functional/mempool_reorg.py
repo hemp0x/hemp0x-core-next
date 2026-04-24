@@ -12,6 +12,9 @@ that spend (directly or indirectly) coinbase transactions.
 from test_framework.test_framework import Hemp0xTestFramework
 from test_framework.util import (assert_equal, create_tx, assert_raises_rpc_error)
 
+COINBASE_SPEND = 9.99
+CHILD_SPEND = 9.98
+
 # Create one-input, one-output, no-fee transaction:
 class MempoolCoinbaseTest(Hemp0xTestFramework):
     def set_test_params(self):
@@ -22,6 +25,9 @@ class MempoolCoinbaseTest(Hemp0xTestFramework):
 
     def run_test(self):
         # Start with a 200 block chain
+        if self.nodes[0].getblockcount() == 0:
+            self.nodes[0].generate(200)
+            self.sync_all()
         assert_equal(self.nodes[0].getblockcount(), 200)
 
         # Mine four blocks. After this, nodes[0] blocks
@@ -40,12 +46,12 @@ class MempoolCoinbaseTest(Hemp0xTestFramework):
         # and make sure the mempool code behaves correctly.
         b = [ self.nodes[0].getblockhash(n) for n in range(101, 105) ]
         coinbase_txids = [ self.nodes[0].getblock(h)['tx'][0] for h in b ]
-        spend_101_raw = create_tx(self.nodes[0], coinbase_txids[1], node1_address, 4999.99)
-        spend_102_raw = create_tx(self.nodes[0], coinbase_txids[2], node0_address, 4999.99)
-        spend_103_raw = create_tx(self.nodes[0], coinbase_txids[3], node0_address, 4999.99)
+        spend_101_raw = create_tx(self.nodes[0], coinbase_txids[1], node1_address, COINBASE_SPEND)
+        spend_102_raw = create_tx(self.nodes[0], coinbase_txids[2], node0_address, COINBASE_SPEND)
+        spend_103_raw = create_tx(self.nodes[0], coinbase_txids[3], node0_address, COINBASE_SPEND)
 
         # Create a transaction which is time-locked to two blocks in the future
-        timelock_tx = self.nodes[0].createrawtransaction([{"txid": coinbase_txids[0], "vout": 0}], {node0_address: 4999.99})
+        timelock_tx = self.nodes[0].createrawtransaction([{"txid": coinbase_txids[0], "vout": 0}], {node0_address: COINBASE_SPEND})
         # Set the time lock
         timelock_tx = timelock_tx.replace("ffffffff", "11111191", 1)
         timelock_tx = timelock_tx[:-8] + hex(self.nodes[0].getblockcount() + 2)[2:] + "000000"
@@ -61,8 +67,8 @@ class MempoolCoinbaseTest(Hemp0xTestFramework):
         assert_raises_rpc_error(-26,'non-final', self.nodes[0].sendrawtransaction, timelock_tx)
 
         # Create 102_1 and 103_1:
-        spend_102_1_raw = create_tx(self.nodes[0], spend_102_id, node1_address, 4999.98)
-        spend_103_1_raw = create_tx(self.nodes[0], spend_103_id, node1_address, 4999.98)
+        spend_102_1_raw = create_tx(self.nodes[0], spend_102_id, node1_address, CHILD_SPEND)
+        spend_103_1_raw = create_tx(self.nodes[0], spend_103_id, node1_address, CHILD_SPEND)
 
         # Broadcast and mine 103_1:
         spend_103_1_id = self.nodes[0].sendrawtransaction(spend_103_1_raw)

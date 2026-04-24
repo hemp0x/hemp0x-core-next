@@ -1,8 +1,8 @@
-Hemp Core integration/staging tree
+Hemp0x Core integration/staging tree
 
 https://hemp0x.com
 
-To see how to run Hemp0x, please read the respective files in the doc folder￼
+To see how to run Hemp0x, please read the respective files in the doc folder.
 
 What is Hemp0x?
 
@@ -16,17 +16,17 @@ Hemp0x follows the original Bitcoin ethos of fair launch, open participation, ce
 
 License
 
-Hemp Core is released under the terms of the MIT license. See COPYING￼ for more
+Hemp0x Core is released under the terms of the MIT license. See COPYING for more
 information or see https://opensource.org/licenses/MIT.
 
 Development Process
 
 The master branch is regularly built and tested but is not guaranteed to be completely stable.
-Tags￼ are created regularly to indicate new official stable release versions of Hemp0x Core.
+Tags are created regularly to indicate new official stable release versions of Hemp0x Core.
 
 Active development is done in the develop branch.
 
-The contribution workflow is described in CONTRIBUTING.md￼.
+The contribution workflow is described in CONTRIBUTING.md.
 
 Developer IRC is inactive. Please join us on Discord in #development.
 https://discord.gg/Eu4UsYPMGS
@@ -39,11 +39,11 @@ Testnet is up and running and available to use during development.
 
 Automated Testing
 
-Developers are strongly encouraged to write unit tests￼ for new code and to submit new unit tests for existing code. Unit tests can be compiled and run assuming they were not disabled in configure with make check.
+Developers are strongly encouraged to write unit tests for new code and to submit new unit tests for existing code. Unit tests can be compiled and run assuming they were not disabled in configure with make check.
 
-Further details on running and extending unit tests can be found in /src/test/README.md￼.
+Further details on running and extending unit tests can be found in /src/test/README.md.
 
-There are also regression and integration tests￼ written in Python that are run automatically on the build server. These tests can be run if the test dependencies￼ are installed with test/functional/test_runner.py.
+There are also regression and integration tests written in Python that are run automatically on the build server. These tests can be run if the test dependencies are installed with test/functional/test_runner.py.
 
 Manual Quality Assurance (QA) Testing
 

@@ -36,9 +36,10 @@ RPC interface will be abused.
 
 - **Securing local network access:** By default, the RPC interface can
   only be accessed by a client running on the same computer and only
-  after the client provides a valid authentication credential (username
-  and passphrase).  Any program on your computer with access to the file
-  system and local network can obtain this level of access.
+  after the client provides a valid authentication credential. Local
+  clients normally authenticate with the daemon's per-startup cookie
+  credential. Any program on your computer with access to the cookie
+  file and local network can obtain this level of access.
   Additionally, other programs on your computer can attempt to provide
   an RPC interface on the same port as used by Hemp0x Core in order to
   trick you into revealing your authentication credentials.  For this
@@ -66,7 +67,7 @@ RPC interface will be abused.
     need to expose the RPC port to the host system.  The default way to
     do this in Docker also exposes the port to the public Internet.
     Instead, expose it only on the host system's localhost, for example:
-    `-p 127.0.0.1:8332:8332`
+    `-p 127.0.0.1:8766:8766`
 
 - **Secure authentication:** By default, Hemp0x Core generates unique
   login credentials each time it restarts and puts them into a file
@@ -75,8 +76,8 @@ RPC interface will be abused.
   automatically.  The file is `.cookie` in the Hemp0x Core
   configuration directory, and using these credentials is the preferred
   RPC authentication method.  If you need to generate static login
-  credentials for your programs, you can use the script in the
-  `share/rpcauth` directory in the Hemp0x Core source tree.  As a final
+  credentials for your programs, you can use
+  `share/rpcuser/rpcuser.py` in the Hemp0x Core source tree.  As a final
   fallback, you can directly use manually-chosen `rpcuser` and
   `rpcpassword` configuration parameters---but you must ensure that you
   choose a strong and unique passphrase (and still don't use insecure

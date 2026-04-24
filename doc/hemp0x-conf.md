@@ -1,4 +1,4 @@
-# `hemp0x.conf` Configuration File
+# Hemp0x Configuration File
 
 The configuration file is used by `hemp0xd` and `hemp0x-cli`.
 
@@ -46,16 +46,18 @@ rpcport=4000
 
 ## Configuration File Path
 
-The configuration file is not automatically created; you can create it using your favorite text editor. By default, the configuration file name is `hemp0x.conf` and it is located in the Hemp0x data directory, but both the Hemp0x data directory and the configuration file path may be changed using the `-datadir` and `-conf` command-line options.
+The configuration file is not automatically created; you can create it using your favorite text editor. By default, Hemp0x Core reads `hemp.conf` from the Hemp0x data directory. For compatibility with earlier packaging and documentation, it also reads `hemp0x.conf` when `hemp.conf` is absent. If both files exist, `hemp.conf` is used.
 
-The `includeconf=<file>` option in the `hemp0x.conf` file can be used to include additional configuration files.
+The Hemp0x data directory and configuration file path may be changed using the `-datadir` and `-conf` command-line options.
+
+The `includeconf=<file>` option in the active configuration file can be used to include additional configuration files.
 
 ### Default configuration file locations
 
 Operating System | Data Directory | Example Path
 -- | -- | --
-Windows | `%APPDATA%\Hemp0x\` | `C:\Users\username\AppData\Roaming\Hemp0x\hemp0x.conf`
-Linux | `$HOME/.hemp0x/` | `/home/username/.hemp0x/hemp0x.conf`
-macOS | `$HOME/Library/Application Support/Rave /` | `/Users/username/Library/Application Support/Hemp0x/hemp0x.conf`
+Windows | `%APPDATA%\Hemp0x\` | `C:\Users\username\AppData\Roaming\Hemp0x\hemp.conf`
+Linux | `$HOME/.hemp0x/` | `/home/username/.hemp0x/hemp.conf`
+macOS | `$HOME/Library/Application Support/Hemp0x/` | `/Users/username/Library/Application Support/Hemp0x/hemp.conf`
 
-You can find an example hemp0x.conf file in [share/examples/hemp0x.conf](../share/examples/hemp0x.conf).
+The same locations may use `hemp0x.conf` as a fallback name when `hemp.conf` is not present. You can find an example configuration file in [contrib/debian/examples/hemp0x.conf](../contrib/debian/examples/hemp0x.conf).

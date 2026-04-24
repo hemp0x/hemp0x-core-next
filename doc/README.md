@@ -5,7 +5,7 @@ Setup
 ---------------------
 Hemp0x Core is the original Hemp0x client and it builds the backbone of the network. It downloads and, by default, stores the entire history of Hemp0x transactions; depending on the speed of your computer and network connection, the synchronization process is typically complete in under an hour.
 
-To download compiled binaries of the Hemp0x Core and wallet, visit the [GitHub release page](https://github.com/hemp0x/hemp0x-core/releases).
+To download compiled daemon and command-line binaries, visit the [GitHub release page](https://github.com/hemp0x/hemp0x-core/releases). Core Next release builds do not include the old bundled Qt wallet GUI; wallet RPC support remains available in wallet-enabled daemon builds.
 
 Running
 ---------------------
@@ -30,10 +30,7 @@ sudo apt update
 sudo apt install libevent-dev libboost-all-dev libminiupnpc10 libzmq5 software-properties-common
 ```
 
-The wallet requires version 4.8 of the Berkeley DB. The easiest way to get it is to build it with the script contrib/install_db4.sh
-
-
-```
+The legacy wallet backend requires Berkeley DB 4.8 for portable `wallet.dat` compatibility. The easiest way to get it for source builds is to use the tracked `depends` system or the `contrib/install_db4.sh` helper.
 
 #### Fedora 27
 

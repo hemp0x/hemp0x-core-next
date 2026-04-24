@@ -1,7 +1,9 @@
 WINDOWS BUILD NOTES
 ====================
 
-Below are some notes on how to build Hemp0x Core for Windows.
+Below are some notes on how to build Hemp0x Core for Windows. Core Next release
+profiles build the daemon, CLI, transaction tool, and wallet RPC support without
+the removed Qt wallet GUI.
 
 Most developers use cross-compilation from Ubuntu to build executables for
 Windows. Cross-compilation is also used to build the release binaries.
@@ -81,10 +83,10 @@ Then build using:
 
     PATH=$(echo "$PATH" | sed -e 's/:\/mnt.*//g') # strip out problematic Windows %PATH% imported var
     cd depends
-    make HOST=x86_64-w64-mingw32
+    make HOST=x86_64-w64-mingw32 NO_QT=1
     cd ..
     ./autogen.sh # not required when building from tarball
-    CONFIG_SITE=$PWD/depends/x86_64-w64-mingw32/share/config.site ./configure --prefix=/
+    CONFIG_SITE=$PWD/depends/x86_64-w64-mingw32/share/config.site ./configure --prefix=/ --without-gui
     make
 
 ## Building for 32-bit Windows
@@ -97,10 +99,10 @@ Then build using:
 
     PATH=$(echo "$PATH" | sed -e 's/:\/mnt.*//g') # strip out problematic Windows %PATH% imported var
     cd depends
-    make HOST=i686-w64-mingw32
+    make HOST=i686-w64-mingw32 NO_QT=1
     cd ..
     ./autogen.sh # not required when building from tarball
-    CONFIG_SITE=$PWD/depends/i686-w64-mingw32/share/config.site ./configure --prefix=/
+    CONFIG_SITE=$PWD/depends/i686-w64-mingw32/share/config.site ./configure --prefix=/ --without-gui
     make
 
 ## Depends system

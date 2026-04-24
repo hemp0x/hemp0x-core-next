@@ -266,10 +266,10 @@ pay attention to for reviewers of Hemp0x Core code.
 General Hemp0x Core
 ----------------------
 
-- New features should be exposed on RPC first, then can be made available in the GUI
+- New features should be exposed on RPC first, then can be made available in external clients
 
   - *Rationale*: RPC allows for better automatic testing. The test suite for
-    the GUI is very limited
+    external-client review coverage is very limited
 
 - Make sure pull requests pass Travis CI before merging
 
@@ -684,7 +684,7 @@ A few guidelines for introducing and reviewing new RPC interfaces:
 
 - Add every non-string RPC argument `(method, idx, name)` to the table `vRPCConvertParams` in `rpc/client.cpp`.
 
-  - *Rationale*: `hemp0x-cli` and the GUI debug console use this table to determine how to
+  - *Rationale*: `hemp0x-cli` and compatible RPC clients use this table to determine how to
     convert a plaintext command line to JSON. If the types don't match, the method can be unusable
     from there.
 

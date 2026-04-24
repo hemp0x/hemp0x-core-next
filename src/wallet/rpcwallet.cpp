@@ -20,6 +20,7 @@
 #include "rpc/safemode.h"
 #include "rpc/server.h"
 #include "script/sign.h"
+#include "support/cleanse.h"
 #include "timedata.h"
 #include "util.h"
 #include "utiltime.h"
@@ -58,6 +59,16 @@ std::string HelpRequiringPassphrase(CWallet * const pwallet)
     return pwallet && pwallet->IsCrypted()
         ? "\nRequires wallet passphrase to be set with walletpassphrase call."
         : "";
+}
+
+static SecureString RPCSecretFromValue(const UniValue& value)
+{
+    std::string secret = value.get_str();
+    SecureString secure(secret.begin(), secret.end());
+    if (!secret.empty()) {
+        memory_cleanse(&secret[0], secret.size());
+    }
+    return secure;
 }
 
 bool EnsureWalletIsAvailable(CWallet * const pwallet, bool avoidException)
@@ -2424,23 +2435,23 @@ UniValue walletpassphrase(const JSONRPCRequest& request)
         throw JSONRPCError(RPC_WALLET_WRONG_ENC_STATE, "Error: running with an unencrypted wallet, but walletpassphrase was called.");
     }
 
-    // Note that the walletpassphrase is stored in request.params[0] which is not mlock()ed
-    SecureString strWalletPass;
-    strWalletPass.reserve(100);
-    // TODO: get rid of this .c_str() by implementing SecureString::operator=(std::string)
-    // Alternately, find a way to make request.params[0] mlock()'d to begin with.
-    strWalletPass = request.params[0].get_str().c_str();
-
-    if (strWalletPass.length() > 0)
     {
-        if (!pwallet->Unlock(strWalletPass)) {
-            throw JSONRPCError(RPC_WALLET_PASSPHRASE_INCORRECT, "Error: The wallet passphrase entered was incorrect.");
+        // The JSON-RPC request parameter itself is not mlock()'ed. Copy it
+        // into SecureString promptly and explicitly cleanse the transient
+        // std::string used during conversion.
+        SecureString strWalletPass = RPCSecretFromValue(request.params[0]);
+
+        if (strWalletPass.length() > 0)
+        {
+            if (!pwallet->Unlock(strWalletPass)) {
+                throw JSONRPCError(RPC_WALLET_PASSPHRASE_INCORRECT, "Error: The wallet passphrase entered was incorrect.");
+            }
         }
+        else
+            throw std::runtime_error(
+                "walletpassphrase <passphrase> <timeout>\n"
+                "Stores the wallet decryption key in memory for <timeout> seconds.");
     }
-    else
-        throw std::runtime_error(
-            "walletpassphrase <passphrase> <timeout>\n"
-            "Stores the wallet decryption key in memory for <timeout> seconds.");
 
     pwallet->TopUpKeyPool();
 
@@ -2480,23 +2491,18 @@ UniValue walletpassphrasechange(const JSONRPCRequest& request)
         throw JSONRPCError(RPC_WALLET_WRONG_ENC_STATE, "Error: running with an unencrypted wallet, but walletpassphrasechange was called.");
     }
 
-    // TODO: get rid of these .c_str() calls by implementing SecureString::operator=(std::string)
-    // Alternately, find a way to make request.params[0] mlock()'d to begin with.
-    SecureString strOldWalletPass;
-    strOldWalletPass.reserve(100);
-    strOldWalletPass = request.params[0].get_str().c_str();
+    {
+        SecureString strOldWalletPass = RPCSecretFromValue(request.params[0]);
+        SecureString strNewWalletPass = RPCSecretFromValue(request.params[1]);
 
-    SecureString strNewWalletPass;
-    strNewWalletPass.reserve(100);
-    strNewWalletPass = request.params[1].get_str().c_str();
+        if (strOldWalletPass.length() < 1 || strNewWalletPass.length() < 1)
+            throw std::runtime_error(
+                "walletpassphrasechange <oldpassphrase> <newpassphrase>\n"
+                "Changes the wallet passphrase from <oldpassphrase> to <newpassphrase>.");
 
-    if (strOldWalletPass.length() < 1 || strNewWalletPass.length() < 1)
-        throw std::runtime_error(
-            "walletpassphrasechange <oldpassphrase> <newpassphrase>\n"
-            "Changes the wallet passphrase from <oldpassphrase> to <newpassphrase>.");
-
-    if (!pwallet->ChangeWalletPassphrase(strOldWalletPass, strNewWalletPass)) {
-        throw JSONRPCError(RPC_WALLET_PASSPHRASE_INCORRECT, "Error: The wallet passphrase entered was incorrect.");
+        if (!pwallet->ChangeWalletPassphrase(strOldWalletPass, strNewWalletPass)) {
+            throw JSONRPCError(RPC_WALLET_PASSPHRASE_INCORRECT, "Error: The wallet passphrase entered was incorrect.");
+        }
     }
 
     return NullUniValue;
@@ -2583,19 +2589,17 @@ UniValue encryptwallet(const JSONRPCRequest& request)
         throw JSONRPCError(RPC_WALLET_WRONG_ENC_STATE, "Error: running with an encrypted wallet, but encryptwallet was called.");
     }
 
-    // TODO: get rid of this .c_str() by implementing SecureString::operator=(std::string)
-    // Alternately, find a way to make request.params[0] mlock()'d to begin with.
-    SecureString strWalletPass;
-    strWalletPass.reserve(100);
-    strWalletPass = request.params[0].get_str().c_str();
+    {
+        SecureString strWalletPass = RPCSecretFromValue(request.params[0]);
 
-    if (strWalletPass.length() < 1)
-        throw std::runtime_error(
-            "encryptwallet <passphrase>\n"
-            "Encrypts the wallet with <passphrase>.");
+        if (strWalletPass.length() < 1)
+            throw std::runtime_error(
+                "encryptwallet <passphrase>\n"
+                "Encrypts the wallet with <passphrase>.");
 
-    if (!pwallet->EncryptWallet(strWalletPass)) {
-        throw JSONRPCError(RPC_WALLET_ENCRYPTION_FAILED, "Error: Failed to encrypt the wallet.");
+        if (!pwallet->EncryptWallet(strWalletPass)) {
+            throw JSONRPCError(RPC_WALLET_ENCRYPTION_FAILED, "Error: Failed to encrypt the wallet.");
+        }
     }
 
     // BDB seems to have a bad habit of writing old data into

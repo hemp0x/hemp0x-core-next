@@ -373,11 +373,11 @@ public:
             throw std::ios_base::failure("Corrupt CAddrMan serialization, inconsistent bucket count.");
         }
 
-        if (nNew > ADDRMAN_NEW_BUCKET_COUNT * ADDRMAN_BUCKET_SIZE) {
+        if (nNew < 0 || nNew > ADDRMAN_NEW_BUCKET_COUNT * ADDRMAN_BUCKET_SIZE) {
             throw std::ios_base::failure("Corrupt CAddrMan serialization, nNew exceeds limit.");
         }
 
-        if (nTried > ADDRMAN_TRIED_BUCKET_COUNT * ADDRMAN_BUCKET_SIZE) {
+        if (nTried < 0 || nTried > ADDRMAN_TRIED_BUCKET_COUNT * ADDRMAN_BUCKET_SIZE) {
             throw std::ios_base::failure("Corrupt CAddrMan serialization, nTried exceeds limit.");
         }
 

@@ -79,6 +79,23 @@ public:
     }
 };
 
+class CAddrManCorruptedNegativeCounts : public CAddrManSerializationMock
+{
+public:
+    void Serialize(CDataStream &s) const override
+    {
+        unsigned char nVersion = 1;
+        s << nVersion;
+        s << ((unsigned char) 32);
+        s << nKey;
+        s << (-1); // nNew
+        s << (-1); // nTried
+
+        int nUBuckets = ADDRMAN_NEW_BUCKET_COUNT ^ (1 << 30);
+        s << nUBuckets;
+    }
+};
+
 CDataStream AddrmanToStream(CAddrManSerializationMock &_addrman)
 {
     CDataStream ssPeersIn(SER_DISK, CLIENT_VERSION);
@@ -212,6 +229,31 @@ BOOST_FIXTURE_TEST_SUITE(net_tests, BasicTestingSetup)
         BOOST_CHECK(addrman4.size() == 0);
         adb.Read(addrman4, ssPeers4);
         BOOST_CHECK(addrman4.size() == 0);
+
+        CAddrManCorruptedNegativeCounts addrmanCorruptedNegativeCounts;
+        addrmanCorruptedNegativeCounts.MakeDeterministic();
+
+        CDataStream ssPeers5 = AddrmanToStream(addrmanCorruptedNegativeCounts);
+        CAddrMan addrman5;
+        BOOST_CHECK(addrman5.size() == 0);
+        exceptionThrown = false;
+        try
+        {
+            unsigned char pchMsgTmp[4];
+            ssPeers5 >> FLATDATA(pchMsgTmp);
+            ssPeers5 >> addrman5;
+        } catch (const std::exception &e)
+        {
+            exceptionThrown = true;
+        }
+        BOOST_CHECK(addrman5.size() == 0);
+        BOOST_CHECK(exceptionThrown);
+
+        CDataStream ssPeers6 = AddrmanToStream(addrmanCorruptedNegativeCounts);
+        CAddrMan addrman6;
+        BOOST_CHECK(addrman6.size() == 0);
+        adb.Read(addrman6, ssPeers6);
+        BOOST_CHECK(addrman6.size() == 0);
     }
 
     BOOST_AUTO_TEST_CASE(cnode_simple_test)

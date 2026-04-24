@@ -850,7 +850,7 @@ void runCommand(const std::string &strCommand)
     if (strCommand.empty()) return;
     int nErr = ::system(strCommand.c_str());
     if (nErr)
-        LogPrintf("runCommand error: system(%s) returned %d\n", strCommand, nErr);
+        LogPrintf("runCommand error: external command returned %d\n", nErr);
 }
 
 void RenameThread(const char *name)

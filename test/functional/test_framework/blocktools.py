@@ -25,6 +25,20 @@ def create_block(hash_prev, coinbase, n_time=None):
     block.calc_x16r()
     return block
 
+
+def create_block_from_template(template, coinbase, n_time=None):
+    block = create_block(int(template["previousblockhash"], 16), coinbase, n_time)
+    block.nVersion = template["version"]
+    block.nBits = int(template["bits"], 16)
+    if n_time is None:
+        block.nTime = template["curtime"]
+    for transaction in template.get("transactions", []):
+        from .messages import CTransaction, from_hex
+        block.vtx.append(from_hex(CTransaction(), transaction["data"]))
+    block.hashMerkleRoot = block.calc_merkle_root()
+    block.calc_x16r()
+    return block
+
 # Genesis block time (regtest)
 REGTEST_GENISIS_BLOCK_TIME = 1537466400
 
@@ -74,15 +88,20 @@ def serialize_script_num(value):
 # Create a coinbase transaction, assuming no miner fees.
 # If pubkey is passed in, the coinbase output will be a P2PK output;
 # otherwise an anyone-can-spend output.
-def create_coinbase(height, pubkey = None):
+def create_coinbase(height, pubkey = None, value = None, script_pub_key = None):
     coinbase = CTransaction()
-    coinbase.vin.append(CTxIn(COutPoint(0, 0xffffffff), 
-                ser_string(serialize_script_num(height)), 0xffffffff))
+    coinbase.vin.append(CTxIn(COutPoint(0, 0xffffffff),
+                CScript([height, 0]), 0xffffffff))
     coin_base_output = CTxOut()
-    coin_base_output.nValue = 5000 * COIN
-    halvings = int(height/150) # regtest
-    coin_base_output.nValue >>= halvings
-    if pubkey is not None:
+    if value is None:
+        coin_base_output.nValue = 10 * COIN
+        halvings = int(height/150) # regtest
+        coin_base_output.nValue >>= halvings
+    else:
+        coin_base_output.nValue = value
+    if script_pub_key is not None:
+        coin_base_output.scriptPubKey = CScript(script_pub_key)
+    elif pubkey is not None:
         coin_base_output.scriptPubKey = CScript([pubkey, OP_CHECKSIG])
     else:
         coin_base_output.scriptPubKey = CScript([OP_TRUE])

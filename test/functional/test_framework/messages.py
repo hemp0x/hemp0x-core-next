@@ -37,6 +37,7 @@ BIP0031_VERSION = 60000
 MY_VERSION = 70025  # This needs to match the ASSETDATA_VERSION in version.h!
 MY_SUBVERSION = b"/python-mininode-tester:0.0.3/"
 MY_RELAY = 1  # from version 70001 onwards, fRelay should be appended to version messages (BIP37)
+REGTEST_X16RV2_ACTIVATION_TIME = 1569931200
 
 MAX_INV_SZ = 50000
 MAX_BLOCK_BASE_SIZE = 1000000
@@ -684,7 +685,8 @@ class CBlockHeader:
             r += struct.pack("<I", self.nTime)
             r += struct.pack("<I", self.nBits)
             r += struct.pack("<I", self.nNonce)
-            self.hash = x16_hash_block(encode(r, 'hex_codec').decode('ascii'), "2")
+            algo = "2" if self.nTime >= REGTEST_X16RV2_ACTIVATION_TIME else "1"
+            self.hash = x16_hash_block(encode(r, 'hex_codec').decode('ascii'), algo)
             self.x16r = int(self.hash, 16)
 
     def rehash(self):

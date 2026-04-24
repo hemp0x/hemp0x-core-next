@@ -18,6 +18,7 @@ import time
 
 from .util import assert_equal, get_rpc_proxy, rpc_url, wait_until
 from .authproxy import JSONRPCException, AuthServiceProxy
+from .generate import generate_blocks, generate_blocks_to_address
 
 HEMP0XD_PROC_WAIT_TIMEOUT = 60
 
@@ -79,6 +80,16 @@ class TestNode:
         """Dispatches any unrecognised messages to the RPC connection."""
         assert self.rpc_connected and self.rpc is not None, "Error: no RPC connection"
         return self.rpc.__getattr__(*args, **kwargs)
+
+    def generate(self, nblocks):
+        """Generate regtest blocks outside the daemon and submit them by RPC."""
+        assert self.rpc_connected and self.rpc is not None, "Error: no RPC connection"
+        return generate_blocks(self.rpc, nblocks)
+
+    def generatetoaddress(self, nblocks, address):
+        """Generate regtest blocks to an address without using daemon miner RPCs."""
+        assert self.rpc_connected and self.rpc is not None, "Error: no RPC connection"
+        return generate_blocks_to_address(self.rpc, nblocks, address)
 
     def start(self, extra_args=None, stderr=None):
         """Start the node."""

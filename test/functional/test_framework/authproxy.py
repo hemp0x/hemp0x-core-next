@@ -153,6 +153,14 @@ class AuthServiceProxy:
         else:
             return response['result']
 
+    def generate(self, nblocks):
+        from .generate import generate_blocks
+        return generate_blocks(self, nblocks)
+
+    def generatetoaddress(self, nblocks, address):
+        from .generate import generate_blocks_to_address
+        return generate_blocks_to_address(self, nblocks, address)
+
     def batch(self, rpc_call_list):
         postdata = json.dumps(list(rpc_call_list), default=encode_decimal, ensure_ascii=self.ensure_ascii)
         log.debug("--> " + postdata)

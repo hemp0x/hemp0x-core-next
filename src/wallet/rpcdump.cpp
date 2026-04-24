@@ -83,6 +83,7 @@ UniValue importprivkey(const JSONRPCRequest& request)
         throw std::runtime_error(
             "importprivkey \"privkey\" ( \"label\" ) ( rescan )\n"
             "\nAdds a private key (as returned by dumpprivkey) to your wallet.\n"
+            "\nWARNING: Anyone with this private key can spend the funds it controls. Use this RPC only over a trusted local RPC connection and avoid command shells, logs, or scripts that may retain secrets.\n"
             "\nArguments:\n"
             "1. \"privkey\"          (string, required) The private key (see dumpprivkey)\n"
             "2. \"label\"            (string, optional, default=\"\") An optional label\n"
@@ -458,6 +459,7 @@ UniValue importwallet(const JSONRPCRequest& request)
         throw std::runtime_error(
             "importwallet \"filename\"\n"
             "\nImports keys from a wallet dump file (see dumpwallet).\n"
+            "\nWARNING: Wallet dump files contain private keys and may contain HD seed material. Protect the file before importing it and securely remove it when it is no longer needed.\n"
             "\nArguments:\n"
             "1. \"filename\"    (string, required) The wallet file\n"
             "\nExamples:\n"
@@ -560,6 +562,7 @@ UniValue dumpprivkey(const JSONRPCRequest& request)
             "dumpprivkey \"address\"\n"
             "\nReveals the private key corresponding to 'address'.\n"
             "Then the importprivkey can be used with this output\n"
+            "\nWARNING: The returned private key gives full spend authority for this address. Do not expose it in shared terminals, command history, scripts, logs, or support tickets.\n"
             "\nArguments:\n"
             "1. \"address\"   (string, required) The hemp0x address for the private key\n"
             "\nResult:\n"
@@ -602,6 +605,7 @@ UniValue dumpwallet(const JSONRPCRequest& request)
         throw std::runtime_error(
             "dumpwallet \"filename\"\n"
             "\nDumps all wallet keys in a human-readable format to a server-side file. This does not allow overwriting existing files.\n"
+            "\nWARNING: The dump file contains private keys and may contain HD seed or mnemonic material. Store it only on trusted storage with restrictive permissions, and securely remove it when it is no longer needed.\n"
             "\nArguments:\n"
             "1. \"filename\"    (string, required) The filename with path (either absolute or relative to hemp0xd)\n"
             "\nResult:\n"
@@ -754,6 +758,7 @@ UniValue getmasterkeyinfo(const JSONRPCRequest& request)
         throw std::runtime_error(
                 "getmasterkeyinfo\n"
                 "\nFetches and displays the master private key and the master public key.\n"
+                "\nWARNING: This RPC reveals root and account private key material. Use it only on trusted local systems and never paste the output into logs, tickets, chat, or untrusted tools.\n"
                 "\nResult:\n"
                 "{                           (json object)\n"
                 "  \"bip32_root_private\" : (string) extended master private key,\n"
@@ -1231,6 +1236,7 @@ UniValue importmulti(const JSONRPCRequest& mainRequest)
         throw std::runtime_error(
             "importmulti \"requests\" ( \"options\" )\n\n"
             "Import addresses/scripts (with private or public keys, redeem script (P2SH)), rescanning all addresses in one-shot-only (rescan can be disabled via options).\n\n"
+            "WARNING: The requests array may contain private keys. Use this RPC only over a trusted local RPC connection and avoid command shells, logs, or scripts that may retain secrets.\n\n"
             "Arguments:\n"
             "1. requests     (array, required) Data to be imported\n"
             "  [     (array of json objects)\n"

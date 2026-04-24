@@ -89,6 +89,7 @@
 const int64_t nStartupTime = GetTime();
 
 const char *const HEMP0X_CONF_FILENAME = "hemp.conf";
+static const char *const HEMP0X_ALTERNATE_CONF_FILENAME = "hemp0x.conf";
 const char *const HEMP0X_PID_FILENAME = "hemp.pid";
 
 ArgsManager gArgs;
@@ -628,8 +629,12 @@ fs::path GetConfigFile(const std::string &confPath)
 void ArgsManager::ReadConfigFile(const std::string &confPath)
 {
     fs::ifstream streamConfig(GetConfigFile(confPath));
+    if (!streamConfig.good() && confPath == HEMP0X_CONF_FILENAME) {
+        streamConfig.close();
+        streamConfig.open(GetConfigFile(HEMP0X_ALTERNATE_CONF_FILENAME));
+    }
     if (!streamConfig.good())
-        return; // No hemp0x.conf file is OK
+        return; // No default config file is OK
 
     {
         LOCK(cs_args);

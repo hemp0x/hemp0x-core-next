@@ -6,7 +6,7 @@
 """Protect the current RPC command surface from accidental removals."""
 
 from test_framework.test_framework import Hemp0xTestFramework
-from test_framework.util import assert_equal, p2p_port, rpc_port
+from test_framework.util import assert_equal
 
 
 EXPECTED_RPC_COMMANDS = {
@@ -194,11 +194,6 @@ class RpcHelpCompatibilityTest(Hemp0xTestFramework):
     def set_test_params(self):
         self.num_nodes = 1
         self.setup_clean_chain = True
-        self.extra_args = [[
-            "-regtest",
-            "-port={}".format(p2p_port(0)),
-            "-rpcport={}".format(rpc_port(0)),
-        ]]
 
     def run_test(self):
         node = self.nodes[0]

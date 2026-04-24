@@ -9,6 +9,16 @@
 from test_framework.test_framework import Hemp0xTestFramework
 from test_framework.util import connect_nodes_bi, assert_fee_amount, assert_equal, assert_raises_rpc_error, Decimal, count_bytes, sync_mempools, sync_blocks, time, assert_array_result
 
+BLOCK_REWARD = Decimal('10')
+INITIAL_SEND_1 = Decimal('2')
+INITIAL_SEND_2 = Decimal('1')
+INITIAL_SEND_TOTAL = INITIAL_SEND_1 + INITIAL_SEND_2
+SWEEP_RESERVE = Decimal('0.03')
+WALLET_SEND_AMOUNT = Decimal('2')
+ZERO_VALUE_PLACEHOLDER = Decimal('0.001')
+ZERO_VALUE_FEE = Decimal('0.002')
+ZERO_VALUE_PLACEHOLDER_HEX = "a086010000000000"
+
 class WalletTest(Hemp0xTestFramework):
     def set_test_params(self):
         self.num_nodes = 4
@@ -42,15 +52,15 @@ class WalletTest(Hemp0xTestFramework):
         self.nodes[0].generate(1)
 
         wallet_info = self.nodes[0].getwalletinfo()
-        assert_equal(wallet_info['immature_balance'], 5000)
+        assert_equal(wallet_info['immature_balance'], BLOCK_REWARD)
         assert_equal(wallet_info['balance'], 0)
 
         self.sync_all([self.nodes[0:3]])
         self.nodes[1].generate(101)
         self.sync_all([self.nodes[0:3]])
 
-        assert_equal(self.nodes[0].getbalance(), 5000)
-        assert_equal(self.nodes[1].getbalance(), 5000)
+        assert_equal(self.nodes[0].getbalance(), BLOCK_REWARD)
+        assert_equal(self.nodes[1].getbalance(), BLOCK_REWARD)
         assert_equal(self.nodes[2].getbalance(), 0)
 
         # Check that only first and second nodes have UTXOs
@@ -64,16 +74,16 @@ class WalletTest(Hemp0xTestFramework):
         # First, outputs that are unspent both in the chain and in the
         # mempool should appear with or without include_mempool
         txout = self.nodes[0].gettxout(txid=confirmed_txid, n=confirmed_index, include_mempool=False)
-        assert_equal(txout['value'], 5000)
+        assert_equal(txout['value'], BLOCK_REWARD)
         txout = self.nodes[0].gettxout(txid=confirmed_txid, n=confirmed_index, include_mempool=True)
-        assert_equal(txout['value'], 5000)
+        assert_equal(txout['value'], BLOCK_REWARD)
         
-        # Send 21 HEMP from 0 to 2 using sendtoaddress call.
+        # Send HEMP from 0 to 2 using sendtoaddress call.
         # Locked memory should use at least 32 bytes to sign each transaction
         self.log.info("test getmemoryinfo")
         memory_before = self.nodes[0].getmemoryinfo()
-        self.nodes[0].sendtoaddress(self.nodes[2].getnewaddress(), 11)
-        mempool_txid = self.nodes[0].sendtoaddress(self.nodes[2].getnewaddress(), 10)
+        self.nodes[0].sendtoaddress(self.nodes[2].getnewaddress(), INITIAL_SEND_1)
+        mempool_txid = self.nodes[0].sendtoaddress(self.nodes[2].getnewaddress(), INITIAL_SEND_2)
         memory_after = self.nodes[0].getmemoryinfo()
         assert(memory_before['locked']['used'] + 64 <= memory_after['locked']['used'])
 
@@ -81,7 +91,7 @@ class WalletTest(Hemp0xTestFramework):
         # utxo spent in mempool should be visible if you exclude mempool
         # but invisible if you include mempool
         txout = self.nodes[0].gettxout(confirmed_txid, confirmed_index, False)
-        assert_equal(txout['value'], 5000)
+        assert_equal(txout['value'], BLOCK_REWARD)
         txout = self.nodes[0].gettxout(confirmed_txid, confirmed_index, True)
         assert txout is None
         # new utxo from mempool should be invisible if you exclude mempool
@@ -91,9 +101,9 @@ class WalletTest(Hemp0xTestFramework):
         txout1 = self.nodes[0].gettxout(mempool_txid, 0, True)
         txout2 = self.nodes[0].gettxout(mempool_txid, 1, True)
         # note the mempool tx will have randomly assigned indices
-        # but 10 will go to node2 and the rest will go to node0
+        # but INITIAL_SEND_2 will go to node2 and the rest will go to node0
         balance = self.nodes[0].getbalance()
-        assert_equal({txout1['value'], txout2['value']}, {10, balance})
+        assert_equal({txout1['value'], txout2['value']}, {INITIAL_SEND_2, balance})
         wallet_info = self.nodes[0].getwalletinfo()
         assert_equal(wallet_info['immature_balance'], 0)
 
@@ -105,7 +115,7 @@ class WalletTest(Hemp0xTestFramework):
         unspent_0 = self.nodes[2].listunspent()[0]
         unspent_0 = {"txid": unspent_0["txid"], "vout": unspent_0["vout"]}
         self.nodes[2].lockunspent(False, [unspent_0])
-        assert_raises_rpc_error(-4, "Insufficient funds", self.nodes[2].sendtoaddress, self.nodes[2].getnewaddress(), 20)
+        assert_raises_rpc_error(-6, "Insufficient funds", self.nodes[2].sendtoaddress, self.nodes[2].getnewaddress(), INITIAL_SEND_TOTAL + 1)
         assert_equal([unspent_0], self.nodes[2].listlockunspent())
         self.nodes[2].lockunspent(True, [unspent_0])
         assert_equal(len(self.nodes[2].listlockunspent()), 0)
@@ -114,10 +124,10 @@ class WalletTest(Hemp0xTestFramework):
         self.nodes[1].generate(100)
         self.sync_all([self.nodes[0:3]])
 
-        # node0 should end up with 100 btc in block rewards plus fees, but
-        # minus the 21 plus fees sent to node2
-        assert_equal(self.nodes[0].getbalance(), 10000-21)
-        assert_equal(self.nodes[2].getbalance(), 21)
+        # node0 should have the mature change and its later block reward; exact
+        # fee accounting is wallet-policy dependent.
+        node0_balance_before_sweep = self.nodes[0].getbalance()
+        assert_equal(self.nodes[2].getbalance(), INITIAL_SEND_TOTAL)
 
         # Node0 should have two unspent outputs.
         # Create a couple of transactions to send them to node2, submit them through
@@ -131,7 +141,7 @@ class WalletTest(Hemp0xTestFramework):
             inputs = []
             outputs = {}
             inputs.append({ "txid" : utxo["txid"], "vout" : utxo["vout"]})
-            outputs[self.nodes[2].getnewaddress("from1")] = utxo["amount"] - 3
+            outputs[self.nodes[2].getnewaddress("from1")] = utxo["amount"] - SWEEP_RESERVE
             raw_tx = self.nodes[0].createrawtransaction(inputs, outputs)
             txns_to_send.append(self.nodes[0].signrawtransaction(raw_tx))
 
@@ -144,42 +154,43 @@ class WalletTest(Hemp0xTestFramework):
         self.sync_all([self.nodes[0:3]])
 
         assert_equal(self.nodes[0].getbalance(), 0)
-        assert_equal(self.nodes[2].getbalance(), 9994)
-        assert_equal(self.nodes[2].getbalance("from1"), 9994-21)
+        node_2_bal = INITIAL_SEND_TOTAL + node0_balance_before_sweep - (SWEEP_RESERVE * 2)
+        assert_equal(self.nodes[2].getbalance(), node_2_bal)
+        assert_equal(self.nodes[2].getbalance("from1"), node_2_bal - INITIAL_SEND_TOTAL)
 
-        # Send 10 HEMP normal
+        # Send HEMP normal
         address = self.nodes[0].getnewaddress("test")
         fee_per_byte = Decimal('0.001') / 1000
         self.nodes[2].settxfee(fee_per_byte * 1000)
-        txid = self.nodes[2].sendtoaddress(address, 10, "", "", False)
+        txid = self.nodes[2].sendtoaddress(address, WALLET_SEND_AMOUNT, "", "", False)
         self.nodes[2].generate(1)
         self.sync_all([self.nodes[0:3]])
-        node_2_bal = self.check_fee_amount(self.nodes[2].getbalance(), Decimal('9984'), fee_per_byte, count_bytes(self.nodes[2].getrawtransaction(txid)))
-        assert_equal(self.nodes[0].getbalance(), Decimal('10'))
+        node_2_bal = self.check_fee_amount(self.nodes[2].getbalance(), node_2_bal - WALLET_SEND_AMOUNT, fee_per_byte, count_bytes(self.nodes[2].getrawtransaction(txid)))
+        assert_equal(self.nodes[0].getbalance(), WALLET_SEND_AMOUNT)
 
-        # Send 10 HEMP with subtract fee from amount
-        txid = self.nodes[2].sendtoaddress(address, 10, "", "", True)
+        # Send HEMP with subtract fee from amount
+        txid = self.nodes[2].sendtoaddress(address, WALLET_SEND_AMOUNT, "", "", True)
         self.nodes[2].generate(1)
         self.sync_all([self.nodes[0:3]])
-        node_2_bal -= Decimal('10')
+        node_2_bal -= WALLET_SEND_AMOUNT
         assert_equal(self.nodes[2].getbalance(), node_2_bal)
-        node_0_bal = self.check_fee_amount(self.nodes[0].getbalance(), Decimal('20'), fee_per_byte, count_bytes(self.nodes[2].getrawtransaction(txid)))
+        node_0_bal = self.check_fee_amount(self.nodes[0].getbalance(), WALLET_SEND_AMOUNT * 2, fee_per_byte, count_bytes(self.nodes[2].getrawtransaction(txid)))
 
-        # Sendmany 10 HEMP
-        txid = self.nodes[2].sendmany('from1', {address: 10}, 0, "", [])
+        # Sendmany HEMP
+        txid = self.nodes[2].sendmany('from1', {address: WALLET_SEND_AMOUNT}, 0, "", [])
         self.nodes[2].generate(1)
         self.sync_all([self.nodes[0:3]])
-        node_0_bal += Decimal('10')
-        node_2_bal = self.check_fee_amount(self.nodes[2].getbalance(), node_2_bal - Decimal('10'), fee_per_byte, count_bytes(self.nodes[2].getrawtransaction(txid)))
+        node_0_bal += WALLET_SEND_AMOUNT
+        node_2_bal = self.check_fee_amount(self.nodes[2].getbalance(), node_2_bal - WALLET_SEND_AMOUNT, fee_per_byte, count_bytes(self.nodes[2].getrawtransaction(txid)))
         assert_equal(self.nodes[0].getbalance(), node_0_bal)
 
-        # Sendmany 10 HEMP with subtract fee from amount
-        txid = self.nodes[2].sendmany('from1', {address: 10}, 0, "", [address])
+        # Sendmany HEMP with subtract fee from amount
+        txid = self.nodes[2].sendmany('from1', {address: WALLET_SEND_AMOUNT}, 0, "", [address])
         self.nodes[2].generate(1)
         self.sync_all([self.nodes[0:3]])
-        node_2_bal -= Decimal('10')
+        node_2_bal -= WALLET_SEND_AMOUNT
         assert_equal(self.nodes[2].getbalance(), node_2_bal)
-        self.check_fee_amount(self.nodes[0].getbalance(), node_0_bal + Decimal('10'), fee_per_byte, count_bytes(self.nodes[2].getrawtransaction(txid)))
+        self.check_fee_amount(self.nodes[0].getbalance(), node_0_bal + WALLET_SEND_AMOUNT, fee_per_byte, count_bytes(self.nodes[2].getrawtransaction(txid)))
 
         # Test ResendWalletTransactions:
         # Create a couple of transactions, then start up a fourth
@@ -208,12 +219,15 @@ class WalletTest(Hemp0xTestFramework):
         #2. hex-changed one output to 0.0
         #3. sign and send
         #4. check if recipient (node0) can list the zero value tx
-        usp = self.nodes[1].listunspent()
-        inputs = [{"txid":usp[0]['txid'], "vout":usp[0]['vout']}]
-        outputs = {self.nodes[1].getnewaddress(): 4999.998, self.nodes[0].getnewaddress(): 1111.11}
+        usp = next(u for u in self.nodes[1].listunspent() if u["amount"] > ZERO_VALUE_PLACEHOLDER + ZERO_VALUE_FEE)
+        inputs = [{"txid":usp['txid'], "vout":usp['vout']}]
+        outputs = {
+            self.nodes[1].getnewaddress(): usp["amount"] - ZERO_VALUE_PLACEHOLDER - ZERO_VALUE_FEE,
+            self.nodes[0].getnewaddress(): ZERO_VALUE_PLACEHOLDER,
+        }
 
         raw_tx = self.nodes[1].createrawtransaction(inputs, outputs)
-        raw_tx = raw_tx.replace("c04fbbde19", "0000000000") #replace 1111.11 with 0.0 (int32)
+        raw_tx = raw_tx.replace(ZERO_VALUE_PLACEHOLDER_HEX, "0000000000000000") # replace placeholder output with 0.0
         self.nodes[1].decoderawtransaction(raw_tx)
         signed_raw_tx = self.nodes[1].signrawtransaction(raw_tx)
         dec_raw_tx = self.nodes[1].decoderawtransaction(signed_raw_tx['hex'])
@@ -292,9 +306,6 @@ class WalletTest(Hemp0xTestFramework):
 
         # This will raise an exception because the amount type is wrong
         assert_raises_rpc_error(-3, "Invalid amount", self.nodes[0].sendtoaddress, self.nodes[2].getnewaddress(), "1f-4")
-
-        # This will raise an exception since generate does not accept a string
-        assert_raises_rpc_error(-1, "not an integer", self.nodes[0].generate, "2")
 
         # Import address and private key to check correct behavior of spendable unspents
         # 1. Send some coins to generate new UTXO

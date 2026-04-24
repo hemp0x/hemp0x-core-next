@@ -11,6 +11,8 @@
 #include "netbase.h"
 #include "random.h"
 
+#include <limits>
+
 class CAddrManTest : public CAddrMan
 {
     uint64_t state;
@@ -336,6 +338,9 @@ BOOST_FIXTURE_TEST_SUITE(addrman_tests, BasicTestingSetup)
 
         // Test: The result should be the same as the input addr.
         BOOST_CHECK_EQUAL(pinfo->ToString(), "250.1.2.1:42069");
+        BOOST_CHECK(addrman.ById(nId) == pinfo);
+        BOOST_CHECK(addrman.ById(nId + 1) == nullptr);
+        BOOST_CHECK(addrman.ById(static_cast<unsigned long>(std::numeric_limits<int>::max()) + 1) == nullptr);
 
         CAddrInfo *info2 = addrman.Find(addr1);
         BOOST_CHECK_EQUAL(info2->ToString(), "250.1.2.1:42069");

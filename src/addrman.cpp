@@ -10,6 +10,8 @@
 #include "serialize.h"
 #include "streams.h"
 
+#include <limits>
+
 int CAddrInfo::GetTriedBucket(const uint256& nKey) const
 {
     uint64_t hash1 = (CHashWriter(SER_GETHASH, 0) << nKey << GetKey()).GetHash().GetCheapHash();
@@ -79,11 +81,18 @@ CAddrInfo* CAddrMan::Find(const CNetAddr& addr, int* pnId)
     return nullptr;
 }
 
-CAddrInfo* CAddrMan::ById(unsigned long nId) 
+CAddrInfo* CAddrMan::ById(unsigned long nId)
 {
-    if ((mapInfo.count(nId) == 0) || (nId < mapInfo.count(nId) - 1))
-        return(nullptr);
-    return &mapInfo[nId];
+    if (nId > static_cast<unsigned long>(std::numeric_limits<int>::max())) {
+        return nullptr;
+    }
+
+    const auto it = mapInfo.find(static_cast<int>(nId));
+    if (it == mapInfo.end()) {
+        return nullptr;
+    }
+
+    return &it->second;
 }
 
 CAddrInfo* CAddrMan::Create(const CAddress& addr, const CNetAddr& addrSource, int* pnId)

@@ -259,7 +259,7 @@ public:
         nDGWActivationBlock = 1;
       	consensus.nDGWFixHeight = 181;
 
-        nMaxReorganizationDepth = 60; // 60 at 1 minute block timespan is +/- 60 minutes.
+        nMaxReorganizationDepth = 60; // 60 blocks at 5-second block time is ~5 minutes.
         nMinReorganizationPeers = 4;
         nMinReorganizationAge = 60 * 60 * 12; // 12 hours
 
@@ -467,7 +467,7 @@ public:
         nDGWActivationBlock = 1;
         consensus.nDGWFixHeight = 181;
         
-        nMaxReorganizationDepth = 60; // 60 at 1 minute block timespan is +/- 60 minutes.
+        nMaxReorganizationDepth = 60; // 60 blocks at 5-second block time is ~5 minutes.
         nMinReorganizationPeers = 4;
         nMinReorganizationAge = 60 * 60 * 12; // 12 hours
 
@@ -662,7 +662,7 @@ public:
         nDGWActivationBlock = 1;
         consensus.nDGWFixHeight = 181;
         
-        nMaxReorganizationDepth = 60; // 60 at 1 minute block timespan is +/- 60 minutes.
+        nMaxReorganizationDepth = 60; // 60 blocks at 5-second block time is ~5 minutes.
         nMinReorganizationPeers = 4;
         nMinReorganizationAge = 60 * 60 * 12; // 12 hours
 

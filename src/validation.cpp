@@ -1335,7 +1335,8 @@ CAmount GetBlockSubsidy(int nHeight, const Consensus::Params& consensusParams)
         return 0;
 
     CAmount nSubsidy = 10 * COIN;
-    // Subsidy is cut in half every 2,100,000 blocks which will occur approximately every 4 years.
+    // Subsidy is halved every 25,000,000 blocks (~3.96 years at 5-second block time).
+    // Integer right-shift: 10 -> 5 -> 2 -> 1 -> 0 HEMP, totaling ~450M HEMP.
     nSubsidy >>= halvings;
     return nSubsidy;
 }

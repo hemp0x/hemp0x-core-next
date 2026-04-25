@@ -164,11 +164,13 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_COINBASE_ASSETS].nOverrideMinerConfirmationWindow = 2016;
 
 
-        // The best chain should have at least this much work
-        consensus.nMinimumChainWork = uint256S("0"); // Block 2383567
+        // The best chain should have at least this much work.
+        // Verified at block 2,000,000 from independent pool, WebCom, and copied local nodes.
+        consensus.nMinimumChainWork = uint256S("000000000000000000000000000000000000000000000000000548e1227c9f11");
 
-        // By default assume that the signatures in ancestors of this block are valid. Block# 1040000
-        consensus.defaultAssumeValid = uint256S("0"); // Block 2383560
+        // By default assume that the signatures in ancestors of this block are valid.
+        // Block 2,000,000.
+        consensus.defaultAssumeValid = uint256S("000000002f781ea4d01f5866a8f26747c245ec90111099af851a40144b37e118");
 
         /**
          * The message start string is designed to be unlikely to occur in normal data.
@@ -210,7 +212,17 @@ public:
         fMineBlocksOnDemand = false;
         fMiningRequiresPeers = true;
 
-        checkpointData = (CCheckpointData) { { { 0, consensus.hashGenesisBlock } } };
+        checkpointData = (CCheckpointData) {
+            {
+                { 0, consensus.hashGenesisBlock },
+                { 270144, uint256S("0000000582ebb3cb1f1590c43cae7b12b1119178cbd71cbcb6b42084bbe5b085") },
+                { 274176, uint256S("000000018f0fb60cc898229bf3086df590546354d4a0ebd922c5fa4d2b4c91bf") },
+                { 500000, uint256S("00000000c1ca9606453b80f39abf80f99edbb67a1f4a97a35438fae825b92db2") },
+                { 1000000, uint256S("0000000489c1038667e941aeafe4177115300da01843adaf36b889a804810bca") },
+                { 1500000, uint256S("00000004cfb28dcb6c737915b008f8c5824c8201670875f7461f4019f8e65ebb") },
+                { 2000000, uint256S("000000002f781ea4d01f5866a8f26747c245ec90111099af851a40144b37e118") },
+            }
+        };
 
 		// 20969961 transactions as of block #2383625 at 2022-07-28 22:02:22 (UTC)
 		// previously set at 6709969 txns by time 1577939273 ==>

@@ -716,4 +716,59 @@ BOOST_FIXTURE_TEST_SUITE(wallet_tests, WalletTestingSetup)
         BOOST_CHECK_EQUAL(list.begin()->second.size(), (uint64_t)2L);
     }
 
+    BOOST_FIXTURE_TEST_CASE(input_ordering_privacy_test, ListCoinsTestingSetup)
+    {
+        BOOST_TEST_MESSAGE("Running Input Ordering Privacy Test");
+
+        TurnOffSegwit();
+
+        // Mine additional blocks to accumulate multiple UTXOs
+        for (int i = 0; i < 5; i++) {
+            CreateAndProcessBlock({}, GetScriptForRawPubKey(coinbaseKey.GetPubKey()));
+        }
+
+        LOCK2(cs_main, wallet->cs_wallet);
+
+        // Verify we have multiple UTXOs
+        std::vector<COutput> available;
+        wallet->AvailableCoins(available);
+        BOOST_CHECK(available.size() >= 5);
+
+        // Create multiple transactions with identical parameters that require
+        // multiple inputs (request amount larger than a single UTXO)
+        const int NUM_TRANSACTIONS = 10;
+        std::vector<std::vector<COutPoint>> vinOrderings;
+
+        for (int i = 0; i < NUM_TRANSACTIONS; i++) {
+            CWalletTx wtx;
+            CReserveKey reservekey(wallet.get());
+            CAmount fee;
+            int changePos = -1;
+            std::string error;
+            CCoinControl dummy;
+
+            // Request 15 HEMP, which requires at least 2 UTXOs (each ~10 HEMP)
+            CRecipient recipient = {GetScriptForRawPubKey({}), 15 * COIN, false};
+            BOOST_CHECK(wallet->CreateTransaction({recipient}, wtx, reservekey, fee, changePos, error, dummy));
+
+            // Record the vin ordering
+            std::vector<COutPoint> outpoints;
+            for (const auto& vin : wtx.tx->vin) {
+                outpoints.push_back(vin.prevout);
+            }
+            vinOrderings.push_back(outpoints);
+        }
+
+        // Check that not all transactions have identical input ordering
+        // If all 10 are identical, the shuffle is not working (deterministic ordering bug)
+        bool foundDifferentOrdering = false;
+        for (size_t i = 1; i < vinOrderings.size(); i++) {
+            if (vinOrderings[i] != vinOrderings[0]) {
+                foundDifferentOrdering = true;
+                break;
+            }
+        }
+        BOOST_CHECK(foundDifferentOrdering);
+    }
+
 BOOST_AUTO_TEST_SUITE_END()

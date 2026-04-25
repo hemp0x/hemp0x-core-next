@@ -3348,6 +3348,8 @@ bool CWallet::CreateTransactionAll(const std::vector<CRecipient>& vecSend, CWall
         std::set<CInputCoin> setCoins;
 
         std::set<CInputCoin> setAssets;
+        std::vector<CInputCoin> vCoins;
+        std::vector<CInputCoin> vAssets;
         LOCK2(cs_main, cs_wallet);
         {
             /** HEMP START */
@@ -3473,6 +3475,15 @@ bool CWallet::CreateTransactionAll(const std::vector<CRecipient>& vecSend, CWall
                     }
                     /** HEMP END */
                 }
+
+                // Shuffle selected coins to prevent deterministic input ordering (CVE-2021-37492)
+                vCoins.assign(setCoins.begin(), setCoins.end());
+                vAssets.clear();
+                if (AreAssetsDeployed())
+                    vAssets.assign(setAssets.begin(), setAssets.end());
+                Shuffle(vCoins.begin(), vCoins.end(), FastRandomContext());
+                if (!vAssets.empty())
+                    Shuffle(vAssets.begin(), vAssets.end(), FastRandomContext());
 
                 const CAmount nChange = nValueIn - nValueToSelect;
 
@@ -3640,21 +3651,21 @@ bool CWallet::CreateTransactionAll(const std::vector<CRecipient>& vecSend, CWall
                 // behavior."
 //                const uint32_t nSequence = coin_control.signalRbf ? MAX_BIP125_RBF_SEQUENCE : (CTxIn::SEQUENCE_FINAL - 1);
                 const uint32_t nSequence = CTxIn::SEQUENCE_FINAL - 1;
-                for (const auto& coin : setCoins)
+                for (const auto& coin : vCoins)
                     txNew.vin.push_back(CTxIn(coin.outpoint,CScript(),
                                               nSequence));
 
                 /** HEMP START */
                 if (AreAssetsDeployed()) {
-                    for (const auto &asset : setAssets)
+                    for (const auto &asset : vAssets)
                         txNew.vin.push_back(CTxIn(asset.outpoint, CScript(),
                                                   nSequence));
                 }
                 /** HEMP END */
 
-                // Add the new asset inputs into the tempSet so the dummysigntx will add the correct amount of sigsß
-                std::set<CInputCoin> tempSet = setCoins;
-                tempSet.insert(setAssets.begin(), setAssets.end());
+                // Add the new asset inputs into the tempSet so the dummysigntx will add the correct amount of sigs
+                std::vector<CInputCoin> tempSet = vCoins;
+                tempSet.insert(tempSet.end(), vAssets.begin(), vAssets.end());
 
                 // Fill in dummy signatures for fee calculation.
                 DummySignTx(txNew, tempSet);
@@ -3747,7 +3758,7 @@ bool CWallet::CreateTransactionAll(const std::vector<CRecipient>& vecSend, CWall
         {
             CTransaction txNewConst(txNew);
             int nIn = 0;
-            for (const auto& coin : setCoins)
+            for (const auto& coin : vCoins)
             {
                 const CScript& scriptPubKey = coin.txout.scriptPubKey;
                 SignatureData sigdata;
@@ -3764,7 +3775,7 @@ bool CWallet::CreateTransactionAll(const std::vector<CRecipient>& vecSend, CWall
             }
             /** HEMP START */
             if (AreAssetsDeployed()) {
-                for (const auto &asset : setAssets) {
+                for (const auto &asset : vAssets) {
                     const CScript &scriptPubKey = asset.txout.scriptPubKey;
                     SignatureData sigdata;
 

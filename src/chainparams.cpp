@@ -224,9 +224,10 @@ public:
             }
         };
 
-		// 20969961 transactions as of block #2383625 at 2022-07-28 22:02:22 (UTC)
-		// previously set at 6709969 txns by time 1577939273 ==>
-        chainTxData = ChainTxData{ 1766119732, 1, 0.0 };
+        // Transaction statistics for sync progress estimation.
+        // Snapshot from getchaintxstats at time 1777085061: 2,116,499 txs,
+        // 524,317 txs over a 2,849,958 second window.
+        chainTxData = ChainTxData{ 1777085061, 2116499, 0.183973588382706 };
 
         /** HEMP Start **/
         // Burn Amounts

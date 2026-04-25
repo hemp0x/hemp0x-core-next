@@ -43,7 +43,7 @@ config file):
 
 	HiddenServiceDir /var/lib/tor/hemp0x-service/
 	HiddenServicePort 42069 127.0.0.1:42069
-	HiddenServicePort 18767 127.0.0.1:18767
+	HiddenServicePort 18766 127.0.0.1:18766
 
 The directory can be different of course, but (both) port numbers should be equal to
 your hemp0xd's P2P listen port (42069 by default).

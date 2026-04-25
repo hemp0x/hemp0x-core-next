@@ -193,7 +193,7 @@ This example lists the steps necessary to setup and build a command line only, n
 
     pacman -S git base-devel boost libevent python
     git clone https://github.com/hemp0x/hemp0x-core.git
-    cd hemp0x/
+    cd hemp0x-core/
     ./autogen.sh
     ./configure --disable-wallet --without-gui --without-miniupnpc
     make check

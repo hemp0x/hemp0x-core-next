@@ -37,7 +37,7 @@ sudo make install
 ```
 cd ~/build/
 git clone https://github.com/hemp0x/hemp0x-core
-cd Hemp0x/
+cd hemp0x-core/
 ./autogen.sh
 ./configure --disable-tests --without-gui CPPFLAGS="-I/usr/local/BerkeleyDB.4.8/include -O2" LDFLAGS="-L/usr/local/BerkeleyDB.4.8/lib"
 make

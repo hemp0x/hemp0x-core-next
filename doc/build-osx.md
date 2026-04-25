@@ -42,7 +42,7 @@ from the root of the repository.
 1. Clone the Hemp0x Core source code:
     ```shell
     git clone https://github.com/hemp0x/hemp0x-core
-    cd Hemp0x
+    cd hemp0x-core
     ```
 
 2.  Build hemp0x-core:

@@ -91,7 +91,7 @@ __Download Hemp0x source.__
 
 `git clone https://github.com/hemp0x/hemp0x-core`
 
-`cd Hemp0x`
+`cd hemp0x-core`
 
 `git checkout develop` # this checks out the develop branch.
 

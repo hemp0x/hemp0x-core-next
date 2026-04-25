@@ -721,11 +721,11 @@ bool ParseFixedPoint(const std::string &val, int decimals, int64_t *amount_out)
         return false; /* cannot represent values larger than or equal to 10^(18-decimals) */
 
     for (int i=0; i < exponent; ++i) {
-        if (mantissa > (420000000000000000LL) || mantissa < -(UPPER_BOUND / 10LL))
+        if (mantissa > (450000000000000000LL) || mantissa < -(UPPER_BOUND / 10LL))
             return false; /* overflow */
         mantissa *= 10;
     }
-    if (mantissa > 4200000000000000000LL || mantissa < -UPPER_BOUND)
+    if (mantissa > 4500000000000000000LL || mantissa < -UPPER_BOUND)
         return false; /* overflow */
 
     if (amount_out)

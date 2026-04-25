@@ -356,7 +356,7 @@ public:
 //        uint256 TempHashHolding = uint256S("0000000000000000000000000000000000000000000000000000000000000000");
 //        uint256 BestBlockHash = uint256S("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
 //        for (int i=0;i<40000000;i++) {
-//            genesis = CreateGenesisBlock(nGenesisTime, i, 0x1e00ffff, 2, 5000 * COIN);
+//            genesis = CreateGenesisBlock(nGenesisTime, i, 0x1e00ffff, 2, 10 * COIN);
 //            //genesis.hashPrevBlock = TempHashHolding;
 //            // Depending on when the timestamp is on the genesis block. You will need to use GetX16RHash or GetX16RV2Hash. Replace GetHash() with these below
 //            consensus.hashGenesisBlock = genesis.GetHash();
@@ -559,7 +559,7 @@ public:
 //        uint256 TempHashHolding = uint256S("0000000000000000000000000000000000000000000000000000000000000000");
 //        uint256 BestBlockHash = uint256S("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
 //        for (int i=0;i<40000000;i++) {
-//            genesis = CreateGenesisBlock(1533751200, i, 0x207fffff, 2, 5000 * COIN);
+//            genesis = CreateGenesisBlock(1533751200, i, 0x207fffff, 2, 10 * COIN);
 //            //genesis.hashPrevBlock = TempHashHolding;
 //            consensus.hashGenesisBlock = genesis.GetHash();
 //

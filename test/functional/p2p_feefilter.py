@@ -44,6 +44,7 @@ class TestNode(NodeConnCB):
 class FeeFilterTest(Hemp0xTestFramework):
     def set_test_params(self):
         self.num_nodes = 2
+        self.enable_mocktime()
 
     def run_test(self):
         node1 = self.nodes[1]

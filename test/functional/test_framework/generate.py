@@ -58,8 +58,12 @@ def get_block_template_or_fallback(rpc):
 
     tip_hash = rpc.getbestblockhash()
     tip_header = rpc.getblockheader(tip_hash)
+    # Use VERSIONBITS_TOP_BITS_ASSETS (0x30000000) with asset signaling bit (bit 6).
+    # 0x30000000 has bits 28 and 29 set, which is the minimum version accepted once assets deploy.
+    # Adding bit 6 signals for asset deployment to ensure activation on regtest.
+    version = 0x30000000 | (1 << 6)
     return {
-        "version": 4,
+        "version": version,
         "previousblockhash": tip_hash,
         "height": tip_header["height"] + 1,
         "bits": tip_header["bits"],

@@ -332,10 +332,16 @@ class NodeConn(asyncore.dispatcher):
         self.cb.on_close(self)
 
     def handle_read(self):
-        t = self.recv(8192)
-        if len(t) > 0:
-            self.recvbuf += t
-            self.got_data()
+        try:
+            t = self.recv(8192)
+        except OSError:
+            self.handle_close()
+            return
+        if len(t) == 0:
+            self.handle_close()
+            return
+        self.recvbuf += t
+        self.got_data()
 
     def readable(self):
         return True

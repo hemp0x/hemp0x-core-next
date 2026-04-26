@@ -1660,7 +1660,7 @@ bool CReissueAsset::IsNull() const
     return strName == "" || nAmount < 0;
 }
 
-bool CAssetsCache::AddTransferAsset(const CAssetTransfer& transferAsset, const std::string& address, const COutPoint& out, const CTxOut& txOut)
+bool CAssetsCache::AddTransferAsset(const CAssetTransfer& transferAsset, const std::string& address, const COutPoint& out, const CTxOut& /*txOut*/)
 {
     AddToAssetBalance(transferAsset.strName, address, transferAsset.nAmount);
 
@@ -1828,7 +1828,7 @@ bool CAssetsCache::UndoAssetCoin(const Coin& coin, const COutPoint& out)
 }
 
 //! Changes Memory Only
-bool CAssetsCache::AddBackSpentAsset(const Coin& coin, const std::string& assetName, const std::string& address, const CAmount& nAmount, const COutPoint& out)
+bool CAssetsCache::AddBackSpentAsset(const Coin& /*coin*/, const std::string& assetName, const std::string& address, const CAmount& nAmount, const COutPoint& /*out*/)
 {
     if (fAssetIndex) {
         // Update the assets address balance
@@ -1849,7 +1849,7 @@ bool CAssetsCache::AddBackSpentAsset(const Coin& coin, const std::string& assetN
 }
 
 //! Changes Memory Only
-bool CAssetsCache::UndoTransfer(const CAssetTransfer& transfer, const std::string& address, const COutPoint& outToRemove)
+bool CAssetsCache::UndoTransfer(const CAssetTransfer& transfer, const std::string& address, const COutPoint& /*outToRemove*/)
 {
     if (fAssetIndex) {
         // Make sure we are in a valid state to undo the transfer of the asset
@@ -4206,7 +4206,7 @@ bool CreateReissueAssetTransaction(CWallet* pwallet, CCoinControl& coinControl, 
 
 // nullAssetTxData -> Use this for freeze/unfreeze an address or adding a qualifier to an address
 // nullGlobalRestrictionData -> Use this to globally freeze/unfreeze a restricted asset.
-bool CreateTransferAssetTransaction(CWallet* pwallet, const CCoinControl& coinControl, const std::vector< std::pair<CAssetTransfer, std::string> >vTransfers, const std::string& changeAddress, std::pair<int, std::string>& error, CWalletTx& wtxNew, CReserveKey& reservekey, CAmount& nFeeRequired, std::vector<std::pair<CNullAssetTxData, std::string> >* nullAssetTxData, std::vector<CNullAssetTxData>* nullGlobalRestrictionData)
+bool CreateTransferAssetTransaction(CWallet* pwallet, const CCoinControl& coinControl, const std::vector< std::pair<CAssetTransfer, std::string> >vTransfers, const std::string& /*changeAddress*/, std::pair<int, std::string>& error, CWalletTx& wtxNew, CReserveKey& reservekey, CAmount& nFeeRequired, std::vector<std::pair<CNullAssetTxData, std::string> >* nullAssetTxData, std::vector<CNullAssetTxData>* nullGlobalRestrictionData)
 {
     // Initialize Values for transaction
     std::string strTxError;

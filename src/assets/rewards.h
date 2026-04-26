@@ -55,7 +55,7 @@ class CRewardTransaction {
         SetNull();
     }
 
-    CRewardTransaction(const uint256& p_txid, const int& p_nBatch) {
+    CRewardTransaction(const uint256& p_txid, const int& /*p_nBatch*/) {
         SetNull();
         txid = p_txid;
 

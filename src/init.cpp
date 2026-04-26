@@ -1335,7 +1335,10 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
         LogPrintf("Startup time: %s\n", DateTimeStrFormat("%Y-%m-%d %H:%M:%S", GetTime()));
     LogPrintf("Default data directory %s\n", GetDefaultDataDir().string());
     LogPrintf("Using data directory %s\n", GetDataDir().string());
-    LogPrintf("Using config file %s\n", GetConfigFile(gArgs.GetArg("-conf", HEMP0X_CONF_FILENAME)).string());
+    fs::path pathConfigFile = GetConfigFile(gArgs.GetArg("-conf", HEMP0X_CONF_FILENAME));
+    if (!fs::exists(pathConfigFile))
+        LogPrintf("Config file not found: %s (running with defaults)\n", pathConfigFile.string());
+    LogPrintf("Using config file %s\n", pathConfigFile.string());
     LogPrintf("Using at most %i automatic connections (%i file descriptors available)\n", nMaxConnections, nFD);
 
     InitSignatureCache();

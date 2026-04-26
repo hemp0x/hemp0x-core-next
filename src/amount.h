@@ -23,8 +23,9 @@ static const CAmount CENT = 1000000;
  *
  * The HEMP coin supply is governed by the emission schedule in GetBlockSubsidy():
  * 10 HEMP initial subsidy, halving every 25,000,000 blocks via integer
- * right-shift, producing approximately 450,000,000 HEMP total across four eras
- * (10 + 5 + 2 + 1 = 18 HEMP per halving cycle x 25,000,000 blocks).
+ * right-shift on satoshis (>>), producing approximately 500,000,000 HEMP total
+ * across 30 halving epochs (10 → 5 → 2.5 → 1.25 → ... → 0.00000001 → 0).
+ * Asset creation burns reduce the circulating supply below this ceiling.
  *
  * As this is used by consensus-critical validation code, the exact value of
  * MAX_MONEY is consensus critical; modification could lead to a fork.

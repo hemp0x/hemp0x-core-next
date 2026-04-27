@@ -44,7 +44,6 @@ class TestNode(NodeConnCB):
 class FeeFilterTest(Hemp0xTestFramework):
     def set_test_params(self):
         self.num_nodes = 2
-        self.enable_mocktime()
 
     def run_test(self):
         node1 = self.nodes[1]
@@ -55,7 +54,7 @@ class FeeFilterTest(Hemp0xTestFramework):
 
         # Setup the p2p connections and start up the network thread.
         test_node = TestNode()
-        connection = NodeConn('127.0.0.1', p2p_port(0), self.nodes[0], test_node)
+        connection = NodeConn('127.0.0.1', p2p_port(1), self.nodes[1], test_node)
         test_node.add_connection(connection)
         NetworkThread().start()
         test_node.wait_for_verack()
@@ -79,18 +78,15 @@ class FeeFilterTest(Hemp0xTestFramework):
         [node1.sendtoaddress(node1.getnewaddress(), 1) for _ in range(3)]
         sync_mempools(self.nodes) # must be sure node 0 has received all txs 
 
-        # Raise the tx fee back up above the mintxfee, submit 1 tx on node 0,
-        # then sync nodes 0 and 1 - we should only have 1 tx (this one below since
-        # the one above was below the min txfee).
-        # Send one transaction from node0 that should be received, so that we
-        # we can sync the test on receipt (if node1's txs were relayed, they'd
-        # be received by the time this node0 tx is received). This is
+        # Raise the tx fee back up above the mintxfee, submit 1 tx on the same
+        # node our test peer is connected to, and verify we only receive that
+        # tx since the previous batch was below the peer's feefilter. This is
         # unfortunately reliant on the current relay behavior where we batch up
         # to 35 entries in an inv, which means that when this next transaction
         # is eligible for relay, the prior transactions from node1 are eligible
         # as well.
-        node0.settxfee(Decimal("0.01600000"))
-        txids = [node0.sendtoaddress(node0.getnewaddress(), 1)] #
+        node1.settxfee(Decimal("0.01600000"))
+        txids = [node1.sendtoaddress(node1.getnewaddress(), 1)]
         assert(all_invs_match(txids, test_node))
         test_node.clear_invs()
 

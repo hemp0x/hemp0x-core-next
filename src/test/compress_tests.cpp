@@ -20,7 +20,7 @@
 // amounts 1 .. 10000
 #define NUM_MULTIPLES_1HEMP 10000
 
-// amounts 50 .. 21000000
+// amounts 10 .. 4200000
 #define NUM_MULTIPLES_10HEMP 420000
 
 BOOST_FIXTURE_TEST_SUITE(compress_tests, BasicTestingSetup)

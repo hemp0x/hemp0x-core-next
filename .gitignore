@@ -59,6 +59,7 @@ src/qt/test/moc*.cpp
 .libs
 .*.swp
 *.*~*
+*~
 *.bak
 *.rej
 *.orig
@@ -121,6 +122,7 @@ libhemp0xconsensus.pc
 contrib/devtools/split-debug.sh
 .idea
 cmake-build-debug
+.kilo/
 
 CMakeLists.txt
 

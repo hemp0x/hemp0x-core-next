@@ -624,6 +624,9 @@ int atoi(const std::string& str)
  *  9999999999999999999  1^19-1     (would overflow)
  */
 static const int64_t UPPER_BOUND = 1000000000000000000LL - 1LL;
+// Positive ParseFixedPoint values are capped below half of int64_t max after
+// decimal scaling. This is a parser overflow guard, not a money-supply limit.
+static const int64_t PARSE_FIXED_POINT_POSITIVE_BOUND = 4500000000000000000LL;
 
 /** Helper function for ParseFixedPoint */
 static inline bool ProcessMantissaDigit(char ch, int64_t &mantissa, int &mantissa_tzeros)
@@ -721,11 +724,11 @@ bool ParseFixedPoint(const std::string &val, int decimals, int64_t *amount_out)
         return false; /* cannot represent values larger than or equal to 10^(18-decimals) */
 
     for (int i=0; i < exponent; ++i) {
-        if (mantissa > (450000000000000000LL) || mantissa < -(UPPER_BOUND / 10LL))
+        if (mantissa > (PARSE_FIXED_POINT_POSITIVE_BOUND / 10LL) || mantissa < -(UPPER_BOUND / 10LL))
             return false; /* overflow */
         mantissa *= 10;
     }
-    if (mantissa > 4500000000000000000LL || mantissa < -UPPER_BOUND)
+    if (mantissa > PARSE_FIXED_POINT_POSITIVE_BOUND || mantissa < -UPPER_BOUND)
         return false; /* overflow */
 
     if (amount_out)
@@ -733,4 +736,3 @@ bool ParseFixedPoint(const std::string &val, int decimals, int64_t *amount_out)
 
     return true;
 }
-

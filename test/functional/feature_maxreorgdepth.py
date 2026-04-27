@@ -25,6 +25,7 @@ class MaxReorgTest(Hemp0xTestFramework):
         self.max_reorg_depth = 60
         self.min_reorg_peers = 4
         self.min_reorg_age = 60 * 60 * 12
+        self.enable_mocktime()
         # self.extra_args = [[f"-maxreorg={self.max_reorg_depth}", f"-minreorgpeers={self.min_reorg_peers}", f"-minreorgage={self.min_reorg_age}"] for i in range(self.num_nodes)]
 
     def add_options(self, parser):

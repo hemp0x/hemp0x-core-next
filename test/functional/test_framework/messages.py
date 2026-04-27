@@ -605,6 +605,13 @@ class CTransaction:
         self.calc_x16r()
         return self.hash
 
+    @property
+    def sha256(self):
+        """Return transaction hash as integer for compatibility with tests expecting sha256."""
+        if self.hash is None:
+            self.calc_x16r()
+        return int(self.hash, 16)
+
 
     # We will only cache the serialization without witness in
     # self.x16r and self.hash -- those are expected to be the txid.
@@ -693,6 +700,13 @@ class CBlockHeader:
         self.x16r = None
         self.calc_x16r()
         return self.x16r
+
+    @property
+    def sha256(self):
+        """Return block hash as integer for compatibility with tests expecting sha256."""
+        if self.hash is None:
+            self.calc_x16r()
+        return int(self.hash, 16)
 
     def __repr__(self):
         return "CBlockHeader(nVersion=%i hashPrevBlock=%064x hashMerkleRoot=%064x nTime=%s nBits=%08x nNonce=%08x)" \

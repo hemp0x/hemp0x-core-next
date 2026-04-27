@@ -26,7 +26,7 @@ def get_block_from_node(node, blockhash):
     block = CBlock()
     block.deserialize(BytesIO(hex_str_to_bytes(block_hex)))
     block.hash = blockhash
-    block.calc_x16r()
+    block.x16r = int(blockhash, 16)
     return block
 
 

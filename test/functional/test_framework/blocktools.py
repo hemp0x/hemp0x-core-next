@@ -95,7 +95,7 @@ def create_coinbase(height, pubkey = None, value = None, script_pub_key = None):
     coin_base_output = CTxOut()
     if value is None:
         coin_base_output.nValue = 10 * COIN
-        halvings = int(height/150) # regtest
+        halvings = int(height / 25000000)
         coin_base_output.nValue >>= halvings
     else:
         coin_base_output.nValue = value

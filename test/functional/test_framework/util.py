@@ -786,4 +786,33 @@ def mine_large_block(node, utxos=None):
         utxos.extend(node.listunspent())
     fee = 100 * node.getnetworkinfo()["relayfee"]
     create_lots_of_big_transactions(node, txouts, utxos, num, fee=fee)
-    node.generate(1)
+
+    # Use daemon-side block generation (getblocktemplate + submitblock)
+    from test_framework.blocktools import create_block_from_template, create_coinbase
+    from test_framework.messages import hex_str_to_bytes
+    try:
+        template = node.getblocktemplate()
+    except Exception:
+        tip_hash = node.getbestblockhash()
+        tip_header = node.getblockheader(tip_hash)
+        version = 0x30000000 | (1 << 6)
+        template = {
+            "version": version,
+            "previousblockhash": tip_hash,
+            "height": tip_header["height"] + 1,
+            "bits": tip_header["bits"],
+            "curtime": tip_header["time"] + 1,
+            "coinbasevalue": 1000000000,
+            "transactions": [{"data": node.getrawtransaction(txid)} for txid in node.getrawmempool()],
+        }
+
+    address = node.getnewaddress()
+    address_info = node.validateaddress(address)
+    script_pub_key = hex_str_to_bytes(address_info["scriptPubKey"])
+    coinbase = create_coinbase(template["height"], value=template["coinbasevalue"], script_pub_key=script_pub_key)
+    block = create_block_from_template(template, coinbase)
+    block.solve()
+
+    result = node.submitblock(bytes_to_hex_str(block.serialize()))
+    if result is not None:
+        raise AssertionError("submitblock failed while mining large block: %s" % result)

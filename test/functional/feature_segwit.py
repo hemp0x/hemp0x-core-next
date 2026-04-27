@@ -113,23 +113,17 @@ class SegWitTest(Hemp0xTestFramework):
         sync_blocks(self.nodes)
 
     def run_test(self):
-        self.nodes[0].generate(161)  # block 161
+        # Segwit is always active on regtest in Hemp0x
+        # Generate enough blocks for coinbase maturity and enough UTXOs
+        # We need 60 UTXOs with value >= 9 (5 iterations * 3 nodes * 2 versions * 2 types)
+        # Generate 200 blocks to get 200 mature coinbase UTXOs (100 mature + 100 new)
+        self.nodes[0].generate(200)
+        sync_blocks(self.nodes)
 
-        #         self.log.info("Verify sigops are counted in GBT with pre-BIP141 rules before the fork")
-        #         txid = self.nodes[0].sendtoaddress(self.nodes[0].getnewaddress(), 1)
-        #         tmpl = self.nodes[0].getblocktemplate({})
-        #         assert(tmpl['sizelimit'] == 1000000)
-        #         assert('weightlimit' not in tmpl)
-        #         assert(tmpl['sigoplimit'] == 20000)
-        #         assert(tmpl['transactions'][0]['hash'] == txid)
-        #         assert(tmpl['transactions'][0]['sigops'] == 2)
-        #         tmpl = self.nodes[0].getblocktemplate({'rules':['segwit']})
-        #         assert(tmpl['sizelimit'] == 1000000)
-        #         assert('weightlimit' not in tmpl)
-        #         assert(tmpl['sigoplimit'] == 20000)
-        #         assert(tmpl['transactions'][0]['hash'] == txid)
-        #         assert(tmpl['transactions'][0]['sigops'] == 2)
-        self.nodes[0].generate(1)  # block 162
+        # Verify we have enough UTXOs
+        unspent = self.nodes[0].listunspent()
+        large_utxos = [u for u in unspent if u['amount'] >= 9]
+        assert len(large_utxos) >= 60, "Need at least 60 UTXOs with value >= 9, have %d" % len(large_utxos)
 
         balance_presetup = self.nodes[0].getbalance()
         self.pubkey = []
@@ -153,7 +147,7 @@ class SegWitTest(Hemp0xTestFramework):
                     wit_ids[n][v].append(send_to_witness(v, self.nodes[0], find_unspent(self.nodes[0], 9), self.pubkey[n], False, Decimal("9.9")))
                     p2sh_ids[n][v].append(send_to_witness(v, self.nodes[0], find_unspent(self.nodes[0], 9), self.pubkey[n], True, Decimal("9.9")))
 
-        self.nodes[0].generate(1)  # block 163
+        self.nodes[0].generate(1)
         sync_blocks(self.nodes)
 
         # Make sure all nodes recognize the transactions as theirs
@@ -161,8 +155,9 @@ class SegWitTest(Hemp0xTestFramework):
         assert_equal(self.nodes[1].getbalance(), 20 * Decimal("9.9"))
         assert_equal(self.nodes[2].getbalance(), 20 * Decimal("9.9"))
 
-        self.nodes[0].generate(260)  # block 423
-        sync_blocks(self.nodes)
+        # Segwit is always active, so witness transactions should be mineable immediately
+        self.log.info("Verify witness txs are mined immediately (segwit always active)")
+        assert_equal(len(self.nodes[2].getrawmempool()), 0)
 
         # unsigned, no scriptsig
         self.fail_accept(self.nodes[0], "mandatory-script-verify-flag", wit_ids[NODE_0][WIT_V0][0], False)

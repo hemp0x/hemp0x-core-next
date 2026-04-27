@@ -11,10 +11,9 @@ so tests construct blocks out of process and submit them through the same pool
 RPC surface external software uses.
 """
 
-from .blocktools import create_block_from_template, create_coinbase
+from .blocktools import create_block_from_template, create_coinbase, add_witness_commitment
 from .mininode import COIN
-from .messages import bytes_to_hex_str
-from .util import hex_str_to_bytes
+from .messages import bytes_to_hex_str, hex_str_to_bytes
 
 
 def generate_blocks(rpc, nblocks, address=None):
@@ -35,10 +34,21 @@ def generate_blocks_to_address(rpc, nblocks, address):
         template = get_block_template_or_fallback(rpc)
         height = template["height"]
         value = template["coinbasevalue"]
-        tip_time = rpc.getblock(template["previousblockhash"])["time"]
-        block_time = tip_time + 1
+        tip_header = rpc.getblockheader(template["previousblockhash"])
+        tip_time = tip_header["time"]
+        block_time = template.get("curtime", tip_time + 1)
         coinbase = create_coinbase(height, value=value, script_pub_key=script_pub_key)
         block = create_block_from_template(template, coinbase, block_time)
+
+        # If the block contains transactions with witness data, add the
+        # required witness commitment to the coinbase so the block passes
+        # segwit validation.
+        has_witness_tx = any(
+            tx.wit.vtxinwit for tx in block.vtx[1:]
+        )
+        if has_witness_tx:
+            add_witness_commitment(block)
+
         block.solve()
 
         result = rpc.submitblock(bytes_to_hex_str(block.serialize()))
@@ -59,8 +69,6 @@ def get_block_template_or_fallback(rpc):
     tip_hash = rpc.getbestblockhash()
     tip_header = rpc.getblockheader(tip_hash)
     # Use VERSIONBITS_TOP_BITS_ASSETS (0x30000000) with asset signaling bit (bit 6).
-    # 0x30000000 has bits 28 and 29 set, which is the minimum version accepted once assets deploy.
-    # Adding bit 6 signals for asset deployment to ensure activation on regtest.
     version = 0x30000000 | (1 << 6)
     return {
         "version": version,

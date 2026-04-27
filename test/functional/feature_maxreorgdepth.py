@@ -9,7 +9,6 @@ Max Reorg Test
 """
 
 import sys
-import time
 from test_framework.test_framework import Hemp0xTestFramework
 from test_framework.util import connect_all_nodes_bi, set_node_times, assert_equal, connect_nodes_bi, assert_contains_pair, assert_does_not_contain_key
 from test_framework.mininode import wait_until
@@ -60,10 +59,6 @@ class MaxReorgTest(Hemp0xTestFramework):
         # enough to activate assets
         start = 432
 
-        self.log.info(f"Setting all node times to {tip_age} seconds ago...")
-        now = int(round(time.time()))
-        set_node_times(self.nodes, now - tip_age)
-
         self.log.info(f"Mining {start} starter blocks on all nodes and syncing...")
         subject.generate(round(start/2))
         self.sync_all()
@@ -78,11 +73,16 @@ class MaxReorgTest(Hemp0xTestFramework):
 
         self.log.info(f"Miners are mining {height} blocks...")
         subject.generate(height)
-        wait_until(lambda: [n.getblockcount() for n in self.nodes[1:]] == [height+start] * (peers-1), err_msg="Wait for BlockCount")
+        wait_until(lambda: [n.getblockcount() for n in self.nodes[1:]] == [height+start] * (peers-1), timeout=120, err_msg="Wait for BlockCount")
         self.log.info("BlockCount: " + str([start] + [n.getblockcount() for n in self.nodes[1:]]))
 
+        # Get the subject's tip timestamp after mining - this is the baseline for the reorg age check
+        subject_tip_hash = subject.getbestblockhash()
+        subject_tip_time = subject.getblockheader(subject_tip_hash)["time"]
+        self.log.info(f"Subject tip time after mining: {subject_tip_time}")
+
         self.log.info("Restarting adversary node...")
-        self.start_node(0)
+        self.start_node(0, extra_args=["-bypassdownload"])
 
         self.log.info(f"Adversary is issuing asset: {asset_name}...")
         adversary.issue(asset_name)
@@ -90,7 +90,9 @@ class MaxReorgTest(Hemp0xTestFramework):
         self.log.info(f"Adversary is mining {height*2} (2 x {height}) blocks over the next ~{tip_age} seconds...")
         interval = round(tip_age / (height * 2)) + 1
         for i in range(0, height*2):
-            set_node_times(self.nodes, (now - tip_age) + ((i+1) * interval))
+            # Advance mocktime from the subject's tip time, ensuring adversary blocks are newer
+            new_mocktime = subject_tip_time + ((i+1) * interval)
+            set_node_times(self.nodes, new_mocktime)
             adversary.generate(1)
         assert(adversary.getblockcount() - start == (subject.getblockcount() - start) * 2)
         besttimes = [n.getblock(n.getbestblockhash())['time'] for n in self.nodes]

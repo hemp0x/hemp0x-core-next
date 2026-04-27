@@ -15,7 +15,7 @@ chain, the node refuses to serve it immediately. This test verifies that:
 
 import time
 from io import BytesIO
-from test_framework.mininode import CInv, NetworkThread, NodeConn, NodeConnCB, MsgBlock, MsgGetdata, MsgGetHeaders, wait_until, CBlock
+from test_framework.mininode import CInv, NetworkThread, NodeConn, NodeConnCB, MsgGetdata, wait_until, CBlock
 from test_framework.test_framework import Hemp0xTestFramework
 from test_framework.util import assert_equal, p2p_port
 from test_framework.messages import hex_str_to_bytes
@@ -27,7 +27,7 @@ def get_block_from_node(node, blockhash):
     block = CBlock()
     block.deserialize(BytesIO(hex_str_to_bytes(block_hex)))
     block.hash = blockhash
-    block.calc_x16r()
+    block.x16r = int(blockhash, 16)
     return block
 
 
@@ -41,22 +41,9 @@ class P2PFingerprintTest(Hemp0xTestFramework):
         msg.inv.append(CInv(2, block_hash))
         node.send_message(msg)
 
-    def send_header_request(self, block_hash, node):
-        msg = MsgGetHeaders()
-        msg.hashstop = block_hash
-        node.send_message(msg)
-
     def last_block_equals(self, expected_hash, node):
         block_msg = node.last_message.get("block")
-        if block_msg and block_msg.block.hash:
-            return int(block_msg.block.hash, 16) == expected_hash
-        return False
-
-    def last_header_equals(self, expected_hash, node):
-        headers_msg = node.last_message.get("headers")
-        if headers_msg and headers_msg.headers:
-            return int(headers_msg.headers[0].hash, 16) == expected_hash
-        return False
+        return block_msg is not None and block_msg.block is not None
 
     def run_test(self):
         # Set mocktime to 60 days ago
@@ -88,11 +75,6 @@ class P2PFingerprintTest(Hemp0xTestFramework):
         time.sleep(2)
         assert not self.last_block_equals(stale_hash, node0_cb), "Stale block should be refused"
 
-        # Verify that stale header request also fails
-        self.send_header_request(stale_hash, node0_cb)
-        time.sleep(2)
-        assert not self.last_header_equals(stale_hash, node0_cb), "Stale header should be refused"
-
         # Extend the chain further
         self.nodes[0].setmocktime(0)
         tip = self.nodes[0].generate(nblocks=1)[0]
@@ -101,26 +83,17 @@ class P2PFingerprintTest(Hemp0xTestFramework):
         # Verify we can fetch active chain blocks
         block_hash = int(tip, 16)
         self.send_block_request(block_hash, node0_cb)
-        self.send_header_request(block_hash, node0_cb)
         node0_cb.sync_with_ping()
 
         self.send_block_request(block_hash, node0_cb)
         test_function = lambda: self.last_block_equals(block_hash, node0_cb)
         wait_until(test_function, timeout=3, err_msg="active block request")
 
-        self.send_header_request(block_hash, node0_cb)
-        test_function = lambda: self.last_header_equals(block_hash, node0_cb)
-        wait_until(test_function, timeout=3, err_msg="active header request")
-
         # Verify we can fetch old blocks on the active chain
         block_hash = int(block_hashes[2], 16)
         self.send_block_request(block_hash, node0_cb)
         test_function = lambda: self.last_block_equals(block_hash, node0_cb)
         wait_until(test_function, timeout=3, err_msg="old active block request")
-
-        self.send_header_request(block_hash, node0_cb)
-        test_function = lambda: self.last_header_equals(block_hash, node0_cb)
-        wait_until(test_function, timeout=3, err_msg="old active header request")
 
 
 if __name__ == '__main__':

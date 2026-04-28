@@ -838,6 +838,12 @@ public:
         LOCK(cs_inventory);
         if (inv.type == MSG_TX) {
             if (!filterInventoryKnown.contains(inv.hash)) {
+                // Cap the inv-to-send set to prevent unbounded memory growth
+                // and excessive sorting cost under sustained transaction spam.
+                const size_t MAX_INV_TX_TO_SEND = 50000;
+                if (setInventoryTxToSend.size() >= MAX_INV_TX_TO_SEND) {
+                    setInventoryTxToSend.erase(setInventoryTxToSend.begin());
+                }
                 setInventoryTxToSend.insert(inv.hash);
             }
         } else if (inv.type == MSG_BLOCK) {

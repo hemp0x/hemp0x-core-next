@@ -97,6 +97,9 @@ CAddrInfo* CAddrMan::ById(unsigned long nId)
 
 CAddrInfo* CAddrMan::Create(const CAddress& addr, const CNetAddr& addrSource, int* pnId)
 {
+    if (nIdCount >= std::numeric_limits<int>::max() - 1) {
+        return nullptr;
+    }
     int nId = nIdCount++;
     mapInfo[nId] = CAddrInfo(addr, addrSource);
     mapAddr[addr] = nId;
@@ -300,6 +303,8 @@ bool CAddrMan::Add_(const CAddress& addr, const CNetAddr& source, int64_t nTimeP
             return false;
     } else {
         pinfo = Create(addr, source, &nId);
+        if (!pinfo)
+            return false;
         pinfo->nTime = std::max((int64_t)0, (int64_t)pinfo->nTime - nTimePenalty);
         nNew++;
         fNew = true;

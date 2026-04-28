@@ -552,6 +552,20 @@ void CConnman::Ban(const CSubNet& subNet, const BanReason &banReason, int64_t ba
         }
         else
             return;
+        // Keep the persisted banlist bounded under repeated manual or remote
+        // misbehavior-triggered bans.
+        const size_t MAX_BANLIST_SIZE = 10000;
+        while (setBanned.size() > MAX_BANLIST_SIZE) {
+            // Evict the entry with the earliest expiry time.
+            auto oldest = setBanned.begin();
+            for (auto it = setBanned.begin(); it != setBanned.end(); ++it) {
+                if (it->second.nBanUntil < oldest->second.nBanUntil) {
+                    oldest = it;
+                }
+            }
+            setBanned.erase(oldest);
+            setBannedIsDirty = true;
+        }
     }
     if(clientInterface)
         clientInterface->BannedListChanged();
@@ -2852,9 +2866,14 @@ void CNode::AskFor(const CInv& inv)
     // the key is the earliest time the request can be sent
     int64_t nRequestTime;
     limitedmap<uint256, int64_t>::const_iterator it = mapAlreadyAskedFor.find(inv.hash);
-    if (it != mapAlreadyAskedFor.end())
-        nRequestTime = it->second;
-    else
+    if (it != mapAlreadyAskedFor.end()) {
+        // Allow re-request if the previous request is stale. This keeps an
+        // old mapAlreadyAskedFor entry from blocking a later retry forever.
+        if (GetTimeMicros() - it->second > 10 * 60 * 1000000)
+            nRequestTime = 0;
+        else
+            nRequestTime = it->second;
+    } else
         nRequestTime = 0;
     LogPrint(BCLog::NET, "askfor %s  %d (%s) peer=%d\n", inv.ToString(), nRequestTime, DateTimeStrFormat("%H:%M:%S", nRequestTime/1000000), id);
 

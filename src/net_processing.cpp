@@ -33,6 +33,8 @@
 #include "utilstrencodings.h"
 #include "validationinterface.h"
 
+#include <limits>
+
 #if defined(NDEBUG)
 # error "Hemp0x cannot be compiled without assertions."
 #endif
@@ -729,7 +731,9 @@ void Misbehaving(NodeId pnode, int howmuch)
     if (state == nullptr)
         return;
 
-    state->nMisbehavior += howmuch;
+    state->nMisbehavior = std::min<int64_t>(
+        int64_t{state->nMisbehavior} + howmuch,
+        std::numeric_limits<int>::max() / 2);
     int banscore = gArgs.GetArg("-banscore", DEFAULT_BANSCORE_THRESHOLD);
     if (state->nMisbehavior >= banscore && state->nMisbehavior - howmuch < banscore)
     {
@@ -1009,7 +1013,12 @@ void static ProcessGetData(CNode* pfrom, const Consensus::Params& consensusParam
     const CNetMsgMaker msgMaker(pfrom->GetSendVersion());
     LOCK(cs_main);
 
-    while (it != pfrom->vRecvGetData.end()) {
+    // Limit items processed per call to avoid holding cs_main too long for
+    // oversized getdata queues. Remaining requests stay queued for the next
+    // processing pass.
+    const size_t nMaxItemsPerCall = 1000;
+    size_t nProcessed = 0;
+    while (it != pfrom->vRecvGetData.end() && nProcessed < nMaxItemsPerCall) {
         // Don't bother if send buffer is too full to respond anyway
         if (pfrom->fPauseSend)
             break;
@@ -1020,6 +1029,7 @@ void static ProcessGetData(CNode* pfrom, const Consensus::Params& consensusParam
                 return;
 
             it++;
+            nProcessed++;
 
             if (inv.type == MSG_BLOCK || inv.type == MSG_FILTERED_BLOCK || inv.type == MSG_CMPCT_BLOCK || inv.type == MSG_WITNESS_BLOCK)
             {
@@ -2219,7 +2229,10 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
 
             // Recursively process any orphan transactions that depended on this one
             std::set<NodeId> setMisbehaving;
-            while (!vWorkQueue.empty()) {
+            const size_t MAX_ORPHAN_RESOLUTION_WORK_ITEMS = 1000;
+            size_t nOrphanWorkItems = 0;
+            while (!vWorkQueue.empty() && nOrphanWorkItems < MAX_ORPHAN_RESOLUTION_WORK_ITEMS) {
+                nOrphanWorkItems++;
                 auto itByPrev = mapOrphanTransactionsByPrev.find(vWorkQueue.front());
                 vWorkQueue.pop_front();
                 if (itByPrev == mapOrphanTransactionsByPrev.end())

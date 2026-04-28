@@ -369,6 +369,24 @@ BOOST_FIXTURE_TEST_SUITE(addrman_tests, BasicTestingSetup)
         BOOST_CHECK(info2 == nullptr);
     }
 
+    BOOST_AUTO_TEST_CASE(addrman_id_bounds_test)
+    {
+        BOOST_TEST_MESSAGE("Running Addrman Id Bounds Test");
+
+        CAddrManTest addrman;
+
+        CNetAddr source = ResolveIP("252.2.2.2");
+        CService addr1 = ResolveService("250.1.1.1", 42069);
+        BOOST_CHECK(addrman.Add(CAddress(addr1, NODE_NONE), source));
+        BOOST_CHECK_EQUAL(addrman.size(), (uint64_t)1);
+
+        // ById must reject ids outside the signed int range without wrapping.
+        // The Create overflow branch is intentionally left unforced here because
+        // nIdCount is private and cannot be driven to INT_MAX without a test hook.
+        BOOST_CHECK(addrman.ById(static_cast<unsigned long>(std::numeric_limits<int>::max()) + 1) == nullptr);
+        BOOST_CHECK(addrman.ById(0) != nullptr);
+    }
+
     BOOST_AUTO_TEST_CASE(addrman_getaddr_test)
     {
         BOOST_TEST_MESSAGE("Running Addrman GetAddr Test");

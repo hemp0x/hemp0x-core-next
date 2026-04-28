@@ -9,6 +9,7 @@
 #include "keystore.h"
 #include "net.h"
 #include "net_processing.h"
+#include "netbase.h"
 #include "pow.h"
 #include "script/sign.h"
 #include "serialize.h"
@@ -281,6 +282,41 @@ BOOST_FIXTURE_TEST_SUITE(DoS_tests, TestingSetup)
         BOOST_CHECK(mapOrphanTransactions.size() <= 10);
         LimitOrphanTxSize(0);
         BOOST_CHECK(mapOrphanTransactions.empty());
+    }
+
+    BOOST_AUTO_TEST_CASE(DoS_banlist_cap_test)
+    {
+        BOOST_TEST_MESSAGE("Running DoS Banlist Cap Test");
+
+        connman->ClearBanned();
+
+        const size_t MAX_BANLIST_SIZE = 10000;
+        const int64_t nBanBaseTime = GetTime() + 10000;
+        CSubNet firstSubnet;
+        CSubNet lastSubnet;
+
+        // Ban one more subnet than the cap with increasing expiry times.
+        // The earliest-expiring entry should be pruned when the cap is exceeded.
+        for (size_t i = 0; i < MAX_BANLIST_SIZE + 1; ++i) {
+            std::string ip = strprintf("10.%d.%d.%d", (i >> 16) & 0xFF, (i >> 8) & 0xFF, i & 0xFF);
+            CSubNet subnet;
+            BOOST_REQUIRE_MESSAGE(LookupSubNet(ip.c_str(), subnet), strprintf("failed to parse subnet: %s", ip));
+            if (i == 0) {
+                firstSubnet = subnet;
+            }
+            if (i == MAX_BANLIST_SIZE) {
+                lastSubnet = subnet;
+            }
+            connman->Ban(subnet, BanReasonManuallyAdded, nBanBaseTime + i, true);
+        }
+
+        banmap_t banMap;
+        connman->GetBanned(banMap);
+        BOOST_CHECK_EQUAL(banMap.size(), MAX_BANLIST_SIZE);
+        BOOST_CHECK_EQUAL(banMap.count(firstSubnet), 0U);
+        BOOST_CHECK_EQUAL(banMap.count(lastSubnet), 1U);
+
+        connman->ClearBanned();
     }
 
 BOOST_AUTO_TEST_SUITE_END()

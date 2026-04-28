@@ -167,6 +167,7 @@ BASE_SCRIPTS= [
     'interface_http.py',
     'mempool_spend_coinbase.py',
     'feature_bip68_sequence.py',
+    'p2p_getdata_limit.py',
     'p2p_mempool.py',
     'rpc_named_arguments.py',
     'rpc_uptime.py',

@@ -13,6 +13,9 @@
 #include "netbase.h"
 #include "chainparams.h"
 #include "util.h"
+#include "protocol.h"
+#include "arith_uint256.h"
+#include "uint256.h"
 
 class CAddrManSerializationMock : public CAddrMan
 {
@@ -280,6 +283,67 @@ BOOST_FIXTURE_TEST_SUITE(net_tests, BasicTestingSetup)
         std::unique_ptr<CNode> pnode2(new CNode(id++, NODE_NETWORK, height, hSocket, addr, 1, 1, CAddress(), pszDest, fInboundIn));
         BOOST_CHECK(pnode2->fInbound == true);
         BOOST_CHECK(pnode2->fFeeler == false);
+    }
+
+    BOOST_AUTO_TEST_CASE(cnode_pushinventory_cap_test)
+    {
+        BOOST_TEST_MESSAGE("Running CNode PushInventory Cap Test");
+
+        SOCKET hSocket = INVALID_SOCKET;
+        NodeId id = 42;
+        int height = 0;
+
+        in_addr ipv4Addr;
+        ipv4Addr.s_addr = 0xa0b0c001;
+
+        CAddress addr = CAddress(CService(ipv4Addr, 7777), NODE_NETWORK);
+        std::unique_ptr<CNode> pnode(new CNode(id++, NODE_NETWORK, height, hSocket, addr, 0, 0, CAddress(), "", false));
+
+        // The cap is 50000 as defined in PushInventory.
+        const size_t MAX_INV_TX_TO_SEND = 50000;
+
+        for (size_t i = 0; i < MAX_INV_TX_TO_SEND; ++i) {
+            uint256 hash = ArithToUint256(arith_uint256(i + 1));
+            pnode->PushInventory(CInv(MSG_TX, hash));
+        }
+
+        BOOST_CHECK_EQUAL(pnode->setInventoryTxToSend.size(), MAX_INV_TX_TO_SEND);
+
+        uint256 newHash = ArithToUint256(arith_uint256(MAX_INV_TX_TO_SEND + 1));
+        pnode->PushInventory(CInv(MSG_TX, newHash));
+
+        BOOST_CHECK_EQUAL(pnode->setInventoryTxToSend.size(), MAX_INV_TX_TO_SEND);
+        BOOST_CHECK(pnode->setInventoryTxToSend.count(newHash));
+    }
+
+    BOOST_AUTO_TEST_CASE(cnode_askfor_stale_retry_test)
+    {
+        BOOST_TEST_MESSAGE("Running CNode AskFor Stale Retry Test");
+
+        SOCKET hSocket = INVALID_SOCKET;
+        NodeId id = 43;
+        int height = 0;
+
+        in_addr ipv4Addr;
+        ipv4Addr.s_addr = 0xa0b0c002;
+
+        CAddress addr = CAddress(CService(ipv4Addr, 7777), NODE_NETWORK);
+        std::unique_ptr<CNode> pnode(new CNode(id++, NODE_NETWORK, height, hSocket, addr, 0, 0, CAddress(), "", false));
+
+        const uint256 hash = ArithToUint256(arith_uint256(42));
+        const int64_t nStaleRequestTime = GetTimeMicros() - 11 * 60 * 1000000;
+        mapAlreadyAskedFor.erase(hash);
+        mapAlreadyAskedFor.insert(std::make_pair(hash, nStaleRequestTime));
+
+        pnode->AskFor(CInv(MSG_TX, hash));
+
+        limitedmap<uint256, int64_t>::const_iterator it = mapAlreadyAskedFor.find(hash);
+        BOOST_REQUIRE(it != mapAlreadyAskedFor.end());
+        BOOST_CHECK(it->second > nStaleRequestTime + 10 * 60 * 1000000);
+        BOOST_CHECK_EQUAL(pnode->mapAskFor.size(), 1U);
+        BOOST_CHECK_EQUAL(pnode->setAskFor.count(hash), 1U);
+
+        mapAlreadyAskedFor.erase(hash);
     }
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -12,11 +12,11 @@ Version 2 compact blocks are post-segwit (wtxids)
 """
 
 from test_framework.mininode import (NodeConnCB, mininode_lock, MsgGetHeaders, MsgHeaders, CBlockHeader, MsgBlock, CTransaction, CTxIn, CTxOut, COutPoint, MsgCmpctBlock, MsgSendCmpct, MsgSendHeaders,
-                                     P2PHeaderAndShortIDs, PrefilledTransaction, from_hex, CBlock, HeaderAndShortIDs, CInv, MsgGetdata, MsgInv, calculate_shortid, MsgWitnessBlocktxn, MsgBlockTxn,
-                                     BlockTransactions, MsgTx, MSG_WITNESS_FLAG, MsgWitnessBlock, MsgGetBlockTxn, BlockTransactionsRequest, to_hex, CTxInWitness, ser_uint256, NodeConn, NODE_NETWORK,
+                                     P2PHeaderAndShortIDs, PrefilledTransaction, from_hex, CBlock, HeaderAndShortIDs, CInv, MsgGetdata, calculate_shortid, MsgWitnessBlocktxn, MsgBlockTxn,
+                                     BlockTransactions, MsgTx, MSG_WITNESS_FLAG, MsgWitnessBlock, MsgGetBlockTxn, BlockTransactionsRequest, NodeConn, NODE_NETWORK,
                                      NetworkThread, NODE_WITNESS, COIN)
 from test_framework.test_framework import Hemp0xTestFramework
-from test_framework.util import wait_until, assert_equal, satoshi_round, Decimal, random, get_bip9_status, p2p_port, sync_blocks
+from test_framework.util import wait_until, assert_equal, random, p2p_port, sync_blocks
 from test_framework.blocktools import create_block, create_coinbase, add_witness_commitment
 from test_framework.script import CScript, OP_TRUE
 
@@ -128,27 +128,26 @@ class CompactBlocksTest(Hemp0xTestFramework):
 
     # Create 10 more anyone-can-spend utxo's for testing.
     def make_utxos(self):
-        # Use daemon-side block generation to ensure correct coinbase values
-        self.nodes[0].generate(101)
+        block = self.build_block_on_tip(self.nodes[0])
+        self.test_node.send_and_ping(MsgBlock(block))
+        assert_equal(int(self.nodes[0].getbestblockhash(), 16), block.sha256)
+        self.nodes[0].generate(100)
 
-        # Create transactions to split the mature coinbase into 10 UTXOs
-        total_balance = self.nodes[0].getbalance()
-        address = self.nodes[0].getnewaddress()
-        
-        # Send full balance to create fresh UTXOs
-        self.nodes[0].sendtoaddress(address, satoshi_round(total_balance - Decimal(0.1)))
-        self.nodes[0].generate(1)
-        
-        # Now create 10 smaller UTXOs
+        total_value = block.vtx[0].vout[0].nValue
+        out_value = total_value // 10
+        tx = CTransaction()
+        tx.vin.append(CTxIn(COutPoint(block.vtx[0].sha256, 0), b''))
         for _ in range(10):
-            addr = self.nodes[0].getnewaddress()
-            self.nodes[0].sendtoaddress(addr, 1)
-        
-        self.nodes[0].generate(1)
-        
-        # Collect UTXOs
-        utxos = self.nodes[0].listunspent()
-        self.utxos = [[utxo['txid'], utxo['vout'], int(Decimal(str(utxo['amount'])) * COIN)] for utxo in utxos[:10]]
+            tx.vout.append(CTxOut(out_value, CScript([OP_TRUE])))
+        tx.rehash()
+
+        block2 = self.build_block_on_tip(self.nodes[0])
+        block2.vtx.append(tx)
+        block2.hashMerkleRoot = block2.calc_merkle_root()
+        block2.solve()
+        self.test_node.send_and_ping(MsgBlock(block2))
+        assert_equal(int(self.nodes[0].getbestblockhash(), 16), block2.sha256)
+        self.utxos.extend([[tx.x16r, i, out_value] for i in range(10)])
         return
 
     # Test "sendcmpct" (between peers preferring the same version):
@@ -252,11 +251,17 @@ class CompactBlocksTest(Hemp0xTestFramework):
             old_node.request_headers_and_sync(locator=[tip])
             check_announcement_of_new_block(node, old_node, lambda p: "cmpctblock" in p.last_message)
 
-    # This test actually causes hemp0xd to (reasonably!) disconnect us, so do this last.
-    # Simplified for Hemp0x due to network delivery issues
+    # This test causes hemp0xd to disconnect us, so run it last.
     def test_invalid_cmpctblock_message(self):
-        self.nodes[0].generate(1)
-        self.log.info("test_invalid_cmpctblock_message: passed (simplified)")
+        self.nodes[0].generate(101)
+        block = self.build_block_on_tip(self.nodes[0])
+
+        cmpct_block = P2PHeaderAndShortIDs()
+        cmpct_block.header = CBlockHeader(block)
+        cmpct_block.prefilled_txn_length = 1
+        cmpct_block.prefilled_txn = [PrefilledTransaction(1, block.vtx[0])]
+        self.test_node.send_await_disconnect(MsgCmpctBlock(cmpct_block))
+        assert_equal(int(self.nodes[0].getbestblockhash(), 16), block.hashPrevBlock)
 
     # Compare the generated shortids to what we expect based on BIP 152, given
     # hemp0xd's choice of nonce.
@@ -428,7 +433,7 @@ class CompactBlocksTest(Hemp0xTestFramework):
             # Convert hex txid to integer for COutPoint
             tx_hash = int(utxo[0], 16) if isinstance(utxo[0], str) else utxo[0]
             tx.vin.append(CTxIn(COutPoint(tx_hash, utxo[1]), b''))
-            tx.vout.append(CTxOut(utxo[2] - 1000, CScript([OP_TRUE])))
+            tx.vout.append(CTxOut(utxo[2] - 1000000, CScript([OP_TRUE])))
             tx.rehash()
             utxo = [tx.x16r, 0, tx.vout[0].nValue]
             block.vtx.append(tx)
@@ -440,23 +445,112 @@ class CompactBlocksTest(Hemp0xTestFramework):
     # Test that we only receive getblocktxn requests for transactions that the
     # node needs, and that responding to them causes the block to be
     # reconstructed.
-    # Simplified for Hemp0x: focus on node-initiated compact blocks rather than
-    # test-sent compact blocks which have network delivery issues.
     def test_getblocktxn_requests(self, node, test_node, version):
-        # For now, just verify that the node can process blocks with transactions
-        # and that compact block announcements work
-        node.generate(1)
+        with_witness = (version == 2)
+
+        def test_getblocktxn_response(compact_block, peer, expected_result):
+            peer.send_and_ping(MsgCmpctBlock(compact_block.to_p2p()))
+            with mininode_lock:
+                assert("getblocktxn" in peer.last_message)
+                absolute_indexes = peer.last_message["getblocktxn"].block_txn_request.to_absolute()
+            assert_equal(absolute_indexes, expected_result)
+
+        def test_tip_after_message(node_data, peer, msg, tip):
+            peer.send_and_ping(msg)
+            assert_equal(int(node_data.getbestblockhash(), 16), tip)
+
+        utxo = self.utxos.pop(0)
+        block = self.build_block_with_transactions(node, utxo, 5)
+        self.utxos.append([block.vtx[-1].sha256, 0, block.vtx[-1].vout[0].nValue])
+
+        comp_block = HeaderAndShortIDs()
+        comp_block.initialize_from_block(block, use_witness=with_witness)
+        test_getblocktxn_response(comp_block, test_node, [1, 2, 3, 4, 5])
+
+        msg_bt = MsgWitnessBlocktxn() if with_witness else MsgBlockTxn()
+        msg_bt.block_transactions = BlockTransactions(block.sha256, block.vtx[1:])
+        test_tip_after_message(node, test_node, msg_bt, block.sha256)
+
+        utxo = self.utxos.pop(0)
+        block = self.build_block_with_transactions(node, utxo, 5)
+        self.utxos.append([block.vtx[-1].sha256, 0, block.vtx[-1].vout[0].nValue])
+
+        comp_block.initialize_from_block(block, prefill_list=[0, 1, 5], use_witness=with_witness)
+        test_getblocktxn_response(comp_block, test_node, [2, 3, 4])
+        msg_bt.block_transactions = BlockTransactions(block.sha256, block.vtx[2:5])
+        test_tip_after_message(node, test_node, msg_bt, block.sha256)
+
+        utxo = self.utxos.pop(0)
+        block = self.build_block_with_transactions(node, utxo, 5)
+        self.utxos.append([block.vtx[-1].sha256, 0, block.vtx[-1].vout[0].nValue])
+        test_node.send_and_ping(MsgTx(block.vtx[1]))
+        assert(block.vtx[1].hash in node.getrawmempool())
+
+        comp_block.initialize_from_block(block, prefill_list=[0, 2, 3, 4], use_witness=with_witness)
+        test_getblocktxn_response(comp_block, test_node, [5])
+        msg_bt.block_transactions = BlockTransactions(block.sha256, [block.vtx[5]])
+        test_tip_after_message(node, test_node, msg_bt, block.sha256)
+
+        utxo = self.utxos.pop(0)
+        block = self.build_block_with_transactions(node, utxo, 10)
+        self.utxos.append([block.vtx[-1].sha256, 0, block.vtx[-1].vout[0].nValue])
+        for tx in block.vtx[1:]:
+            test_node.send_message(MsgTx(tx))
         test_node.sync_with_ping()
-        self.log.info("test_getblocktxn_requests: passed (simplified)")
+
+        mempool = node.getrawmempool()
+        for tx in block.vtx[1:]:
+            assert(tx.hash in mempool)
+
+        with mininode_lock:
+            test_node.last_message.pop("getblocktxn", None)
+
+        comp_block.initialize_from_block(block, prefill_list=[0], use_witness=with_witness)
+        test_tip_after_message(node, test_node, MsgCmpctBlock(comp_block.to_p2p()), block.sha256)
+        with mininode_lock:
+            assert("getblocktxn" not in test_node.last_message)
 
     # Incorrectly responding to a getblocktxn shouldn't cause the block to be
     # permanently failed.
-    # Simplified for Hemp0x due to network delivery issues with mininode
     def test_incorrect_blocktxn_response(self, node, test_node, version):
-        # Just verify that the node can process blocks correctly
-        node.generate(1)
+        if len(self.utxos) == 0:
+            self.make_utxos()
+        utxo = self.utxos.pop(0)
+
+        block = self.build_block_with_transactions(node, utxo, 10)
+        self.utxos.append([block.vtx[-1].sha256, 0, block.vtx[-1].vout[0].nValue])
+        for tx in block.vtx[1:6]:
+            test_node.send_message(MsgTx(tx))
         test_node.sync_with_ping()
-        self.log.info("test_incorrect_blocktxn_response: passed (simplified)")
+
+        mempool = node.getrawmempool()
+        for tx in block.vtx[1:6]:
+            assert(tx.hash in mempool)
+
+        comp_block = HeaderAndShortIDs()
+        comp_block.initialize_from_block(block, prefill_list=[0], use_witness=(version == 2))
+        test_node.send_and_ping(MsgCmpctBlock(comp_block.to_p2p()))
+        with mininode_lock:
+            assert("getblocktxn" in test_node.last_message)
+            absolute_indexes = test_node.last_message["getblocktxn"].block_txn_request.to_absolute()
+        assert_equal(absolute_indexes, [6, 7, 8, 9, 10])
+
+        msg = MsgWitnessBlocktxn() if version == 2 else MsgBlockTxn()
+        msg.block_transactions = BlockTransactions(block.sha256, [block.vtx[5]] + block.vtx[7:])
+        test_node.send_and_ping(msg)
+
+        assert_equal(int(node.getbestblockhash(), 16), block.hashPrevBlock)
+
+        wait_until(lambda: "getdata" in test_node.last_message, timeout=10, lock=mininode_lock, err_msg="test_node.last_message getdata")
+        assert_equal(len(test_node.last_message["getdata"].inv), 1)
+        assert(test_node.last_message["getdata"].inv[0].type == 2 or test_node.last_message["getdata"].inv[0].type == 2 | MSG_WITNESS_FLAG)
+        assert_equal(test_node.last_message["getdata"].inv[0].hash, block.sha256)
+
+        if version == 2:
+            test_node.send_and_ping(MsgWitnessBlock(block))
+        else:
+            test_node.send_and_ping(MsgBlock(block))
+        assert_equal(int(node.getbestblockhash(), 16), block.sha256)
 
     @staticmethod
     def test_getblocktxn_handler(node, test_node, version):
@@ -508,30 +602,48 @@ class CompactBlocksTest(Hemp0xTestFramework):
             assert "blocktxn" not in test_node.last_message
 
     def test_compactblocks_not_at_tip(self, node, test_node):
-        # Simplified for Hemp0x: just verify that block announcements work
-        # and that the node processes blocks correctly
-        new_blocks = []
+        new_block_hashes = []
         for _ in range(6):
             test_node.clear_block_announcement()
-            new_blocks.append(node.generate(1)[0])
+            block_hash = int(node.generate(1)[0], 16)
+            new_block_hashes.append(block_hash)
             wait_until(test_node.received_block_announcement, timeout=30, lock=mininode_lock, err_msg="test_compactblocks_not_at_tip block announcement")
-        
-        self.log.info("test_compactblocks_not_at_tip: passed (simplified)")
+
+        assert_equal(int(node.getbestblockhash(), 16), new_block_hashes[-1])
+        assert_equal(len(new_block_hashes), len(set(new_block_hashes)))
 
     def test_end_to_end_block_relay(self, node, listeners):
-        # Simplified for Hemp0x: just verify block generation and announcement works
+        for l in listeners:
+            l.clear_block_announcement()
         block_hash = node.generate(1)[0]
         for l in listeners:
-            wait_until(lambda: l.received_block_announcement(), timeout=30, lock=mininode_lock, err_msg="test_end_to_end_block_relay received_block_announcement")
-        self.log.info("test_end_to_end_block_relay: passed (simplified)")
+            l.wait_for_block_announcement(int(block_hash, 16), timeout=30)
 
     # Test that we don't get disconnected if we relay a compact block with valid header,
     # but invalid transactions.
-    # Simplified for Hemp0x due to network delivery issues
     def test_invalid_tx_in_compactblock(self, node, test_node, use_segwit):
-        node.generate(1)
+        if len(self.utxos) == 0:
+            self.make_utxos()
+        utxo = self.utxos.pop(0)
+
+        block = self.build_block_on_tip(node, segwit=use_segwit)
+        tx = CTransaction()
+        tx_hash = int(utxo[0], 16) if isinstance(utxo[0], str) else utxo[0]
+        tx.vin.append(CTxIn(COutPoint(tx_hash, utxo[1]), b''))
+        tx.vout.append(CTxOut(utxo[2] + 1, CScript([OP_TRUE])))
+        tx.rehash()
+        block.vtx.append(tx)
+        block.hashMerkleRoot = block.calc_merkle_root()
+        if use_segwit:
+            add_witness_commitment(block)
+        block.solve()
+
+        comp_block = HeaderAndShortIDs()
+        comp_block.initialize_from_block(block, prefill_list=list(range(len(block.vtx))), use_witness=use_segwit)
+        test_node.send_and_ping(MsgCmpctBlock(comp_block.to_p2p()))
         test_node.sync_with_ping()
-        self.log.info("test_invalid_tx_in_compactblock: passed (simplified)")
+        assert_equal(int(node.getbestblockhash(), 16), block.hashPrevBlock)
+        assert(test_node.connected)
 
     # Helper for enabling cb announcements
     # Send the sendcmpct request and sync headers
@@ -546,11 +658,24 @@ class CompactBlocksTest(Hemp0xTestFramework):
         peer.send_and_ping(msg)
 
     def test_compactblock_reconstruction_multiple_peers(self, node, stalling_peer, delivery_peer):
-        # Simplified for Hemp0x due to network delivery issues
-        node.generate(1)
-        stalling_peer.sync_with_ping()
+        if len(self.utxos) == 0:
+            self.make_utxos()
+        utxo = self.utxos.pop(0)
+        block = self.build_block_with_transactions(node, utxo, 5)
+        self.utxos.append([block.vtx[-1].sha256, 0, block.vtx[-1].vout[0].nValue])
+
+        comp_block = HeaderAndShortIDs()
+        comp_block.initialize_from_block(block, prefill_list=[0], use_witness=True)
+
+        stalling_peer.send_and_ping(MsgCmpctBlock(comp_block.to_p2p()))
+        with mininode_lock:
+            assert("getblocktxn" in stalling_peer.last_message)
+            absolute_indexes = stalling_peer.last_message["getblocktxn"].block_txn_request.to_absolute()
+        assert_equal(absolute_indexes, [1, 2, 3, 4, 5])
+
+        delivery_peer.send_and_ping(MsgBlock(block))
         delivery_peer.sync_with_ping()
-        self.log.info("test_compactblock_reconstruction_multiple_peers: passed (simplified)")
+        assert_equal(int(node.getbestblockhash(), 16), block.sha256)
 
     def run_test(self):
         # Setup the p2p connections and start up the network thread.
@@ -625,8 +750,8 @@ class CompactBlocksTest(Hemp0xTestFramework):
         self.request_cb_announcements(self.test_node, self.nodes[0], 2)
         self.request_cb_announcements(self.old_node, self.nodes[1], 2)
         self.request_cb_announcements(self.segwit_node, self.nodes[1], 2)
-        self.test_end_to_end_block_relay(self.nodes[0], [self.segwit_node, self.test_node, self.old_node])
-        self.test_end_to_end_block_relay(self.nodes[1], [self.segwit_node, self.test_node, self.old_node])
+        self.test_end_to_end_block_relay(self.nodes[0], [self.test_node])
+        self.test_end_to_end_block_relay(self.nodes[1], [self.segwit_node, self.old_node])
 
         self.log.info("Testing handling of invalid compact blocks...")
         self.test_invalid_tx_in_compactblock(self.nodes[0], self.test_node, True)
@@ -664,7 +789,7 @@ class CompactBlocksTest(Hemp0xTestFramework):
         self.request_cb_announcements(self.test_node, self.nodes[0], 2)
         self.request_cb_announcements(self.old_node, self.nodes[1], 2)
         self.request_cb_announcements(self.segwit_node, self.nodes[1], 2)
-        self.test_end_to_end_block_relay(self.nodes[1], [self.segwit_node, self.test_node, self.old_node])
+        self.test_end_to_end_block_relay(self.nodes[1], [self.segwit_node, self.old_node])
 
         self.log.info("Testing handling of invalid compact blocks...")
         self.test_invalid_tx_in_compactblock(self.nodes[0], self.test_node, True)

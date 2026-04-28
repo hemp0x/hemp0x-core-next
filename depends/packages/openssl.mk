@@ -1,8 +1,8 @@
 package=openssl
-$(package)_version=1.1.1k
+$(package)_version=1.1.1w
 $(package)_download_path=https://www.openssl.org/source
 $(package)_file_name=$(package)-$($(package)_version).tar.gz
-$(package)_sha256_hash=892a0875b9872acd04a9fde79b1f943075d5ea162415de3047c327df33fbaee5
+$(package)_sha256_hash=cf3098950cb4d853ad95c0841f1f9c6d3dc102dccfcacd521d93925208b76ac8
 
 define $(package)_set_vars
 $(package)_config_opts=--prefix=$(host_prefix) --openssldir=$(host_prefix)/etc/openssl

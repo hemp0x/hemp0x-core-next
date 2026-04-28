@@ -1,8 +1,8 @@
 package=zlib
-$(package)_version=1.2.13
+$(package)_version=1.3.2
 $(package)_download_path=https://zlib.net/fossils
 $(package)_file_name=$(package)-$($(package)_version).tar.gz
-$(package)_sha256_hash=b3a24de97a8fdbc835b9833169501030b8977031bcb54b3b3ac13740f846ab30
+$(package)_sha256_hash=bb329a0a2cd0274d05519d61c667c062e06990d72e125ee2dfa8de64f0119d16
 
 define $(package)_set_vars
 $(package)_build_opts= CC="$($(package)_cc)"

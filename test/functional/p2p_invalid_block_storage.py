@@ -12,9 +12,6 @@ and that blocks passing those checks but failing ConnectBlock trigger
 peer banning while the node continues to accept valid blocks.
 """
 
-import os
-import time
-
 from test_framework.blocktools import create_block, create_coinbase
 from test_framework.mininode import (
     COIN,
@@ -213,34 +210,11 @@ class InvalidBlockStorageTest(Hemp0xTestFramework):
 
         height_before = node.getblockcount()
 
-        # Record the current log position before sending the block
-        debug_log = os.path.join(
-            node.datadir, "regtest", "debug.log"
-        )
-        with open(debug_log, encoding="utf-8") as dl:
-            dl.seek(0, 2)
-            log_start = dl.tell()
-
-        peer.send_message(MsgBlock(bad_block))
-
-        # Cannot use sync_with_ping here — the node disconnects the
-        # peer after ban, so the pong never arrives.  Wait for the
-        # ban log line instead.
-        ban_timeout = time.time() + 30
-        ban_detected = False
-        while time.time() < ban_timeout:
-            with open(debug_log, encoding="utf-8") as dl:
-                dl.seek(log_start)
-                log_content = dl.read()
-            if "BAN THRESHOLD EXCEEDED" in log_content:
-                ban_detected = True
-                break
-            time.sleep(0.1)
-
-        assert ban_detected, "Expected BAN THRESHOLD EXCEEDED in debug log"
-        assert "coinbase pays too much" in log_content, (
-            "Expected 'coinbase pays too much' in debug log"
-        )
+        with node.assert_debug_log(
+            expected_msgs=["BAN THRESHOLD EXCEEDED", "coinbase pays too much"],
+            timeout=30,
+        ):
+            peer.send_message(MsgBlock(bad_block))
 
         # Verify: block count unchanged
         assert_equal(node.getblockcount(), height_before)

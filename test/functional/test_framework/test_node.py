@@ -15,6 +15,7 @@ import os
 import re
 import subprocess
 import time
+from contextlib import contextmanager
 
 from .util import assert_equal, get_rpc_proxy, rpc_url, wait_until
 from .authproxy import JSONRPCException, AuthServiceProxy
@@ -64,6 +65,7 @@ class TestNode:
         self.url = None
         self.log = logging.getLogger('TestFramework.node%d' % i)
         self.cleanup_on_exit = True  # Whether to kill the node when this object goes away
+        self.chain = "regtest"
         self.p2ps = []
 
     def __del__(self):
@@ -168,6 +170,7 @@ class TestNode:
     def wait_until_stopped(self, timeout=HEMP0XD_PROC_WAIT_TIMEOUT):
         wait_until(self.is_node_stopped, err_msg="Wait until Stopped", timeout=timeout)
 
+    @contextmanager
     def assert_debug_log(self, expected_msgs, timeout=2):
         time_end = time.time() + timeout
         debug_log = os.path.join(self.datadir, self.chain, 'debug.log')
@@ -191,7 +194,7 @@ class TestNode:
             if time.time() >= time_end:
                 break
             time.sleep(0.05)
-        self._raise_assertion_error('Expected messages "{}" does not partially match log:\n\n{}\n\n'.format(str(expected_msgs), print_log))
+        raise AssertionError('Expected messages "{}" does not partially match log:\n\n{}\n\n'.format(str(expected_msgs), print_log))
 
     def node_encrypt_wallet(self, passphrase):
         """"Encrypts the wallet.

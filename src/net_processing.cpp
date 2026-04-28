@@ -1016,9 +1016,8 @@ void static ProcessGetData(CNode* pfrom, const Consensus::Params& consensusParam
     // Limit items processed per call to avoid holding cs_main too long for
     // oversized getdata queues. Remaining requests stay queued for the next
     // processing pass.
-    const size_t nMaxItemsPerCall = 1000;
     size_t nProcessed = 0;
-    while (it != pfrom->vRecvGetData.end() && nProcessed < nMaxItemsPerCall) {
+    while (it != pfrom->vRecvGetData.end() && nProcessed < MAX_GETDATA_ITEMS_PER_CALL) {
         // Don't bother if send buffer is too full to respond anyway
         if (pfrom->fPauseSend)
             break;
@@ -1184,6 +1183,12 @@ void static ProcessGetData(CNode* pfrom, const Consensus::Params& consensusParam
             if (inv.type == MSG_BLOCK || inv.type == MSG_FILTERED_BLOCK || inv.type == MSG_CMPCT_BLOCK || inv.type == MSG_WITNESS_BLOCK)
                 break;
         }
+    }
+
+    if (nProcessed >= MAX_GETDATA_ITEMS_PER_CALL && it != pfrom->vRecvGetData.end()) {
+        LogPrint(BCLog::NET, "getdata: per-call cap (%d) reached for peer=%d, %d items remaining\n",
+                 MAX_GETDATA_ITEMS_PER_CALL, pfrom->GetId(),
+                 std::distance(it, pfrom->vRecvGetData.end()));
     }
 
     pfrom->vRecvGetData.erase(pfrom->vRecvGetData.begin(), it);
@@ -2229,7 +2234,6 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
 
             // Recursively process any orphan transactions that depended on this one
             std::set<NodeId> setMisbehaving;
-            const size_t MAX_ORPHAN_RESOLUTION_WORK_ITEMS = 1000;
             size_t nOrphanWorkItems = 0;
             while (!vWorkQueue.empty() && nOrphanWorkItems < MAX_ORPHAN_RESOLUTION_WORK_ITEMS) {
                 nOrphanWorkItems++;
@@ -2286,6 +2290,11 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
                     }
                     mempool.check(pcoinsTip);
                 }
+            }
+
+            if (nOrphanWorkItems >= MAX_ORPHAN_RESOLUTION_WORK_ITEMS && !vWorkQueue.empty()) {
+                LogPrint(BCLog::NET, "orphan resolution: work cap (%d) reached, %d items remaining\n",
+                         MAX_ORPHAN_RESOLUTION_WORK_ITEMS, vWorkQueue.size());
             }
 
             for (uint256 hash : vEraseQueue)

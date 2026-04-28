@@ -18,6 +18,7 @@
 
 #include "test/test_hemp0x.h"
 
+#include <limits>
 #include <stdint.h>
 
 #include <boost/test/unit_test.hpp>
@@ -290,7 +291,6 @@ BOOST_FIXTURE_TEST_SUITE(DoS_tests, TestingSetup)
 
         connman->ClearBanned();
 
-        const size_t MAX_BANLIST_SIZE = 10000;
         const int64_t nBanBaseTime = GetTime() + 10000;
         CSubNet firstSubnet;
         CSubNet lastSubnet;
@@ -316,6 +316,77 @@ BOOST_FIXTURE_TEST_SUITE(DoS_tests, TestingSetup)
         BOOST_CHECK_EQUAL(banMap.count(firstSubnet), 0U);
         BOOST_CHECK_EQUAL(banMap.count(lastSubnet), 1U);
 
+        connman->ClearBanned();
+    }
+
+    BOOST_AUTO_TEST_CASE(DoS_banlist_bulkset_cap_test)
+    {
+        BOOST_TEST_MESSAGE("Running DoS Banlist Bulk-Set Cap Test");
+
+        connman->ClearBanned();
+
+        const int64_t nBanBaseTime = GetTime() + 10000;
+
+        // Build a banmap that exceeds the cap.
+        banmap_t bigMap;
+        CSubNet firstSubnet;
+        CSubNet lastSubnet;
+        for (size_t i = 0; i < MAX_BANLIST_SIZE + 50; ++i) {
+            std::string ip = strprintf("10.%d.%d.%d", (i >> 16) & 0xFF, (i >> 8) & 0xFF, i & 0xFF);
+            CSubNet subnet;
+            BOOST_REQUIRE_MESSAGE(LookupSubNet(ip.c_str(), subnet), strprintf("failed to parse subnet: %s", ip));
+            if (i == 0) firstSubnet = subnet;
+            if (i == MAX_BANLIST_SIZE + 49) lastSubnet = subnet;
+            CBanEntry entry;
+            entry.nBanUntil = nBanBaseTime + i;
+            entry.banReason = BanReasonManuallyAdded;
+            bigMap[subnet] = entry;
+        }
+
+        // SetBanned() should apply the same cap as Ban().
+        connman->SetBanned(bigMap);
+
+        banmap_t banMap;
+        connman->GetBanned(banMap);
+        BOOST_CHECK_EQUAL(banMap.size(), MAX_BANLIST_SIZE);
+        BOOST_CHECK_EQUAL(banMap.count(firstSubnet), 0U);
+        BOOST_CHECK_EQUAL(banMap.count(lastSubnet), 1U);
+
+        connman->ClearBanned();
+    }
+
+    BOOST_AUTO_TEST_CASE(DoS_misbehavior_saturation_test)
+    {
+        BOOST_TEST_MESSAGE("Running DoS Misbehavior Saturation Test");
+
+        connman->ClearBanned();
+
+        CAddress addr1(ip(0xa0b0c020), NODE_NONE);
+        CNode dummyNode1(id++, NODE_NETWORK, 0, INVALID_SOCKET, addr1, 0, 0, CAddress(), "", true);
+        dummyNode1.SetSendVersion(PROTOCOL_VERSION);
+        peerLogic->InitializeNode(&dummyNode1);
+        dummyNode1.nVersion = 1;
+        dummyNode1.fSuccessfullyConnected = true;
+
+        // Drive the misbehavior score well past the ban threshold and toward
+        // the saturation ceiling (INT_MAX / 2).  Repeated large increments
+        // must not overflow.
+        const int nSaturationCeil = std::numeric_limits<int>::max() / 2;
+        for (int i = 0; i < 100; ++i) {
+            Misbehaving(dummyNode1.GetId(), 100000000);
+        }
+
+        CNodeStateStats stats;
+        BOOST_REQUIRE(GetNodeStateStats(dummyNode1.GetId(), stats));
+        BOOST_CHECK_EQUAL(stats.nMisbehavior, nSaturationCeil);
+
+        // One more increment should not push the score above the ceiling.
+        Misbehaving(dummyNode1.GetId(), 1);
+        BOOST_REQUIRE(GetNodeStateStats(dummyNode1.GetId(), stats));
+        BOOST_CHECK_EQUAL(stats.nMisbehavior, nSaturationCeil);
+
+        bool dummy;
+        peerLogic->FinalizeNode(dummyNode1.GetId(), dummy);
         connman->ClearBanned();
     }
 

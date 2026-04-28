@@ -35,6 +35,12 @@ static constexpr int64_t STALE_CHECK_INTERVAL = 10 * 60; // 10 minutes
 static constexpr int64_t EXTRA_PEER_CHECK_INTERVAL = 45;
 /** Minimum time an outbound-peer-eviction candidate must be connected for, in order to evict, in seconds */
 static constexpr int64_t MINIMUM_CONNECT_TIME = 30;
+/** Maximum items processed from a single getdata queue per call to avoid
+ *  holding cs_main too long. Remaining items stay queued for the next pass. */
+static const size_t MAX_GETDATA_ITEMS_PER_CALL = 1000;
+/** Maximum work items when recursively resolving orphans after a parent
+ *  transaction is accepted. Prevents deep chains from monopolising processing. */
+static const size_t MAX_ORPHAN_RESOLUTION_WORK_ITEMS = 1000;
 
 class PeerLogicValidation final: public CValidationInterface, public NetEventsInterface {
 private:

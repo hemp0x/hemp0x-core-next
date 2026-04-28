@@ -552,20 +552,7 @@ void CConnman::Ban(const CSubNet& subNet, const BanReason &banReason, int64_t ba
         }
         else
             return;
-        // Keep the persisted banlist bounded under repeated manual or remote
-        // misbehavior-triggered bans.
-        const size_t MAX_BANLIST_SIZE = 10000;
-        while (setBanned.size() > MAX_BANLIST_SIZE) {
-            // Evict the entry with the earliest expiry time.
-            auto oldest = setBanned.begin();
-            for (auto it = setBanned.begin(); it != setBanned.end(); ++it) {
-                if (it->second.nBanUntil < oldest->second.nBanUntil) {
-                    oldest = it;
-                }
-            }
-            setBanned.erase(oldest);
-            setBannedIsDirty = true;
-        }
+        PruneBanlist();
     }
     if(clientInterface)
         clientInterface->BannedListChanged();
@@ -611,6 +598,7 @@ void CConnman::SetBanned(const banmap_t &banMap)
     LOCK(cs_setBanned);
     setBanned = banMap;
     setBannedIsDirty = true;
+    PruneBanlist();
 }
 
 void CConnman::SweepBanned()
@@ -631,6 +619,24 @@ void CConnman::SweepBanned()
         }
         else
             ++it;
+    }
+}
+
+void CConnman::PruneBanlist()
+{
+    // Evict oldest-expiry entries until the banlist fits within the cap.
+    // Called from Ban() and SetBanned() while holding cs_setBanned.
+    while (setBanned.size() > MAX_BANLIST_SIZE) {
+        auto oldest = setBanned.begin();
+        for (auto it = setBanned.begin(); it != setBanned.end(); ++it) {
+            if (it->second.nBanUntil < oldest->second.nBanUntil) {
+                oldest = it;
+            }
+        }
+        LogPrint(BCLog::NET, "Banlist at capacity (%d), evicting %s (expired %lld)\n",
+                 setBanned.size(), oldest->first.ToString(), oldest->second.nBanUntil);
+        setBanned.erase(oldest);
+        setBannedIsDirty = true;
     }
 }
 
@@ -2869,7 +2875,7 @@ void CNode::AskFor(const CInv& inv)
     if (it != mapAlreadyAskedFor.end()) {
         // Allow re-request if the previous request is stale. This keeps an
         // old mapAlreadyAskedFor entry from blocking a later retry forever.
-        if (GetTimeMicros() - it->second > 10 * 60 * 1000000)
+        if (GetTimeMicros() - it->second > STALE_TX_REQUEST_TIMEOUT_US)
             nRequestTime = 0;
         else
             nRequestTime = it->second;

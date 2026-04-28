@@ -91,6 +91,13 @@ static const size_t DEFAULT_MAXSENDBUFFER    = 1 * 1000;
 
 // NOTE: When adjusting this, update rpcnet:setban's help ("24h")
 static const unsigned int DEFAULT_MISBEHAVING_BANTIME = 60 * 60 * 24;  // Default 24-hour ban
+/** Hard cap on persisted banlist entries. Oldest-expiry entries are evicted first. */
+static const size_t MAX_BANLIST_SIZE = 10000;
+/** Cap on per-peer tx inv-to-send set to bound memory under sustained spam. */
+static const size_t MAX_INV_TX_TO_SEND = 50000;
+/** How long (microseconds) before a mapAlreadyAskedFor entry is treated as stale
+ *  and eligible for retry. */
+static const int64_t STALE_TX_REQUEST_TIMEOUT_US = 10 * 60 * 1000000;
 
 typedef int64_t NodeId;
 
@@ -361,6 +368,9 @@ private:
     void SetBannedSetDirty(bool dirty=true);
     //!clean unused entries (if bantime has expired)
     void SweepBanned();
+    /** Evict oldest-expiry entries until the banlist is at or below MAX_BANLIST_SIZE.
+     *  Caller must hold cs_setBanned. */
+    void PruneBanlist() EXCLUSIVE_LOCKS_REQUIRED(cs_setBanned);
     void DumpAddresses();
     void DumpData();
     void DumpBanlist();
@@ -838,9 +848,6 @@ public:
         LOCK(cs_inventory);
         if (inv.type == MSG_TX) {
             if (!filterInventoryKnown.contains(inv.hash)) {
-                // Cap the inv-to-send set to prevent unbounded memory growth
-                // and excessive sorting cost under sustained transaction spam.
-                const size_t MAX_INV_TX_TO_SEND = 50000;
                 if (setInventoryTxToSend.size() >= MAX_INV_TX_TO_SEND) {
                     setInventoryTxToSend.erase(setInventoryTxToSend.begin());
                 }

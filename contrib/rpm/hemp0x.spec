@@ -1,7 +1,7 @@
 %define bdbv 4.8.30
 %global selinux_variants mls strict targeted
 
-%define buildargs --without-gui
+%define buildargs
 
 Name:		hemp0x
 Version:	0.12.0

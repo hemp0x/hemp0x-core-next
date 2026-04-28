@@ -47,10 +47,10 @@ from the root of the repository.
 
 2.  Build hemp0x-core:
 
-    Configure and build the no-GUI hemp0x binaries.
+    Configure and build the hemp0x binaries.
     ```shell
     ./autogen.sh
-    ./configure --without-gui
+    ./configure
     make
     ```
 

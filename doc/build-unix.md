@@ -18,12 +18,12 @@ To Build
 
 ```bash
 ./autogen.sh
-./configure --without-gui
+./configure
 make
 make install # optional
 ```
 
-This builds the no-GUI daemon, CLI, wallet, and command-line tools.
+This builds the daemon, CLI, wallet, and command-line tools.
 
 On most Linux distros the "fPIC" flag needs to be set.  If this flag is not specified it is possible that the build will fail with an error similar to:
 ```bash
@@ -195,7 +195,7 @@ This example lists the steps necessary to setup and build a command line only, n
     git clone https://github.com/hemp0x/hemp0x-core.git
     cd hemp0x-core/
     ./autogen.sh
-    ./configure --disable-wallet --without-gui --without-miniupnpc
+    ./configure --disable-wallet --without-miniupnpc
     make check
 
 Note:
@@ -220,7 +220,7 @@ Then, install the toolchain and curl:
 To build executables for ARM:
 
     cd depends
-    make HOST=arm-linux-gnueabihf NO_QT=1
+    make HOST=arm-linux-gnueabihf
     cd ..
     ./autogen.sh
     ./configure --prefix=$PWD/depends/arm-linux-gnueabihf --enable-glibc-back-compat --enable-reduce-exports LDFLAGS=-static-libstdc++

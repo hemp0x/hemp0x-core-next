@@ -133,14 +133,14 @@ Make sure `BDB_PREFIX` and `BOOST_PREFIX` are set to the appropriate paths from 
 
 To configure with wallet:
 ```bash
-./configure --without-gui --with-boost=$BOOST_PREFIX \
+./configure --with-boost=$BOOST_PREFIX \
     CC=egcc CXX=eg++ CPP=ecpp \
     BDB_LIBS="-L${BDB_PREFIX}/lib -ldb_cxx-4.8" BDB_CFLAGS="-I${BDB_PREFIX}/include"
 ```
 
 To configure without wallet:
 ```bash
-./configure --disable-wallet --without-gui --with-boost=$BOOST_PREFIX \
+./configure --disable-wallet --with-boost=$BOOST_PREFIX \
     CC=egcc CXX=eg++ CPP=ecpp
 ```
 
@@ -167,7 +167,7 @@ pkg_add llvm boost
 ```
 
 ```bash
-./configure --disable-wallet --without-gui CC=clang CXX=clang++
+./configure --disable-wallet CC=clang CXX=clang++
 gmake
 ```
 

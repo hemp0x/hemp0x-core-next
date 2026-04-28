@@ -50,7 +50,7 @@ This is for `sh` or `bash`.
 
 `export BDB_PREFIX=$HOME/src/db4`
 
-`./configure --without-gui BDB_LIBS="-L${BDB_PREFIX}/lib -ldb_cxx-4.8" BDB_CFLAGS="-I${BDB_PREFIX}/include" CFLAGS="-fPIC" CXXFLAGS="-fPIC -I/usr/local/include" --prefix=/usr/local MAKE=gmake`
+`./configure BDB_LIBS="-L${BDB_PREFIX}/lib -ldb_cxx-4.8" BDB_CFLAGS="-I${BDB_PREFIX}/include" CFLAGS="-fPIC" CXXFLAGS="-fPIC -I/usr/local/include" --prefix=/usr/local MAKE=gmake`
 
 _Adjust to own needs. `--prefix=/usr/local` will install the binaries to `/usr/local/bin`_
 

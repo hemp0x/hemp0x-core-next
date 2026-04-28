@@ -139,10 +139,10 @@ AC_ARG_ENABLE([extended-functional-tests],
 
 AC_ARG_WITH([gui],
   [AS_HELP_STRING([--without-gui],
-  [build without the removed Qt GUI wallet (the only supported mode)])],
+  [deprecated no-op; the Qt GUI wallet has been removed])],
   [case $withval in
      no) ;;
-     *) AC_MSG_ERROR([Qt GUI wallet support has been removed; use --without-gui or omit --with-gui]) ;;
+     *) AC_MSG_ERROR([Qt GUI wallet support has been removed; omit --with-gui]) ;;
    esac],
   [])
 
@@ -404,7 +404,7 @@ case $host in
          dnl in expected paths because they may conflict with system files. Ask
          dnl Homebrew where each one is located, then adjust paths accordingly.
          dnl It's safe to add these paths even if the functionality is disabled by
-         dnl the user (--without-wallet or --without-gui for example).
+         dnl the user (--without-wallet for example).
 
          openssl_prefix=`$BREW --prefix openssl 2>/dev/null`
          bdb_prefix=`$BREW --prefix berkeley-db 2>/dev/null`

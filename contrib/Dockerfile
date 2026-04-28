@@ -40,7 +40,7 @@ RUN ./install_db4.sh ../../
 
 # build Hemp0xcore
 WORKDIR /home/hemp0x/build/Hemp0x
-RUN ./autogen.sh && ./configure --disable-tests BDB_LIBS="-L/home/hemp0x/build/db4/lib -ldb_cxx-4.8" BDB_CFLAGS="-I/home/hemp0x/build/db4/include" --without-gui  && make -j4
+RUN ./autogen.sh && ./configure --disable-tests BDB_LIBS="-L/home/hemp0x/build/db4/lib -ldb_cxx-4.8" BDB_CFLAGS="-I/home/hemp0x/build/db4/include" && make -j4
 
 FROM base AS final
 

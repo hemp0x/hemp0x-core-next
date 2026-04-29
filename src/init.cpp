@@ -829,6 +829,9 @@ bool AppInitServers(boost::thread_group& threadGroup)
         return false;
     if (gArgs.GetBoolArg("-rest", DEFAULT_REST_ENABLE) && !StartREST())
         return false;
+    if (gArgs.GetBoolArg("-rest", DEFAULT_REST_ENABLE) && gArgs.IsArgSet("-rpcallowip")) {
+        LogPrintf("WARNING: REST endpoints are unauthenticated and are protected only by the -rpcallowip HTTP allow-list\n");
+    }
     if (!StartHTTPServer())
         return false;
     return true;

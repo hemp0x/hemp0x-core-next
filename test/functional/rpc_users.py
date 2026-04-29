@@ -4,7 +4,7 @@
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-"""Test multiple RPC users."""
+"""Test multiple RPC users and verify auth-failure logging."""
 
 import os
 import http.client
@@ -70,23 +70,32 @@ class HTTPBasicsTest (Hemp0xTestFramework):
         auth_pair_new = "rtwrong:"+password
         headers = {"Authorization": "Basic " + str_to_b64str(auth_pair_new)}
 
-        conn = http.client.HTTPConnection(url.hostname, url.port)
-        conn.connect()
-        conn.request('POST', '/', '{"method": "getbestblockhash"}', headers)
-        resp = conn.getresponse()
-        assert_equal(resp.status, 401)
-        conn.close()
+        with self.nodes[0].assert_debug_log(expected_msgs=["incorrect password attempt"], timeout=10):
+            conn = http.client.HTTPConnection(url.hostname, url.port)
+            conn.connect()
+            conn.request('POST', '/', '{"method": "getbestblockhash"}', headers)
+            resp = conn.getresponse()
+            assert_equal(resp.status, 401)
+            conn.close()
 
         #Wrong password for rt
         auth_pair_new = "rt:"+password+"wrong"
         headers = {"Authorization": "Basic " + str_to_b64str(auth_pair_new)}
 
-        conn = http.client.HTTPConnection(url.hostname, url.port)
-        conn.connect()
-        conn.request('POST', '/', '{"method": "getbestblockhash"}', headers)
-        resp = conn.getresponse()
-        assert_equal(resp.status, 401)
-        conn.close()
+        with self.nodes[0].assert_debug_log(expected_msgs=["incorrect password attempt"], timeout=10):
+            conn = http.client.HTTPConnection(url.hostname, url.port)
+            conn.connect()
+            conn.request('POST', '/', '{"method": "getbestblockhash"}', headers)
+            resp = conn.getresponse()
+            assert_equal(resp.status, 401)
+            conn.close()
+
+        #Verify credentials do not appear in debug.log
+        debug_log = os.path.join(self.nodes[0].datadir, "regtest", "debug.log")
+        with open(debug_log, encoding='utf-8') as dl:
+            log_content = dl.read()
+        assert "rtwrong" not in log_content, "Leaked username in debug log"
+        assert password+"wrong" not in log_content, "Leaked password in debug log"
 
         #Correct for rt2
         auth_pair_new = "rt2:"+password2
@@ -131,22 +140,57 @@ class HTTPBasicsTest (Hemp0xTestFramework):
         rpc_user_auth_pair = "rpcuserwrong:rpcpassword"
         headers = {"Authorization": "Basic " + str_to_b64str(rpc_user_auth_pair)}
 
-        conn = http.client.HTTPConnection(url.hostname, url.port)
-        conn.connect()
-        conn.request('POST', '/', '{"method": "getbestblockhash"}', headers)
-        resp = conn.getresponse()
-        assert_equal(resp.status, 401)
-        conn.close()
+        with self.nodes[1].assert_debug_log(expected_msgs=["incorrect password attempt"], timeout=10):
+            conn = http.client.HTTPConnection(url.hostname, url.port)
+            conn.connect()
+            conn.request('POST', '/', '{"method": "getbestblockhash"}', headers)
+            resp = conn.getresponse()
+            assert_equal(resp.status, 401)
+            conn.close()
 
         #Wrong password for rpcuser
         rpc_user_auth_pair = "rpcuser:rpcpasswordwrong"
         headers = {"Authorization": "Basic " + str_to_b64str(rpc_user_auth_pair)}
 
+        with self.nodes[1].assert_debug_log(expected_msgs=["incorrect password attempt"], timeout=10):
+            conn = http.client.HTTPConnection(url.hostname, url.port)
+            conn.connect()
+            conn.request('POST', '/', '{"method": "getbestblockhash"}', headers)
+            resp = conn.getresponse()
+            assert_equal(resp.status, 401)
+            conn.close()
+
+        #Verify legacy credentials do not appear in debug.log
+        debug_log = os.path.join(self.nodes[1].datadir, "regtest", "debug.log")
+        with open(debug_log, encoding='utf-8') as dl:
+            log_content = dl.read()
+        assert "rpcuserwrong" not in log_content, "Leaked username in debug log"
+        assert "rpcpasswordwrong" not in log_content, "Leaked password in debug log"
+
+        ################################################################
+        # Verify successful auth still works after repeated failures    #
+        ################################################################
+
+        # rpcauth path: correct credentials still work on node 0
+        url = urllib.parse.urlparse(self.nodes[0].url)
+        auth_pair = url.username + ':' + url.password
+        headers = {"Authorization": "Basic " + str_to_b64str(auth_pair)}
         conn = http.client.HTTPConnection(url.hostname, url.port)
         conn.connect()
         conn.request('POST', '/', '{"method": "getbestblockhash"}', headers)
         resp = conn.getresponse()
-        assert_equal(resp.status, 401)
+        assert_equal(resp.status, 200)
+        conn.close()
+
+        # rpcuser/rpcpassword path: correct credentials still work on node 1
+        url = urllib.parse.urlparse(self.nodes[1].url)
+        rpc_user_auth_pair = "rpcuser💻:rpcpassword🔑"
+        headers = {"Authorization": "Basic " + str_to_b64str(rpc_user_auth_pair)}
+        conn = http.client.HTTPConnection(url.hostname, url.port)
+        conn.connect()
+        conn.request('POST', '/', '{"method": "getbestblockhash"}', headers)
+        resp = conn.getresponse()
+        assert_equal(resp.status, 200)
         conn.close()
 
 

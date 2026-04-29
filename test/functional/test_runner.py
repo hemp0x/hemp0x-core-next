@@ -141,6 +141,7 @@ BASE_SCRIPTS= [
     'wallet_txn_doublespend.py --mineblock',
     'feature_uacomment.py',
     'rpc_users.py',
+    'rpc_exposure_warnings.py',
     'feature_proxy.py',
     'rpc_txindex.py',
     'p2p_disconnect_ban.py',

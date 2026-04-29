@@ -1321,11 +1321,79 @@ UniValue getspentinfo(const JSONRPCRequest& request)
     return obj;
 }
 
+UniValue getnodestatus(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() != 0)
+        throw std::runtime_error(
+            "getnodestatus\n"
+            "\nReturns a read-only snapshot of node health suitable for operator dashboards.\n"
+            "\nResult:\n"
+            "{\n"
+            "  \"version\": xxxxx,                (numeric) the server version\n"
+            "  \"subversion\": \"/Hemp0x:...\",   (string) the server subversion string\n"
+            "  \"protocolversion\": xxxxx,        (numeric) the protocol version\n"
+            "  \"uptime\": xxxxx,                 (numeric) seconds since the server started\n"
+            "  \"chain\": \"xxxx\",               (string) current network name (main, test, regtest)\n"
+            "  \"blocks\": xxxxxx,                (numeric) the current number of blocks processed\n"
+            "  \"headers\": xxxxxx,               (numeric) the current number of validated headers\n"
+            "  \"bestblockhash\": \"...\",        (string) the hash of the currently best block\n"
+            "  \"difficulty\": xxxxxx,            (numeric) the current difficulty\n"
+            "  \"mediantime\": xxxxxx,            (numeric) median time for the current best block\n"
+            "  \"verificationprogress\": xxxx,    (numeric) estimate of verification progress [0..1]\n"
+            "  \"initialblockdownload\": true|false, (boolean) whether this node is still in IBD\n"
+            "  \"connections\": xxxxx,            (numeric) the number of connections\n"
+            "  \"networkactive\": true|false,     (boolean) whether p2p networking is enabled\n"
+            "  \"mempool_size\": xxxxx,           (numeric) the number of transactions in the mempool\n"
+            "  \"mempool_bytes\": xxxxx,          (numeric) total size of all transactions in the mempool in bytes\n"
+            "  \"bans_count\": xxxxx,             (numeric) the number of banned peers\n"
+            "  \"warnings\": \"...\"              (string) any network and blockchain warnings\n"
+            "}\n"
+            "\nExamples:\n"
+            + HelpExampleCli("getnodestatus", "")
+            + HelpExampleRpc("getnodestatus", "")
+        );
+
+    LOCK(cs_main);
+
+    UniValue obj(UniValue::VOBJ);
+    obj.push_back(Pair("version",              CLIENT_VERSION));
+    obj.push_back(Pair("subversion",           strSubVersion));
+    obj.push_back(Pair("protocolversion",      PROTOCOL_VERSION));
+    obj.push_back(Pair("uptime",               GetTime() - GetStartupTime()));
+    obj.push_back(Pair("chain",                GetParams().NetworkIDString()));
+    CBlockIndex* tip = chainActive.Tip();
+    obj.push_back(Pair("blocks",               (int)chainActive.Height()));
+    obj.push_back(Pair("headers",              pindexBestHeader ? pindexBestHeader->nHeight : -1));
+    obj.push_back(Pair("bestblockhash",        tip ? tip->GetBlockHash().GetHex() : uint256().GetHex()));
+    obj.push_back(Pair("difficulty",           (double)GetDifficulty()));
+    obj.push_back(Pair("mediantime",           tip ? (int64_t)tip->GetMedianTimePast() : 0));
+    obj.push_back(Pair("verificationprogress", GuessVerificationProgress(GetParams().TxData(), tip)));
+    obj.push_back(Pair("initialblockdownload", IsInitialBlockDownload()));
+    int connections = 0;
+    bool networkActive = false;
+    int bansCount = 0;
+    if (g_connman) {
+        connections = (int)g_connman->GetNodeCount(CConnman::CONNECTIONS_ALL);
+        networkActive = g_connman->GetNetworkActive();
+        banmap_t banMap;
+        g_connman->GetBanned(banMap);
+        bansCount = (int)banMap.size();
+    }
+    obj.push_back(Pair("connections",          connections));
+    obj.push_back(Pair("networkactive",        networkActive));
+    obj.push_back(Pair("mempool_size",         (int64_t)mempool.size()));
+    obj.push_back(Pair("mempool_bytes",        (int64_t)mempool.GetTotalTxSize()));
+    obj.push_back(Pair("bans_count",           bansCount));
+    obj.push_back(Pair("warnings",             GetWarnings("statusbar")));
+    return obj;
+}
+
 static const CRPCCommand commands[] =
 { //  category              name                      actor (function)         argNames
   //  --------------------- ------------------------  -----------------------  ----------
     { "control",            "getinfo",                &getinfo,                {} }, /* uses wallet if enabled */
     { "control",            "getmemoryinfo",          &getmemoryinfo,          {"mode"} },
+    { "control",            "getnodestatus",          &getnodestatus,          {} },
     { "util",               "validateaddress",        &validateaddress,        {"address"} }, /* uses wallet if enabled */
     { "util",               "createmultisig",         &createmultisig,         {"nrequired","keys"} },
     { "util",               "verifymessage",          &verifymessage,          {"address","signature","message"} },

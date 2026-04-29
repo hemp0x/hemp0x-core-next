@@ -80,6 +80,7 @@ EXPECTED_RPC_COMMANDS = {
     "getnetworkhashps",
     "getnetworkinfo",
     "getnewaddress",
+    "getnodestatus",
     "getpeerinfo",
     "getrawchangeaddress",
     "getrawmempool",

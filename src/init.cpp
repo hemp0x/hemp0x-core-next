@@ -614,6 +614,9 @@ std::string HelpMessage(HelpMessageMode mode)
     if (showDebug) {
         strUsage += HelpMessageOpt("-rpcworkqueue=<n>", strprintf("Set the depth of the work queue to service RPC calls (default: %d)", DEFAULT_HTTP_WORKQUEUE));
         strUsage += HelpMessageOpt("-rpcservertimeout=<n>", strprintf("Timeout during HTTP requests (default: %d)", DEFAULT_HTTP_SERVER_TIMEOUT));
+        strUsage += HelpMessageOpt("-rpcmaxauthfailures=<n>", strprintf("Maximum RPC auth failures per source before cooldown, 0 to disable (default: %d)", 20));
+        strUsage += HelpMessageOpt("-rpcauthfailurewindow=<seconds>", strprintf("Time window in seconds for counting RPC auth failures (default: %d)", 300));
+        strUsage += HelpMessageOpt("-rpcauthfailureban=<seconds>", strprintf("Cooldown duration in seconds after max RPC auth failures reached (default: %d)", 600));
     }
 
     return strUsage;

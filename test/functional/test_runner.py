@@ -142,6 +142,7 @@ BASE_SCRIPTS= [
     'feature_uacomment.py',
     'rpc_users.py',
     'rpc_exposure_warnings.py',
+    'rpc_auth_throttling.py',
     'feature_proxy.py',
     'rpc_txindex.py',
     'p2p_disconnect_ban.py',

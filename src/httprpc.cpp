@@ -14,14 +14,32 @@
 #include "sync.h"
 #include "util.h"
 #include "utilstrencodings.h"
+#include "utiltime.h"
 #include "ui_interface.h"
 #include "crypto/hmac_sha256.h"
 #include <stdio.h>
+#include <map>
 
 #include <boost/algorithm/string.hpp> // boost::trim
 
 /** WWW-Authenticate to present with 401 Unauthorized response */
 static const char* WWW_AUTH_HEADER_DATA = "Basic realm=\"jsonrpc\"";
+
+/** Default auth-failure throttling parameters */
+static const int DEFAULT_RPC_MAX_AUTH_FAILURES = 20;
+static const int DEFAULT_RPC_AUTH_FAILURE_WINDOW = 300; // seconds
+static const int DEFAULT_RPC_AUTH_FAILURE_BAN = 600;    // seconds
+
+/** Per-source auth-failure tracking state */
+struct RPCAuthFailureState {
+    int count{0};
+    int64_t windowStart{0};
+    int64_t banUntil{0};
+};
+
+/** Map from source IP to auth-failure state. Protected by cs_authFailures. */
+static std::map<std::string, RPCAuthFailureState> mapAuthFailures;
+static CCriticalSection cs_authFailures;
 
 /** Simple one-shot callback timer to be used by the RPC mechanism to e.g.
  * re-lock the wallet.
@@ -64,6 +82,97 @@ private:
 static std::string strRPCUserColonPass;
 /* Stored RPC timer interface (for unregistration) */
 static HTTPRPCTimerInterface* httpRPCTimerInterface = nullptr;
+
+/** Check if a source IP is currently in auth-failure cooldown. */
+static bool RPCAuthThrottled(const std::string& sourceIP)
+{
+    int maxFailures = gArgs.GetArg("-rpcmaxauthfailures", DEFAULT_RPC_MAX_AUTH_FAILURES);
+    if (maxFailures <= 0)
+        return false;
+
+    int64_t now = GetTimeMillis();
+    LOCK(cs_authFailures);
+
+    auto it = mapAuthFailures.find(sourceIP);
+    if (it == mapAuthFailures.end())
+        return false;
+
+    RPCAuthFailureState& state = it->second;
+
+    // Check if currently in cooldown
+    if (state.banUntil > 0 && now < state.banUntil)
+        return true;
+
+    // Cooldown expired, remove the entry so inactive sources do not remain in
+    // the tracking map.
+    if (state.banUntil > 0 && now >= state.banUntil) {
+        mapAuthFailures.erase(it);
+    }
+
+    return false;
+}
+
+/** Record an auth-failure for the given source IP. Returns true if this
+ *  failure triggered cooldown. */
+static bool RPCAuthRecordFailure(const std::string& sourceIP)
+{
+    int maxFailures = gArgs.GetArg("-rpcmaxauthfailures", DEFAULT_RPC_MAX_AUTH_FAILURES);
+    if (maxFailures <= 0)
+        return false;
+
+    int windowSeconds = gArgs.GetArg("-rpcauthfailurewindow", DEFAULT_RPC_AUTH_FAILURE_WINDOW);
+    int banSeconds = gArgs.GetArg("-rpcauthfailureban", DEFAULT_RPC_AUTH_FAILURE_BAN);
+    if (windowSeconds <= 0)
+        windowSeconds = DEFAULT_RPC_AUTH_FAILURE_WINDOW;
+    if (banSeconds <= 0)
+        banSeconds = DEFAULT_RPC_AUTH_FAILURE_BAN;
+    int64_t now = GetTimeMillis();
+    int64_t windowMs = static_cast<int64_t>(windowSeconds) * 1000;
+    int64_t banMs = static_cast<int64_t>(banSeconds) * 1000;
+
+    LOCK(cs_authFailures);
+
+    // Opportunistic cleanup: remove expired cooldowns and stale below-threshold
+    // windows so many one-off failures from distinct sources cannot grow memory
+    // forever.
+    for (auto it = mapAuthFailures.begin(); it != mapAuthFailures.end(); ) {
+        const RPCAuthFailureState& entry = it->second;
+        const bool expiredCooldown = entry.banUntil > 0 && now >= entry.banUntil;
+        const bool expiredWindow = entry.banUntil == 0 && entry.windowStart > 0 && (now - entry.windowStart) >= windowMs;
+        if (expiredCooldown || expiredWindow) {
+            it = mapAuthFailures.erase(it);
+        } else {
+            ++it;
+        }
+    }
+
+    RPCAuthFailureState& state = mapAuthFailures[sourceIP];
+
+    // If window expired, reset counter
+    if (state.windowStart > 0 && (now - state.windowStart) >= windowMs) {
+        state.count = 0;
+        state.windowStart = 0;
+    }
+
+    if (state.windowStart == 0)
+        state.windowStart = now;
+
+    state.count++;
+
+    if (state.count >= maxFailures) {
+        state.banUntil = now + banMs;
+        return true;
+    }
+
+    return false;
+}
+
+/** Clear auth-failure state for a source that just authenticated successfully. */
+static void RPCAuthClearFailures(const std::string& sourceIP)
+{
+    LOCK(cs_authFailures);
+    mapAuthFailures.erase(sourceIP);
+}
 
 static void JSONErrorReply(HTTPRequest* req, const UniValue& objError, const UniValue& id)
 {
@@ -150,6 +259,17 @@ static bool HTTPReq_JSONRPC(HTTPRequest* req, const std::string &)
         req->WriteReply(HTTP_BAD_METHOD, "JSONRPC server handles only POST requests");
         return false;
     }
+
+    // Get source IP for auth-failure throttling
+    CService peer = req->GetPeer();
+    std::string sourceIP = peer.ToStringIP();
+
+    // Check if source is in auth-failure cooldown
+    if (RPCAuthThrottled(sourceIP)) {
+        req->WriteReply(HTTP_FORBIDDEN);
+        return false;
+    }
+
     // Check authorization
     std::pair<bool, std::string> authHeader = req->GetHeader("authorization");
     if (!authHeader.first) {
@@ -167,10 +287,21 @@ static bool HTTPReq_JSONRPC(HTTPRequest* req, const std::string &)
            shouldn't have their RPC port exposed. */
         MilliSleep(250);
 
+        // Record failure and check if cooldown triggered
+        bool cooldownTriggered = RPCAuthRecordFailure(sourceIP);
+        if (cooldownTriggered) {
+            int banSeconds = gArgs.GetArg("-rpcauthfailureban", DEFAULT_RPC_AUTH_FAILURE_BAN);
+            LogPrintf("RPC auth failure cooldown triggered for %s: too many failed attempts, blocking for %d seconds\n",
+                      sourceIP, banSeconds);
+        }
+
         req->WriteHeader("WWW-Authenticate", WWW_AUTH_HEADER_DATA);
         req->WriteReply(HTTP_UNAUTHORIZED);
         return false;
     }
+
+    // Successful auth: clear failure state for this source
+    RPCAuthClearFailures(sourceIP);
 
     try {
         // Parse request

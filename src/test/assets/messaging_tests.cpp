@@ -13,6 +13,7 @@
 #include <base58.h>
 #include <chainparams.h>
 #include "consensus/consensus.h"
+#include <univalue.h>
 
 BOOST_FIXTURE_TEST_SUITE(messaging_tests, BasicTestingSetup)
 
@@ -86,6 +87,35 @@ BOOST_FIXTURE_TEST_SUITE(messaging_tests, BasicTestingSetup)
 
         BOOST_CHECK_EQUAL(MessageStatusToString(MessageStatusFromInt(-1)), "ERROR");
         BOOST_CHECK_EQUAL(MessageStatusToString(MessageStatusFromInt(7)), "ERROR");
+    }
+
+    BOOST_AUTO_TEST_CASE(zmq_json_encoding)
+    {
+        COutPoint out(uint256(), 0);
+        const std::string asset_name = "CHANNEL!\"\\\n";
+        CMessage msg(out, asset_name, "ipfshash_raw", 0, 1234567890);
+        msg.nBlockHeight = 42;
+        msg.nExpiredTime = 9999999999;
+        msg.ipfsHash = "QmTestIPFS";
+
+        CZMQMessage zmqmsg(msg);
+        std::string json = zmqmsg.createJsonString();
+
+        BOOST_CHECK_MESSAGE(!json.empty(), "ZMQ JSON should not be empty");
+        BOOST_CHECK_MESSAGE(json[0] == '{', "ZMQ JSON should start with '{'");
+        BOOST_CHECK_MESSAGE(json[json.size() - 1] == '}', "ZMQ JSON should end with '}'");
+        BOOST_CHECK_MESSAGE(json.find("\"blockheight\"") != std::string::npos, "Missing blockheight field");
+        BOOST_CHECK_MESSAGE(json.find("\"assetname\"") != std::string::npos, "Missing assetname field");
+        BOOST_CHECK_MESSAGE(json.find("\"ipfshash\"") != std::string::npos, "Missing ipfshash field");
+        BOOST_CHECK_MESSAGE(json.find("\"expiretime\"") != std::string::npos, "Missing expiretime field");
+
+        UniValue parsed;
+        BOOST_CHECK_MESSAGE(parsed.read(json), "ZMQ JSON should parse as valid JSON");
+        BOOST_CHECK_MESSAGE(parsed.isObject(), "ZMQ JSON should parse as an object");
+        BOOST_CHECK_EQUAL(find_value(parsed.get_obj(), "blockheight").get_int(), 42);
+        BOOST_CHECK_EQUAL(find_value(parsed.get_obj(), "assetname").get_str(), asset_name);
+        BOOST_CHECK_EQUAL(find_value(parsed.get_obj(), "ipfshash").get_str(), EncodeAssetData(msg.ipfsHash));
+        BOOST_CHECK_EQUAL(find_value(parsed.get_obj(), "expiretime").get_int64(), 9999999999);
     }
 
 BOOST_AUTO_TEST_SUITE_END()

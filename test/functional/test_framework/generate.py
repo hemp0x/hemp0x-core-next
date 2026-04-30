@@ -68,8 +68,7 @@ def get_block_template_or_fallback(rpc):
 
     tip_hash = rpc.getbestblockhash()
     tip_header = rpc.getblockheader(tip_hash)
-    # Use VERSIONBITS_TOP_BITS_ASSETS (0x30000000) with asset signaling bit (bit 6).
-    version = 0x30000000 | (1 << 6)
+    version = _compute_fallback_version(rpc)
     return {
         "version": version,
         "previousblockhash": tip_hash,
@@ -79,6 +78,18 @@ def get_block_template_or_fallback(rpc):
         "coinbasevalue": 10 * COIN,
         "transactions": [{"data": rpc.getrawtransaction(txid)} for txid in rpc.getrawmempool()],
     }
+
+
+def _compute_fallback_version(rpc):
+    version = 0x30000000  # VERSIONBITS_TOP_BITS_ASSETS
+    blockchain_info = rpc.getblockchaininfo()
+    softforks = blockchain_info.get("bip9_softforks", {})
+    for sf_data in softforks.values():
+        state = sf_data.get("status", "")
+        bit = sf_data.get("bit")
+        if bit is not None and state in ("started", "locked_in"):
+            version |= (1 << bit)
+    return version
 
 
 def raise_rpc_error(code, message):

@@ -9,13 +9,18 @@ Testing messaging
 """
 
 from test_framework.test_framework import Hemp0xTestFramework
-from test_framework.util import assert_equal, assert_raises_rpc_error, assert_contains, assert_does_not_contain, assert_contains_pair
+from test_framework.util import assert_equal, assert_greater_than, assert_raises_rpc_error, assert_contains, assert_does_not_contain, assert_contains_pair
 
 class MessagingTest(Hemp0xTestFramework):
     def set_test_params(self):
         self.setup_clean_chain = True
-        self.num_nodes = 3
-        self.extra_args = [['-assetindex'], ['-assetindex'], ['-assetindex']]
+        self.num_nodes = 4
+        self.extra_args = [
+            ['-assetindex'],
+            ['-assetindex'],
+            ['-assetindex'],
+            ['-assetindex', '-disablemessaging=1'],
+        ]
 
     def activate_messaging(self):
         self.log.info("Generating HEMP for node[0] and activating messaging...")
@@ -26,6 +31,54 @@ class MessagingTest(Hemp0xTestFramework):
         n0.generate(431)
         self.sync_all()
         assert_equal("active", n0.getblockchaininfo()['bip9_softforks']['messaging_restricted']['status'])
+
+    def test_getmessaginginfo(self):
+        self.log.info("Testing getmessaginginfo()...")
+        n0 = self.nodes[0]
+        info = n0.getmessaginginfo()
+
+        assert_equal(True, info["enabled"])
+        assert_equal(True, info["messaging_active"])
+        assert_equal(True, info["restricted_active"])
+        assert_equal(1, info["activation_block"])
+        assert_equal(True, info["databases_available"])
+        assert_equal(True, info["caches_available"])
+        assert_equal(True, info["wallet_available"])
+        assert isinstance(info["message_count"], int)
+        assert isinstance(info["channel_count"], int)
+        assert_greater_than(info["dirty_cache_size_bytes"], -1)
+        assert isinstance(info["warnings"], list)
+
+    def test_disabled_messaging_node(self):
+        self.log.info("Testing disabled-messaging node behavior...")
+        n3 = self.nodes[3]
+
+        info = n3.getmessaginginfo()
+        assert_equal(False, info["enabled"])
+        assert isinstance(info["warnings"], list)
+        assert "Messaging is disabled via -disablemessaging" in info["warnings"]
+
+        msgs = n3.viewallmessages()
+        assert isinstance(msgs, list)
+        assert_equal(0, len(msgs))
+
+        channels = n3.viewallmessagechannels()
+        assert isinstance(channels, list)
+        assert_equal(0, len(channels))
+
+        assert_raises_rpc_error(-20, "Messaging is disabled", n3.subscribetochannel, "CHANNEL!")
+        assert_raises_rpc_error(-20, "Messaging is disabled", n3.unsubscribefromchannel, "CHANNEL!")
+        assert_raises_rpc_error(-20, "Messaging is disabled", n3.clearmessages)
+
+    def test_help_without_activation(self):
+        self.log.info("Testing help text is visible regardless of activation...")
+        n0 = self.nodes[0]
+        help_text = n0.help()
+        assert_contains("viewallmessages", help_text)
+        assert_contains("getmessaginginfo", help_text)
+        assert_contains("unsubscribefromchannel", help_text)
+        assert_contains("clearmessages", help_text)
+        assert_contains("subscribetochannel", help_text)
 
     def test_messaging(self):
         self.log.info("Testing messaging!")
@@ -131,7 +184,10 @@ class MessagingTest(Hemp0xTestFramework):
 
 
     def run_test(self):
+        self.test_help_without_activation()
         self.activate_messaging()
+        self.test_getmessaginginfo()
+        self.test_disabled_messaging_node()
         self.test_messaging()
 
 

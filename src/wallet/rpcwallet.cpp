@@ -2841,6 +2841,123 @@ UniValue getwalletinfo(const JSONRPCRequest& request)
     return obj;
 }
 
+UniValue getwalletmigrationinfo(const JSONRPCRequest& request)
+{
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
+        return NullUniValue;
+    }
+
+    if (request.fHelp || request.params.size() != 0)
+        throw std::runtime_error(
+            "getwalletmigrationinfo\n"
+            "\nReturns a structured assessment of the loaded wallet's migration readiness.\n"
+            "This is a read-only diagnostic RPC. It does not expose wallet secrets,\n"
+            "does not alter the wallet file, and does not require the wallet to be unlocked.\n"
+            "\nResult:\n"
+            "{\n"
+            "  \"wallet_name\": \"...\"                 (string) The wallet name\n"
+            "  \"storage_backend\": \"bdb\"              (string) The storage backend (always \"bdb\")\n"
+            "  \"storage_backend_detail\": \"...\"       (string) Human-readable backend description\n"
+            "  \"modern_backend_available\": false       (boolean) Whether a modern backend (SQLite) is available\n"
+            "  \"encrypted\": true|false,               (boolean) Whether the wallet is encrypted\n"
+            "  \"locked\": true|false,                  (boolean) Whether the wallet is locked (false if not encrypted)\n"
+            "  \"hd_enabled\": true|false,              (boolean) Whether HD key derivation is active\n"
+            "  \"bip44_enabled\": true|false,           (boolean) Whether BIP44 derivation is active\n"
+            "  \"canonical_coin_type\": 420,            (numeric) The canonical Hemp0x BIP44 coin type\n"
+            "  \"has_mnemonic_metadata\": true|false,   (boolean) Whether BIP39 mnemonic metadata exists\n"
+            "  \"has_watch_only\": true|false,          (boolean) Whether the wallet contains watch-only entries\n"
+            "  \"private_keys_enabled\": true|false,    (boolean) Whether private keys are present (non-watch-only)\n"
+            "  \"keypool_external\": n,                 (numeric) External key pool size\n"
+            "  \"keypool_internal\": n OR null,         (numeric or null) Internal key pool size (null if HD split not supported)\n"
+            "  \"migration_readiness\": \"...\"          (string) Readiness assessment string\n"
+            "  \"recommended_path\": \"...\"             (string) Recommended migration approach\n"
+            "  \"warnings\": [...]                      (array of strings) Any warnings about the wallet state\n"
+            "}\n"
+            "\nExamples:\n"
+            + HelpExampleCli("getwalletmigrationinfo", "")
+            + HelpExampleRpc("getwalletmigrationinfo", "")
+        );
+
+    ObserveSafeMode();
+    LOCK2(cs_main, pwallet->cs_wallet);
+
+    UniValue obj(UniValue::VOBJ);
+    UniValue warnings(UniValue::VARR);
+
+    obj.pushKV("wallet_name", pwallet->GetName());
+    obj.pushKV("storage_backend", "bdb");
+    obj.pushKV("storage_backend_detail", "Berkeley DB wallet.dat");
+    obj.pushKV("modern_backend_available", UniValue(false));
+
+    bool fEncrypted = pwallet->IsCrypted();
+    bool fLocked = pwallet->IsLocked();
+    obj.pushKV("encrypted", UniValue(fEncrypted));
+    obj.pushKV("locked", UniValue(fLocked));
+
+    bool fHD = pwallet->IsHDEnabled();
+    bool fBip44 = pwallet->IsBip44Enabled();
+    obj.pushKV("hd_enabled", UniValue(fHD));
+    obj.pushKV("bip44_enabled", UniValue(fBip44));
+
+    int coinType = GetParams().ExtCoinType();
+    obj.pushKV("canonical_coin_type", coinType);
+
+    bool hasMnemonic = pwallet->HasMnemonicData();
+    obj.pushKV("has_mnemonic_metadata", UniValue(hasMnemonic));
+
+    bool hasWatchOnly = pwallet->HaveWatchOnly();
+    obj.pushKV("has_watch_only", UniValue(hasWatchOnly));
+
+    bool hasPrivateKeys = pwallet->GetKeys().size() > 0;
+    obj.pushKV("private_keys_enabled", UniValue(hasPrivateKeys));
+
+    size_t kpExternalSize = pwallet->KeypoolCountExternalKeys();
+    obj.pushKV("keypool_external", static_cast<int64_t>(kpExternalSize));
+
+    CKeyID seed_id = pwallet->GetHDChain().seed_id;
+    if (!seed_id.IsNull() && pwallet->CanSupportFeature(FEATURE_HD_SPLIT)) {
+        size_t kpTotal = pwallet->GetKeyPoolSize();
+        obj.pushKV("keypool_internal", static_cast<int64_t>(kpTotal - kpExternalSize));
+    } else {
+        obj.pushKV("keypool_internal", NullUniValue);
+    }
+
+    if (fLocked) {
+        obj.pushKV("migration_readiness", "ready_when_unlocked");
+        warnings.push_back("Wallet is encrypted and locked; unlock before migration");
+    } else if (fEncrypted) {
+        obj.pushKV("migration_readiness", "ready");
+        warnings.push_back("Wallet is unlocked; consider re-locking after migration");
+    } else {
+        obj.pushKV("migration_readiness", "ready");
+    }
+
+    if (fHD && !fBip44) {
+        obj.pushKV("recommended_path", "seed_export_or_per_key_export");
+        warnings.push_back("Legacy BIP32 wallet; BIP44 derivation not available");
+    } else if (hasMnemonic) {
+        obj.pushKV("recommended_path", "mnemonic_export_and_import");
+    } else if (hasWatchOnly && !hasPrivateKeys) {
+        obj.pushKV("recommended_path", "no_migration_needed_watch_only");
+        warnings.push_back("Watch-only wallet; no private key material to migrate");
+    } else if (!fHD && hasPrivateKeys) {
+        obj.pushKV("recommended_path", "per_key_export_and_import");
+        warnings.push_back("Non-HD wallet with imported keys; each key must be exported individually");
+    } else {
+        obj.pushKV("recommended_path", "mnemonic_or_key_export_import");
+        warnings.push_back("Backup wallet.dat before any migration operation");
+    }
+
+    if (fEncrypted && fLocked) {
+        warnings.push_back("Wallet must be unlocked for migration export");
+    }
+
+    obj.pushKV("warnings", warnings);
+
+    return obj;
+}
+
 UniValue listwallets(const JSONRPCRequest& request)
 {
     if (request.fHelp || request.params.size() != 0)
@@ -3522,6 +3639,7 @@ static const CRPCCommand commands[] =
     { "wallet",             "gettransaction",           &gettransaction,           {"txid","include_watchonly"} },
     { "wallet",             "getunconfirmedbalance",    &getunconfirmedbalance,    {} },
     { "wallet",             "getwalletinfo",            &getwalletinfo,            {} },
+    { "wallet",             "getwalletmigrationinfo",   &getwalletmigrationinfo,   {} },
     { "wallet",             "importmulti",              &importmulti,              {"requests","options"} },
     { "wallet",             "importprivkey",            &importprivkey,            {"privkey","label","rescan"} },
     { "wallet",             "importwallet",             &importwallet,             {"filename"} },

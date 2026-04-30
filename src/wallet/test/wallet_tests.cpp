@@ -30,6 +30,8 @@ extern UniValue dumpwallet(const JSONRPCRequest &request);
 
 extern UniValue importwallet(const JSONRPCRequest &request);
 
+extern UniValue getwalletmigrationinfo(const JSONRPCRequest &request);
+
 // how many times to run all the tests to have a chance to catch errors that only show up with particular random shuffles
 #define RUN_TESTS 100
 
@@ -769,6 +771,66 @@ BOOST_FIXTURE_TEST_SUITE(wallet_tests, WalletTestingSetup)
             }
         }
         BOOST_CHECK(foundDifferentOrdering);
+    }
+
+    BOOST_AUTO_TEST_CASE(getwalletmigrationinfo_test)
+    {
+        struct WalletVectorGuard {
+            std::vector<CWallet*> saved_wallets;
+            explicit WalletVectorGuard(CWallet* wallet) : saved_wallets(vpwallets)
+            {
+                vpwallets.clear();
+                vpwallets.push_back(wallet);
+            }
+            ~WalletVectorGuard()
+            {
+                vpwallets = saved_wallets;
+            }
+        } wallet_guard(pwalletMain);
+
+        JSONRPCRequest request;
+        request.strMethod = "getwalletmigrationinfo";
+        request.params = UniValue(UniValue::VARR);
+        request.fHelp = false;
+
+        UniValue result = getwalletmigrationinfo(request);
+
+        BOOST_CHECK(result.isObject());
+
+        BOOST_CHECK(result["wallet_name"].isStr());
+        BOOST_CHECK_EQUAL(result["storage_backend"].get_str(), "bdb");
+        BOOST_CHECK(result["storage_backend_detail"].isStr());
+        BOOST_CHECK_EQUAL(result["modern_backend_available"].get_bool(), false);
+
+        BOOST_CHECK(result["encrypted"].isBool());
+        BOOST_CHECK(result["locked"].isBool());
+        BOOST_CHECK(result["hd_enabled"].isBool());
+        BOOST_CHECK(result["bip44_enabled"].isBool());
+        BOOST_CHECK(result["canonical_coin_type"].isNum());
+        BOOST_CHECK(result["has_mnemonic_metadata"].isBool());
+        BOOST_CHECK(result["has_watch_only"].isBool());
+        BOOST_CHECK(result["private_keys_enabled"].isBool());
+        BOOST_CHECK(result["keypool_external"].isNum());
+        BOOST_CHECK(result["migration_readiness"].isStr());
+        BOOST_CHECK(result["recommended_path"].isStr());
+        BOOST_CHECK(result["warnings"].isArray());
+
+        // keypool_internal may be null for non-HD wallets
+        BOOST_CHECK(result["keypool_internal"].isNum() || result["keypool_internal"].isNull());
+
+        // Verify no secret-looking fields (whitelist known diagnostic boolean fields)
+        std::vector<std::string> keys = result.getKeys();
+        std::vector<std::string> secretSubstrings = {"seed", "mnemonic", "private", "passphrase"};
+        for (const std::string& key : keys) {
+            // These boolean diagnostic flags contain the substrings but are safe
+            if (key == "has_mnemonic_metadata" || key == "private_keys_enabled")
+                continue;
+            for (const std::string& sub : secretSubstrings) {
+                BOOST_CHECK_MESSAGE(
+                    key.find(sub) == std::string::npos,
+                    "Unexpected field containing '" + sub + "': " + key);
+            }
+        }
     }
 
 BOOST_AUTO_TEST_SUITE_END()

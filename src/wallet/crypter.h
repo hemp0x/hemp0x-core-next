@@ -165,6 +165,12 @@ public:
         return result;
     }
 
+    bool HasMnemonicData() const
+    {
+        LOCK(cs_KeyStore);
+        return !nWordHash.IsNull();
+    }
+
     bool Lock();
 
     virtual bool AddCryptedKey(const CPubKey &vchPubKey, const std::vector<unsigned char> &vchCryptedSecret);

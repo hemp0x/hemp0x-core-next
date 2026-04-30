@@ -618,6 +618,7 @@ public:
         fDefaultConsistencyChecks = true;
         fRequireStandard = false;
         fMineBlocksOnDemand = true;
+        fMiningRequiresPeers = false;
 
         checkpointData = (CCheckpointData) { { { 0, consensus.hashGenesisBlock } } };
 

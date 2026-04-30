@@ -10,6 +10,7 @@
 #include "messages.h"
 #include "myassetsdb.h"
 #include <primitives/block.h>
+#include <univalue.h>
 
 
 std::set<COutPoint> setDirtyMessagesRemove;
@@ -33,6 +34,8 @@ int8_t IntFromMessageStatus(MessageStatus status)
 
 MessageStatus MessageStatusFromInt(int8_t nStatus)
 {
+    if (nStatus < 0 || nStatus > 6)
+        return MessageStatus::MSG_ERROR;
     return (MessageStatus)nStatus;
 }
 
@@ -45,6 +48,7 @@ std::string MessageStatusToString(MessageStatus status)
         case MessageStatus::EXPIRED: return "EXPIRED";
         case MessageStatus::SPAM: return "SPAM";
         case MessageStatus::HIDDEN: return "HIDDEN";
+        case MessageStatus::MSG_ERROR: return "ERROR";
         default: return "ERROR";
     }
 }
@@ -66,6 +70,8 @@ CMessage::CMessage(const COutPoint& out, const std::string& strName, const std::
 
 bool IsChannelSubscribed(const std::string &name)
 {
+    LOCK(cs_messaging);
+
     if (!pMessageSubscribedChannelsCache || !pmessagechanneldb)
         return false;
 
@@ -99,6 +105,8 @@ bool IsChannelSubscribed(const std::string &name)
 
 bool GetMessage(const COutPoint& out, CMessage& message)
 {
+    LOCK(cs_messaging);
+
     if (!pmessagedb || !pMessagesCache)
         return false;
 
@@ -129,6 +137,8 @@ bool GetMessage(const COutPoint& out, CMessage& message)
 
 void AddChannel(const std::string &name)
 {
+    LOCK(cs_messaging);
+
     // Add channel to dirty cache to add
     setDirtyChannelsAdd.insert(name);
 
@@ -139,6 +149,8 @@ void AddChannel(const std::string &name)
 
 void RemoveChannel(const std::string &name)
 {
+    LOCK(cs_messaging);
+
     // Add channel to dirty cache to remove
     setDirtyChannelsRemove.insert(name);
 
@@ -148,6 +160,8 @@ void RemoveChannel(const std::string &name)
 
 void AddMessage(const CMessage& message)
 {
+    LOCK(cs_messaging);
+
     // Add message to dirty map cache to add
     mapDirtyMessagesAdd.insert(std::make_pair(message.out, message));
 
@@ -163,6 +177,8 @@ void RemoveMessage(const CMessage& message)
 
 void RemoveMessage(const COutPoint &out)
 {
+    LOCK(cs_messaging);
+
     // Add message out to dirty set Cache to remove
     setDirtyMessagesRemove.insert(out);
 
@@ -180,6 +196,8 @@ void OrphanMessage(const COutPoint &out)
 
 void OrphanMessage(const CMessage& message)
 {
+    LOCK(cs_messaging);
+
     mapDirtyMessagesOrphaned[message.out] = message;
 
     // Remove from other dirty caches
@@ -268,6 +286,8 @@ bool ScanForMessageChannels(std::string& strError)
 
 bool IsAddressSeen(const std::string &address)
 {
+    LOCK(cs_messaging);
+
     if (!pmessagechanneldb || !pMessagesSeenAddressCache)
         return false;
 
@@ -294,23 +314,15 @@ bool IsAddressSeen(const std::string &address)
 
 void AddAddressSeen(const std::string &address)
 {
+    LOCK(cs_messaging);
+
     setDirtySeenAddressAdd.insert(address);
     setSubscribedChannelsAskedForFalse.erase(address);
 }
 
 size_t GetMessageDirtyCacheSize()
 {
-    // COutPoint: 32 bytes
-    // CNewAsset: Max 80 bytes
-    // CAssetTransfer: Asset Name, CAmount ( 40 bytes)
-    // CReissueAsset: Max 80 bytes
-    // CAmount: 8 bytes
-    // Asset Name: Max 32 bytes
-    // Address: 40 bytes
-    // Block hash: 32 bytes
-    // CTxOut: CAmount + CScript (105 + 8 = 113 bytes)
-    // CMessage: Max 123 Bytes
-
+    LOCK(cs_messaging);
 
     size_t size = 0;
     // Messages Caches
@@ -334,13 +346,10 @@ size_t GetMessageDirtyCacheSize()
 
 std::string CZMQMessage::createJsonString()
 {
-    std::string str = "";
-    str += "{";
-    str += "\"blockheight\": " + std::to_string(this->blockHeight) + ", ";
-    str += "\"assetname\": \"" + this->assetName + "\", ";
-    str += "\"ipfshash\": \"" + EncodeAssetData(this->ipfsHash) + "\", ";
-    str += "\"expiretime\": " + std::to_string(this->nExpireTime);
-    str += "}";
-
-    return str;
+    UniValue obj(UniValue::VOBJ);
+    obj.pushKV("blockheight", this->blockHeight);
+    obj.pushKV("assetname", this->assetName);
+    obj.pushKV("ipfshash", EncodeAssetData(this->ipfsHash));
+    obj.pushKV("expiretime", this->nExpireTime);
+    return obj.write();
 }

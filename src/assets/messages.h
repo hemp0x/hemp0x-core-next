@@ -8,6 +8,7 @@
 
 #include <uint256.h>
 #include <serialize.h>
+#include <sync.h>
 
 class CMessage;
 class COutPoint;

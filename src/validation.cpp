@@ -3033,14 +3033,13 @@ bool static FlushStateToDisk(const CChainParams& chainparams, CValidationState &
                 passetsdb->WriteReissuedMempoolState();
 
             if (fMessaging) {
+                LOCK(cs_messaging);
                 if (pmessagedb) {
-                    LOCK(cs_messaging);
                     if (!pmessagedb->Flush())
                         return AbortNode(state, "Failed to Flush the message database");
                 }
 
                 if (pmessagechanneldb) {
-                    LOCK(cs_messaging);
                     if (!pmessagechanneldb->Flush())
                         return AbortNode(state, "Failed to Flush the message channel database");
                 }

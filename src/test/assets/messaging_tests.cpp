@@ -3,6 +3,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <assets/assets.h>
+#include <assets/messages.h>
 
 #include <test/test_hemp0x.h>
 
@@ -13,7 +14,6 @@
 #include <chainparams.h>
 #include "consensus/consensus.h"
 
-
 BOOST_FIXTURE_TEST_SUITE(messaging_tests, BasicTestingSetup)
 
     BOOST_AUTO_TEST_CASE(transfer_hashes_test)
@@ -22,10 +22,6 @@ BOOST_FIXTURE_TEST_SUITE(messaging_tests, BasicTestingSetup)
 
         CAssetTransfer transfer1("ASSET", 1 * COIN, DecodeAssetData("QmRAQB6YaCyidP37UdDnjFY5vQuiBrcqdyoW1CuDgwxkD4"));
         BOOST_CHECK_MESSAGE(transfer1.IsValid(error), "Transfer Valid Test 1 - failed -" + error);
-
-        // TODO Once Messages are active
-//        CAssetTransfer transfer2("ASSET", 1 * COIN, "000000000000499bf4ebbe61541b02e4692b33defc7109d8f12d2825d4d2dfa0");
-//        BOOST_CHECK_MESSAGE(transfer2.IsValid(error), "Transfer Valid Test 2 - failed -" + error);
 
         // Asset transfer is Zero failure
         CAssetTransfer transfer3("ASSET", 0);
@@ -43,17 +39,7 @@ BOOST_FIXTURE_TEST_SUITE(messaging_tests, BasicTestingSetup)
         CAssetTransfer transfer5("ASSET", 1 * COIN, message, date2);
         transfer5.nExpireTime = date2;
         BOOST_CHECK_MESSAGE(!transfer5.IsValid(error), "Transfer Valid Test 5 did not fail");
-
-        // TODO Once Messages are active
-        // contains an l which isn't base 58
-//        CAssetTransfer transfer6("ASSET", 1 * COIN, "l00000000000499bf4ebbe61541b02e4692b33defc7109d8f12d2825d4d2dfa0");
-//        BOOST_CHECK_MESSAGE(!transfer6.IsValid(error), "Transfer Valid Test 6 did not fail");
-
-
-        // TODO, once messaging goes active on mainnet, we can move check from ContextualCheckTransfer to CheckTransfer
-        
     }
-
 
     BOOST_AUTO_TEST_CASE(message_encoding_check)
     {
@@ -70,12 +56,36 @@ BOOST_FIXTURE_TEST_SUITE(messaging_tests, BasicTestingSetup)
         auto ipfsdecoded2 = DecodeAssetData(ipfs2);
 
         std::string error = "";
-        BOOST_CHECK_MESSAGE(IsHex(hash1) && hash1.length() == 64, "Test 1 Failed"); // need to check the inside of CheckEncoded for regular hashes
-        BOOST_CHECK_MESSAGE(IsHex(hash2) && hash2.length() == 64, "Test 2 Failed "); // need to check the inside of CheckEncoded for regular hashes
+        BOOST_CHECK_MESSAGE(IsHex(hash1) && hash1.length() == 64, "Test 1 Failed");
+        BOOST_CHECK_MESSAGE(IsHex(hash2) && hash2.length() == 64, "Test 2 Failed ");
         BOOST_CHECK_MESSAGE(CheckEncoded(ipfsdecoded1, error), "Test 3 Failed - " +  error);
         BOOST_CHECK_MESSAGE(CheckEncoded(ipfsdecoded2, error), "Test 4 Failed - " +  error);
-
     }
 
+    BOOST_AUTO_TEST_CASE(message_status_conversion)
+    {
+        // All known values round-trip
+        BOOST_CHECK_EQUAL(MessageStatusToString(MessageStatus::READ), "READ");
+        BOOST_CHECK_EQUAL(MessageStatusToString(MessageStatus::UNREAD), "UNREAD");
+        BOOST_CHECK_EQUAL(MessageStatusToString(MessageStatus::EXPIRED), "EXPIRED");
+        BOOST_CHECK_EQUAL(MessageStatusToString(MessageStatus::SPAM), "SPAM");
+        BOOST_CHECK_EQUAL(MessageStatusToString(MessageStatus::HIDDEN), "HIDDEN");
+        BOOST_CHECK_EQUAL(MessageStatusToString(MessageStatus::ORPHAN), "ORPHAN");
+        BOOST_CHECK_EQUAL(MessageStatusToString(MessageStatus::MSG_ERROR), "ERROR");
+
+        // IntFromMessageStatus -> MessageStatusFromInt round trip
+        for (int8_t i = 0; i <= 6; i++) {
+            MessageStatus s = (MessageStatus)i;
+            BOOST_CHECK_EQUAL((int8_t)MessageStatusFromInt(IntFromMessageStatus(s)), (int8_t)s);
+        }
+
+        // Out-of-range values clamp to MSG_ERROR
+        BOOST_CHECK_MESSAGE(MessageStatusFromInt(-1) == MessageStatus::MSG_ERROR, "Clamp -1 failed");
+        BOOST_CHECK_MESSAGE(MessageStatusFromInt(7) == MessageStatus::MSG_ERROR, "Clamp 7 failed");
+        BOOST_CHECK_MESSAGE(MessageStatusFromInt(100) == MessageStatus::MSG_ERROR, "Clamp 100 failed");
+
+        BOOST_CHECK_EQUAL(MessageStatusToString(MessageStatusFromInt(-1)), "ERROR");
+        BOOST_CHECK_EQUAL(MessageStatusToString(MessageStatusFromInt(7)), "ERROR");
+    }
 
 BOOST_AUTO_TEST_SUITE_END()

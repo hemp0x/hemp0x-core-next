@@ -6,6 +6,7 @@
 #ifndef HEMP0X_BENCH_BENCH_H
 #define HEMP0X_BENCH_BENCH_H
 
+#include <cstdint>
 #include <functional>
 #include <limits>
 #include <map>

@@ -1,37 +1,19 @@
 package=openssl
-$(package)_version=1.1.1w
+$(package)_version=3.5.6
 $(package)_download_path=https://www.openssl.org/source
 $(package)_file_name=$(package)-$($(package)_version).tar.gz
-$(package)_sha256_hash=cf3098950cb4d853ad95c0841f1f9c6d3dc102dccfcacd521d93925208b76ac8
+$(package)_sha256_hash=deae7c80cba99c4b4f940ecadb3c3338b13cb77418409238e57d7f31f2a3b736
 
 define $(package)_set_vars
-$(package)_config_opts=--prefix=$(host_prefix) --openssldir=$(host_prefix)/etc/openssl
-$(package)_config_opts+=no-camellia
-$(package)_config_opts+=no-capieng
-$(package)_config_opts+=no-cast
-$(package)_config_opts+=no-comp
+# OpenSSL 3.x removed many algorithm-specific no-* options (algorithms are
+# modular/selectable via providers). Below we keep only the options known to
+# be valid in OpenSSL 3.5.x.
+$(package)_config_opts=--prefix=$(host_prefix) --openssldir=$(host_prefix)/etc/openssl --libdir=lib
 $(package)_config_opts+=no-dso
-$(package)_config_opts+=no-dtls1
-$(package)_config_opts+=no-ec_nistp_64_gcc_128
-$(package)_config_opts+=no-gost
-$(package)_config_opts+=no-heartbeats
-$(package)_config_opts+=no-idea
-$(package)_config_opts+=no-md2
-$(package)_config_opts+=no-mdc2
-$(package)_config_opts+=no-rc4
-$(package)_config_opts+=no-rc5
-$(package)_config_opts+=no-rdrand
-$(package)_config_opts+=no-rfc3779
 $(package)_config_opts+=no-sctp
-$(package)_config_opts+=no-seed
 $(package)_config_opts+=no-shared
 $(package)_config_opts+=no-ssl-trace
-$(package)_config_opts+=no-ssl2
-$(package)_config_opts+=no-ssl3
 $(package)_config_opts+=no-tests
-$(package)_config_opts+=no-unit-test
-$(package)_config_opts+=no-weak-ssl-ciphers
-$(package)_config_opts+=no-whirlpool
 $(package)_config_opts+=no-zlib
 $(package)_config_opts+=no-zlib-dynamic
 $(package)_config_opts+=$($(package)_cflags) $($(package)_cppflags)
@@ -63,11 +45,12 @@ endef
 define $(package)_config_cmds
   CC="$($(package)_cc)" \
   CXXFLAGS="$($(package)_ccflags)" \
+  WINDRES="$(host_WINDRES)" \
   ./Configure $($(package)_config_opts)
 endef
 
 define $(package)_build_cmds
-  sed -i.old 's/INSTALL_PROGRAMS=apps\/openssl/INSTALL_PROGRAMS=/g' Makefile && \
+  sed -i.old 's/^INSTALL_PROGRAMS=.*/INSTALL_PROGRAMS=/g' Makefile && \
   $(MAKE) -j1 build_libs
 endef
 

@@ -105,6 +105,12 @@ CTranslationInterface translationInterface;
 /** Log categories bitfield. */
 std::atomic<uint32_t> logCategories(0);
 
+// OpenSSL 1.1.0+ provides thread safety internally.
+// The pre-1.1.0 locking callback system was a no-op stub in 1.1.x
+// and is removed in OpenSSL 3.x.  Guard it so the code still compiles
+// when an old OpenSSL happens to be present, but it never runs for
+// our target versions.
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
 /** Init OpenSSL library multithreading support */
 static std::unique_ptr<CCriticalSection[]> ppmutexOpenSSL;
 
@@ -119,6 +125,7 @@ void locking_callback(int mode, int i, const char *file, int line) NO_THREAD_SAF
         LEAVE_CRITICAL_SECTION(ppmutexOpenSSL[i]);
     }
 }
+#endif
 
 // Singleton for wrapping OpenSSL setup/teardown.
 class CInit
@@ -126,34 +133,28 @@ class CInit
 public:
     CInit()
     {
-        // Init OpenSSL library multithreading support
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
         ppmutexOpenSSL.reset(new CCriticalSection[CRYPTO_num_locks()]);
         CRYPTO_set_locking_callback(locking_callback);
-
-        // OpenSSL can optionally load a config file which lists optional loadable modules and engines.
-        // We don't use them so we don't require the config. However some of our libs may call functions
-        // which attempt to load the config file, possibly resulting in an exit() or crash if it is missing
-        // or corrupt. Explicitly tell OpenSSL not to try to load the file. The result for our libs will be
-        // that the config appears to have been loaded and there are no modules/engines available.
         OPENSSL_no_config();
-
-#ifdef WIN32
-        // Seed OpenSSL PRNG with current contents of the screen
-        RAND_screen();
 #endif
 
-        // Seed OpenSSL PRNG with performance counter
+#ifdef WIN32
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+        RAND_screen();
+#endif
+#endif
+
         RandAddSeed();
     }
 
     ~CInit()
     {
-        // Securely erase the memory used by the PRNG
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
         RAND_cleanup();
-        // Shutdown OpenSSL library multithreading support
         CRYPTO_set_locking_callback(nullptr);
-        // Clear the set of locks now to maintain symmetry with the constructor.
         ppmutexOpenSSL.reset();
+#endif
     }
 }
         instance_of_cinit;

@@ -207,6 +207,52 @@ bool AreInputsStandard(const CTransaction& tx, const CCoinsViewCache& mapInputs)
     return true;
 }
 
+bool IsWitnessStrippedTx(const CTransaction& tx, const CCoinsViewCache& view)
+{
+    if (tx.HasWitness())
+        return false;
+
+    for (unsigned int i = 0; i < tx.vin.size(); i++)
+    {
+        const CTxIn& txin = tx.vin[i];
+        const Coin& coin = view.AccessCoin(txin.prevout);
+        if (coin.IsSpent())
+            continue;
+
+        const CScript& prevScript = coin.out.scriptPubKey;
+
+        int witnessversion = 0;
+        std::vector<unsigned char> witnessprogram;
+        if (prevScript.IsWitnessProgram(witnessversion, witnessprogram)) {
+            if (witnessversion == 0 && (witnessprogram.size() == 20 || witnessprogram.size() == 32))
+                return true;
+        }
+
+        if (prevScript.IsPayToScriptHash()) {
+            if (!txin.scriptSig.IsPushOnly())
+                continue;
+            std::vector<std::vector<unsigned char> > stack;
+            if (!EvalScript(stack, txin.scriptSig, SCRIPT_VERIFY_NONE, BaseSignatureChecker(), SIGVERSION_BASE))
+                continue;
+            if (stack.empty())
+                continue;
+            CScript subscript(stack.back().begin(), stack.back().end());
+
+            const CScriptID expected_script_hash(uint160(
+                std::vector<unsigned char>(prevScript.begin() + 2, prevScript.begin() + 22)));
+            if (CScriptID(subscript) != expected_script_hash)
+                continue;
+
+            if (subscript.IsWitnessProgram(witnessversion, witnessprogram)) {
+                if (witnessversion == 0 && (witnessprogram.size() == 20 || witnessprogram.size() == 32))
+                    return true;
+            }
+        }
+    }
+
+    return false;
+}
+
 bool IsWitnessStandard(const CTransaction& tx, const CCoinsViewCache& mapInputs)
 {
     if (tx.IsCoinBase())

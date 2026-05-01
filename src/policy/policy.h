@@ -97,6 +97,14 @@ bool AreInputsStandard(const CTransaction& tx, const CCoinsViewCache& mapInputs)
      */
 bool IsWitnessStandard(const CTransaction& tx, const CCoinsViewCache& mapInputs);
 
+/**
+ * Returns true if the transaction has no witness data and spends at least one
+ * input whose output script is a defined witness program (native v0 P2WPKH/P2WSH
+ * or P2SH-wrapped v0 P2WPKH/P2WSH). Used for early CPU DoS detection before
+ * expensive script execution.
+ */
+bool IsWitnessStrippedTx(const CTransaction& tx, const CCoinsViewCache& view);
+
 extern CFeeRate incrementalRelayFee;
 extern CFeeRate dustRelayFee;
 extern unsigned int nBytesPerSigOp;

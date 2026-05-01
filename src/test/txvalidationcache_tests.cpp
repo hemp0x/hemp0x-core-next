@@ -160,6 +160,58 @@ BOOST_AUTO_TEST_SUITE(tx_validationcache_tests)
         }
     }
 
+    BOOST_FIXTURE_TEST_CASE(witness_stripped_mempool_reject_test, TestChain100Setup)
+    {
+        BOOST_TEST_MESSAGE("Running Witness Stripped Mempool Reject Test");
+
+        CScript p2pk_scriptPubKey = CScript() << ToByteVector(coinbaseKey.GetPubKey()) << OP_CHECKSIG;
+        CScript p2pkh_scriptPubKey = GetScriptForDestination(coinbaseKey.GetPubKey().GetID());
+        CScript p2wpkh_scriptPubKey = GetScriptForWitness(p2pkh_scriptPubKey);
+
+        CBasicKeyStore keystore;
+        keystore.AddKey(coinbaseKey);
+
+        CMutableTransaction fund_tx;
+        fund_tx.nVersion = 1;
+        fund_tx.vout.resize(1);
+        fund_tx.vout[0].nValue = 11 * CENT;
+        fund_tx.vout[0].scriptPubKey = p2wpkh_scriptPubKey;
+        const COutPoint witness_prevout(fund_tx.GetHash(), 0);
+        {
+            LOCK(cs_main);
+            pcoinsTip->AddCoin(witness_prevout, Coin(fund_tx.vout[0], 1, false), false);
+        }
+
+        CMutableTransaction stripped_tx;
+        stripped_tx.nVersion = 1;
+        stripped_tx.vin.resize(1);
+        stripped_tx.vin[0].prevout = witness_prevout;
+        stripped_tx.vout.resize(1);
+        stripped_tx.vout[0].nValue = 10 * CENT;
+        stripped_tx.vout[0].scriptPubKey = p2pk_scriptPubKey;
+        {
+            SignatureData sigdata;
+            ProduceSignature(MutableTransactionSignatureCreator(&keystore, &stripped_tx, 0, 11 * CENT, SIGHASH_ALL), p2wpkh_scriptPubKey, sigdata);
+            UpdateTransaction(stripped_tx, 0, sigdata);
+            stripped_tx.vin[0].scriptWitness.SetNull();
+        }
+
+        CValidationState state;
+        {
+            LOCK(cs_main);
+            BOOST_CHECK(IsWitnessStrippedTx(stripped_tx, *pcoinsTip));
+            BOOST_CHECK(!AcceptToMemoryPool(mempool, state, MakeTransactionRef(stripped_tx),
+                                            nullptr, nullptr, true, 0));
+        }
+
+        int nDoS = 0;
+        BOOST_CHECK(state.IsInvalid(nDoS));
+        BOOST_CHECK_EQUAL(nDoS, 0);
+        BOOST_CHECK(state.CorruptionPossible());
+        BOOST_CHECK_EQUAL(state.GetRejectCode(), REJECT_NONSTANDARD);
+        BOOST_CHECK_EQUAL(state.GetRejectReason(), "bad-witness-stripped");
+    }
+
     BOOST_FIXTURE_TEST_CASE(checkinputs_test, TestChain100Setup)
     {
 
@@ -391,6 +443,181 @@ BOOST_AUTO_TEST_SUITE(tx_validationcache_tests)
             BOOST_CHECK(CheckInputs(tx, state, pcoinsTip, true, SCRIPT_VERIFY_P2SH | SCRIPT_VERIFY_WITNESS, true, true, txdata, &scriptchecks));
             // Should get 2 script checks back -- caching is on a whole-transaction basis.
             BOOST_CHECK_EQUAL(scriptchecks.size(), (uint64_t)2);
+        }
+        // TEST: native P2WPKH without witness is detected by policy helper
+        {
+            CMutableTransaction no_witness_tx;
+            no_witness_tx.nVersion = 1;
+            no_witness_tx.vin.resize(1);
+            no_witness_tx.vin[0].prevout.hash = spend_tx.GetHash();
+            no_witness_tx.vin[0].prevout.n = 1;  // p2wpkh_scriptPubKey output
+            no_witness_tx.vout.resize(1);
+            no_witness_tx.vout[0].nValue = 11 * CENT;
+            no_witness_tx.vout[0].scriptPubKey = p2pk_scriptPubKey;
+
+            SignatureData sigdata;
+            ProduceSignature(MutableTransactionSignatureCreator(&keystore, &no_witness_tx, 0, 11 * CENT, SIGHASH_ALL), spend_tx.vout[1].scriptPubKey, sigdata);
+            UpdateTransaction(no_witness_tx, 0, sigdata);
+            // Now strip the witness to simulate witness-stripped attack
+            no_witness_tx.vin[0].scriptWitness.SetNull();
+
+            // Verify the helper detects it
+            BOOST_CHECK(IsWitnessStrippedTx(no_witness_tx, *pcoinsTip));
+        }
+
+        // TEST: P2SH-P2WPKH without witness is also detected
+        {
+            CScript redeemScript = GetScriptForWitness(p2pkh_scriptPubKey);
+
+            CMutableTransaction create_tx;
+            create_tx.nVersion = 1;
+            create_tx.vin.resize(1);
+            create_tx.vin[0].prevout.hash = coinbaseTxns[1].GetHash();
+            create_tx.vin[0].prevout.n = 0;
+            create_tx.vout.resize(1);
+            create_tx.vout[0].nValue = 5 * COIN;
+            create_tx.vout[0].scriptPubKey = GetScriptForDestination(CScriptID(redeemScript));
+            {
+                std::vector<unsigned char> vchSig;
+                uint256 hash = SignatureHash(coinbaseTxns[1].vout[0].scriptPubKey, create_tx, 0, SIGHASH_ALL, 0, SIGVERSION_BASE);
+                BOOST_CHECK(coinbaseKey.Sign(hash, vchSig));
+                vchSig.push_back((unsigned char) SIGHASH_ALL);
+                create_tx.vin[0].scriptSig << vchSig;
+            }
+            {
+                CBlock block = CreateAndProcessBlock({create_tx}, p2pk_scriptPubKey);
+                BOOST_CHECK(chainActive.Tip()->GetBlockHash() == block.GetHash());
+            }
+
+            CMutableTransaction spend_sh_wpkh;
+            spend_sh_wpkh.nVersion = 1;
+            spend_sh_wpkh.vin.resize(1);
+            spend_sh_wpkh.vin[0].prevout.hash = create_tx.GetHash();
+            spend_sh_wpkh.vin[0].prevout.n = 0;
+            spend_sh_wpkh.vout.resize(1);
+            spend_sh_wpkh.vout[0].nValue = 4 * COIN;
+            spend_sh_wpkh.vout[0].scriptPubKey = p2pk_scriptPubKey;
+            {
+                std::vector<unsigned char> vchSig;
+                uint256 hash = SignatureHash(redeemScript, spend_sh_wpkh, 0, SIGHASH_ALL, 0, SIGVERSION_WITNESS_V0);
+                BOOST_CHECK(coinbaseKey.Sign(hash, vchSig));
+                vchSig.push_back((unsigned char) SIGHASH_ALL);
+                spend_sh_wpkh.vin[0].scriptSig = CScript() << ToByteVector(redeemScript);
+            }
+            // No witness data set
+
+            BOOST_CHECK(IsWitnessStrippedTx(spend_sh_wpkh, *pcoinsTip));
+        }
+
+        // TEST: P2SH-P2WPKH with a mismatched redeem script is NOT flagged
+        {
+            CScript actualRedeemScript = GetScriptForWitness(p2pkh_scriptPubKey);
+            CKey otherKey;
+            otherKey.MakeNewKey(true);
+            CScript otherRedeemScript = GetScriptForWitness(GetScriptForDestination(otherKey.GetPubKey().GetID()));
+
+            CMutableTransaction create_tx;
+            create_tx.nVersion = 1;
+            create_tx.vin.resize(1);
+            create_tx.vin[0].prevout.hash = coinbaseTxns[2].GetHash();
+            create_tx.vin[0].prevout.n = 0;
+            create_tx.vout.resize(1);
+            create_tx.vout[0].nValue = 5 * COIN;
+            create_tx.vout[0].scriptPubKey = GetScriptForDestination(CScriptID(actualRedeemScript));
+            {
+                std::vector<unsigned char> vchSig;
+                uint256 hash = SignatureHash(coinbaseTxns[2].vout[0].scriptPubKey, create_tx, 0, SIGHASH_ALL, 0, SIGVERSION_BASE);
+                BOOST_CHECK(coinbaseKey.Sign(hash, vchSig));
+                vchSig.push_back((unsigned char) SIGHASH_ALL);
+                create_tx.vin[0].scriptSig << vchSig;
+            }
+            {
+                CBlock block = CreateAndProcessBlock({create_tx}, p2pk_scriptPubKey);
+                BOOST_CHECK(chainActive.Tip()->GetBlockHash() == block.GetHash());
+            }
+
+            CMutableTransaction spend_mismatch;
+            spend_mismatch.nVersion = 1;
+            spend_mismatch.vin.resize(1);
+            spend_mismatch.vin[0].prevout.hash = create_tx.GetHash();
+            spend_mismatch.vin[0].prevout.n = 0;
+            spend_mismatch.vout.resize(1);
+            spend_mismatch.vout[0].nValue = 4 * COIN;
+            spend_mismatch.vout[0].scriptPubKey = p2pk_scriptPubKey;
+            spend_mismatch.vin[0].scriptSig = CScript() << ToByteVector(otherRedeemScript);
+
+            BOOST_CHECK(!IsWitnessStrippedTx(spend_mismatch, *pcoinsTip));
+        }
+
+        // TEST: ordinary P2PKH without witness is NOT flagged
+        {
+            CMutableTransaction p2pkh_no_wit;
+            p2pkh_no_wit.nVersion = 1;
+            p2pkh_no_wit.vin.resize(1);
+            p2pkh_no_wit.vin[0].prevout.hash = spend_tx.GetHash();
+            p2pkh_no_wit.vin[0].prevout.n = 0;  // p2sh output
+            p2pkh_no_wit.vout.resize(1);
+            p2pkh_no_wit.vout[0].nValue = 10 * CENT;
+            p2pkh_no_wit.vout[0].scriptPubKey = p2pk_scriptPubKey;
+            // Malformed scriptSig (not a valid P2SH redeem) - should still be false
+            p2pkh_no_wit.vin[0].scriptSig = CScript() << OP_TRUE;
+
+            BOOST_CHECK(!IsWitnessStrippedTx(p2pkh_no_wit, *pcoinsTip));
+        }
+
+        // TEST: transaction with witness is never flagged
+        {
+            CMutableTransaction with_witness_tx;
+            with_witness_tx.nVersion = 1;
+            with_witness_tx.vin.resize(1);
+            with_witness_tx.vin[0].prevout.hash = spend_tx.GetHash();
+            with_witness_tx.vin[0].prevout.n = 1;
+            with_witness_tx.vout.resize(1);
+            with_witness_tx.vout[0].nValue = 10 * CENT;
+            with_witness_tx.vout[0].scriptPubKey = p2pk_scriptPubKey;
+            SignatureData sigdata;
+            ProduceSignature(MutableTransactionSignatureCreator(&keystore, &with_witness_tx, 0, 11 * CENT, SIGHASH_ALL), spend_tx.vout[1].scriptPubKey, sigdata);
+            UpdateTransaction(with_witness_tx, 0, sigdata);
+
+            BOOST_CHECK(!IsWitnessStrippedTx(with_witness_tx, *pcoinsTip));
+        }
+
+        // TEST: non-push scriptSig in P2SH-wrapped witness path does not false-positive
+        {
+            CScript redeemScript = GetScriptForWitness(p2pkh_scriptPubKey);
+
+            CMutableTransaction create_tx2;
+            create_tx2.nVersion = 1;
+            create_tx2.vin.resize(1);
+            create_tx2.vin[0].prevout.hash = coinbaseTxns[3].GetHash();
+            create_tx2.vin[0].prevout.n = 0;
+            create_tx2.vout.resize(1);
+            create_tx2.vout[0].nValue = 5 * COIN;
+            create_tx2.vout[0].scriptPubKey = GetScriptForDestination(CScriptID(redeemScript));
+            {
+                std::vector<unsigned char> vchSig;
+                uint256 hash = SignatureHash(coinbaseTxns[3].vout[0].scriptPubKey, create_tx2, 0, SIGHASH_ALL, 0, SIGVERSION_BASE);
+                BOOST_CHECK(coinbaseKey.Sign(hash, vchSig));
+                vchSig.push_back((unsigned char) SIGHASH_ALL);
+                create_tx2.vin[0].scriptSig << vchSig;
+            }
+            {
+                CBlock block = CreateAndProcessBlock({create_tx2}, p2pk_scriptPubKey);
+                BOOST_CHECK(chainActive.Tip()->GetBlockHash() == block.GetHash());
+            }
+
+            CMutableTransaction spend_malformed;
+            spend_malformed.nVersion = 1;
+            spend_malformed.vin.resize(1);
+            spend_malformed.vin[0].prevout.hash = create_tx2.GetHash();
+            spend_malformed.vin[0].prevout.n = 0;
+            spend_malformed.vout.resize(1);
+            spend_malformed.vout[0].nValue = 4 * COIN;
+            spend_malformed.vout[0].scriptPubKey = p2pk_scriptPubKey;
+            // Non-push-only scriptSig (contains OP_ADD) should not trigger detection
+            spend_malformed.vin[0].scriptSig = CScript() << ToByteVector(redeemScript) << OP_ADD;
+
+            BOOST_CHECK(!IsWitnessStrippedTx(spend_malformed, *pcoinsTip));
         }
     }
 

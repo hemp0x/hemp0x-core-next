@@ -32,6 +32,8 @@ extern UniValue importwallet(const JSONRPCRequest &request);
 
 extern UniValue getwalletmigrationinfo(const JSONRPCRequest &request);
 
+extern UniValue exportwalletmigration(const JSONRPCRequest &request);
+
 // how many times to run all the tests to have a chance to catch errors that only show up with particular random shuffles
 #define RUN_TESTS 100
 
@@ -830,6 +832,232 @@ BOOST_FIXTURE_TEST_SUITE(wallet_tests, WalletTestingSetup)
                     key.find(sub) == std::string::npos,
                     "Unexpected field containing '" + sub + "': " + key);
             }
+        }
+    }
+
+    BOOST_AUTO_TEST_CASE(exportwalletmigration_test)
+    {
+        struct WalletVectorGuard {
+            std::vector<CWallet*> saved_wallets;
+            explicit WalletVectorGuard(CWallet* wallet) : saved_wallets(vpwallets)
+            {
+                vpwallets.clear();
+                vpwallets.push_back(wallet);
+            }
+            ~WalletVectorGuard()
+            {
+                vpwallets = saved_wallets;
+            }
+        } wallet_guard(pwalletMain);
+
+        boost::filesystem::path tmpExportPath = boost::filesystem::temp_directory_path() /
+            boost::filesystem::unique_path("hemp0x-test-exportwalletmigration-%%%%%%.json");
+
+        // Test 1: RPC exists and public-only export creates valid JSON
+        {
+            JSONRPCRequest request;
+            request.strMethod = "exportwalletmigration";
+            request.params = UniValue(UniValue::VARR);
+            request.params.push_back(tmpExportPath.string());
+            request.params.push_back(UniValue(false));
+            request.params.push_back(UniValue(false));
+            request.fHelp = false;
+
+            UniValue result = exportwalletmigration(request);
+
+            BOOST_CHECK(result.isObject());
+            BOOST_CHECK(result["filename"].isStr());
+            BOOST_CHECK_EQUAL(result["filename"].get_str(), boost::filesystem::absolute(tmpExportPath).string());
+            BOOST_CHECK(result["exported_at"].isNum());
+            BOOST_CHECK_EQUAL(result["envelope_version"].get_int(), 1);
+            BOOST_CHECK(result["chain"].isStr());
+            BOOST_CHECK_EQUAL(result["private_keys_included"].get_bool(), false);
+            BOOST_CHECK(result["encrypted"].isBool());
+            BOOST_CHECK(result["locked"].isBool());
+            BOOST_CHECK(result["hd_enabled"].isBool());
+            BOOST_CHECK(result["total_keys_exported"].isNum());
+            BOOST_CHECK(result["warnings"].isArray());
+
+            std::vector<std::string> responseKeys = result.getKeys();
+            std::vector<std::string> secretSubstrings = {"mnemonic", "xprv", "wif", "seed", "passphrase"};
+            for (const std::string& key : responseKeys) {
+                for (const std::string& sub : secretSubstrings) {
+                    bool hasSecret = key.find(sub) != std::string::npos;
+                    if (hasSecret) {
+                        bool isSafeBool = (key == "mnemonic_available" || key == "private_keys_present");
+                        BOOST_CHECK_MESSAGE(
+                            isSafeBool,
+                            "RPC response contains secret-like field: " + key);
+                    }
+                }
+            }
+
+            boost::filesystem::remove(tmpExportPath);
+        }
+
+        // Test 2: include_private=true is rejected and creates no file
+        {
+            bool threw = false;
+            JSONRPCRequest request;
+            request.strMethod = "exportwalletmigration";
+            request.params = UniValue(UniValue::VARR);
+            request.params.push_back(tmpExportPath.string());
+            request.params.push_back(UniValue(true));
+            request.fHelp = false;
+
+            try {
+                exportwalletmigration(request);
+            } catch (...) {
+                threw = true;
+            }
+            BOOST_CHECK(threw);
+            BOOST_CHECK(!boost::filesystem::exists(tmpExportPath));
+        }
+
+        // Test 3: existing destination rejected by default
+        {
+            std::ofstream existingFile;
+            existingFile.open(tmpExportPath.string().c_str(), std::ios::out | std::ios::trunc);
+            existingFile << "{}";
+            existingFile.close();
+
+            bool threw = false;
+            JSONRPCRequest request;
+            request.strMethod = "exportwalletmigration";
+            request.params = UniValue(UniValue::VARR);
+            request.params.push_back(tmpExportPath.string());
+            request.params.push_back(UniValue(false));
+            request.params.push_back(UniValue(false));
+            request.fHelp = false;
+
+            try {
+                exportwalletmigration(request);
+            } catch (...) {
+                threw = true;
+            }
+            BOOST_CHECK(threw);
+
+            boost::filesystem::remove(tmpExportPath);
+        }
+
+        // Test 4: allow_overwrite=true works
+        {
+            std::ofstream existingFile;
+            existingFile.open(tmpExportPath.string().c_str(), std::ios::out | std::ios::trunc);
+            existingFile << "{}";
+            existingFile.close();
+
+            JSONRPCRequest request;
+            request.strMethod = "exportwalletmigration";
+            request.params = UniValue(UniValue::VARR);
+            request.params.push_back(tmpExportPath.string());
+            request.params.push_back(UniValue(false));
+            request.params.push_back(UniValue(true));
+            request.fHelp = false;
+
+            UniValue result = exportwalletmigration(request);
+            BOOST_CHECK(result.isObject());
+            BOOST_CHECK_EQUAL(result["private_keys_included"].get_bool(), false);
+
+            boost::filesystem::remove(tmpExportPath);
+        }
+
+        // Test 5: empty filename rejected
+        {
+            bool threw = false;
+            JSONRPCRequest request;
+            request.strMethod = "exportwalletmigration";
+            request.params = UniValue(UniValue::VARR);
+            request.params.push_back(UniValue(""));
+            request.fHelp = false;
+
+            try {
+                exportwalletmigration(request);
+            } catch (...) {
+                threw = true;
+            }
+            BOOST_CHECK(threw);
+        }
+
+        // Test 6: wallet.dat basename rejected
+        {
+            bool threw = false;
+            JSONRPCRequest request;
+            request.strMethod = "exportwalletmigration";
+            request.params = UniValue(UniValue::VARR);
+            request.params.push_back(UniValue("/tmp/wallet.dat"));
+            request.fHelp = false;
+
+            try {
+                exportwalletmigration(request);
+            } catch (...) {
+                threw = true;
+            }
+            BOOST_CHECK(threw);
+        }
+
+        // Test 7: JSON envelope file exists and contains required fields, no secrets
+        {
+            boost::filesystem::path envelopePath = boost::filesystem::temp_directory_path() /
+                boost::filesystem::unique_path("hemp0x-test-envelope-%%%%%%.json");
+
+            JSONRPCRequest request;
+            request.strMethod = "exportwalletmigration";
+            request.params = UniValue(UniValue::VARR);
+            request.params.push_back(envelopePath.string());
+            request.params.push_back(UniValue(false));
+            request.fHelp = false;
+
+            exportwalletmigration(request);
+
+            std::ifstream file(envelopePath.string());
+            std::string fileContent((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+            file.close();
+
+            BOOST_CHECK(!fileContent.empty());
+
+            UniValue envelope;
+            BOOST_CHECK(envelope.read(fileContent));
+
+            BOOST_CHECK(envelope.exists("envelope_version"));
+            BOOST_CHECK_EQUAL(envelope["envelope_version"].get_int(), 1);
+            BOOST_CHECK(envelope.exists("schema_identifier"));
+            BOOST_CHECK(envelope.exists("exported_at"));
+            BOOST_CHECK(envelope.exists("source_client"));
+            BOOST_CHECK(envelope.exists("source_client_version"));
+            BOOST_CHECK(envelope.exists("chain"));
+            BOOST_CHECK(envelope.exists("wallet_summary"));
+            BOOST_CHECK(envelope.exists("derivation"));
+            const UniValue& derivation = envelope["derivation"];
+            BOOST_CHECK(derivation.isArray());
+            for (unsigned int i = 0; i < derivation.size(); ++i) {
+                BOOST_CHECK(!derivation[i].exists("master_xpub"));
+                BOOST_CHECK(!derivation[i].exists("account_xpub"));
+            }
+            BOOST_CHECK(envelope.exists("keys"));
+            BOOST_CHECK(envelope.exists("watch_only_entries"));
+            BOOST_CHECK(envelope.exists("unsupported_records"));
+            BOOST_CHECK(envelope.exists("metadata"));
+            BOOST_CHECK(envelope.exists("warnings"));
+
+            BOOST_CHECK(!envelope.exists("private"));
+            BOOST_CHECK(!envelope.exists("mnemonic"));
+            BOOST_CHECK(!envelope.exists("seed"));
+
+            boost::filesystem::remove(envelopePath);
+        }
+
+        // Test 8: existing getwalletmigrationinfo still works
+        {
+            JSONRPCRequest request;
+            request.strMethod = "getwalletmigrationinfo";
+            request.params = UniValue(UniValue::VARR);
+            request.fHelp = false;
+
+            UniValue result = getwalletmigrationinfo(request);
+            BOOST_CHECK(result.isObject());
+            BOOST_CHECK(result["wallet_name"].isStr());
+            BOOST_CHECK_EQUAL(result["storage_backend"].get_str(), "bdb");
         }
     }
 

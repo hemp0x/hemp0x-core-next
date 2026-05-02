@@ -1367,3 +1367,221 @@ UniValue importmulti(const JSONRPCRequest& mainRequest)
 
     return response;
 }
+
+UniValue exportwalletmigration(const JSONRPCRequest& request)
+{
+    CWallet * const pwallet = GetWalletForJSONRPCRequest(request);
+    if (!EnsureWalletIsAvailable(pwallet, request.fHelp)) {
+        return NullUniValue;
+    }
+
+    if (request.fHelp || request.params.size() < 1 || request.params.size() > 3)
+        throw std::runtime_error(
+            "exportwalletmigration \"filename\" ( include_private allow_overwrite )\n"
+            "\nExports wallet migration data to a JSON envelope file.\n"
+            "\nThis implementation is PUBLIC-ONLY. It does not export private keys,\n"
+            "mnemonics, xprv values, seed bytes, or wallet passphrases.\n"
+            "include_private=true is NOT YET IMPLEMENTED and will be rejected.\n"
+            "\nArguments:\n"
+            "1. \"filename\"          (string, required) The output file path (absolute or relative)\n"
+            "2. include_private      (boolean, optional, default=false)\n"
+            "                         When true: REJECTED (not implemented in this build).\n"
+            "3. allow_overwrite      (boolean, optional, default=false)\n"
+            "                         If true, overwrites an existing file.\n"
+            "\nResult: (public metadata only)\n"
+            "{\n"
+            "  \"filename\" : \"...\",        (string) Full absolute path of the output file\n"
+            "  \"exported_at\" : n,          (numeric) Unix timestamp of export\n"
+            "  \"envelope_version\" : 1,     (numeric) JSON envelope schema version\n"
+            "  \"chain\" : \"...\",            (string) Network name\n"
+            "  \"encrypted\" : true|false,   (boolean) Whether source wallet is encrypted\n"
+            "  \"locked\" : true|false,      (boolean) Whether source wallet is locked\n"
+            "  \"hd_enabled\" : true|false,  (boolean) Whether HD derivation is active\n"
+            "  \"bip44_enabled\" : true|false,(boolean) Whether BIP44 derivation is active\n"
+            "  \"private_keys_included\": false, (boolean) Always false in this build\n"
+            "  \"keypool_external\" : n,     (numeric) External key pool size\n"
+            "  \"warnings\" : [...]          (array of strings) Operational warnings\n"
+            "}\n"
+            "\nExamples:\n"
+            + HelpExampleCli("exportwalletmigration", "\"/tmp/migration.json\"")
+            + HelpExampleCli("exportwalletmigration", "\"/tmp/migration.json\" false true")
+            + HelpExampleRpc("exportwalletmigration", "\"/tmp/migration.json\"")
+        );
+
+    ObserveSafeMode();
+    LOCK2(cs_main, pwallet->cs_wallet);
+
+    std::string strFilename = request.params[0].get_str();
+    bool fIncludePrivate = request.params.size() >= 2 && !request.params[1].isNull()
+        ? request.params[1].get_bool() : false;
+    bool fAllowOverwrite = request.params.size() >= 3 && !request.params[2].isNull()
+        ? request.params[2].get_bool() : false;
+
+    if (fIncludePrivate) {
+        throw JSONRPCError(RPC_WALLET_ERROR,
+            "Private migration export is not implemented in this build. "
+            "Use include_private=false for public-only export.");
+    }
+
+    if (strFilename.empty()) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Filename cannot be empty");
+    }
+
+    boost::filesystem::path filepath = strFilename;
+    filepath = boost::filesystem::absolute(filepath);
+
+    if (boost::filesystem::is_directory(filepath)) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Cannot export to a directory path: " + filepath.string());
+    }
+
+    if (filepath.filename().string() == "wallet.dat") {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Refusing to write to 'wallet.dat'. Choose a different filename for the migration export.");
+    }
+
+    if (boost::filesystem::exists(filepath) && !fAllowOverwrite) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, filepath.string() + " already exists. Use allow_overwrite=true to overwrite.");
+    }
+
+    bool fEncrypted = pwallet->IsCrypted();
+    bool fLocked = pwallet->IsLocked();
+    bool fHD = pwallet->IsHDEnabled();
+    bool fBip44 = pwallet->IsBip44Enabled();
+    bool hasMnemonic = pwallet->HasMnemonicData();
+    bool hasWatchOnly = pwallet->HaveWatchOnly();
+    bool hasPrivateKeys = pwallet->GetKeys().size() > 0;
+    size_t kpExternal = pwallet->KeypoolCountExternalKeys();
+    CKeyID seed_id = pwallet->GetHDChain().seed_id;
+    int64_t nExportTime = GetTime();
+
+    UniValue envelope(UniValue::VOBJ);
+    UniValue warnings(UniValue::VARR);
+
+    envelope.pushKV("envelope_version", 1);
+    envelope.pushKV("schema_identifier", "hemp0x-core.migration-envelope.v1");
+    envelope.pushKV("exported_at", nExportTime);
+    envelope.pushKV("source_client", "hemp0x-core");
+    envelope.pushKV("source_client_version", FormatFullVersion());
+
+    UniValue chainObj(UniValue::VOBJ);
+    chainObj.pushKV("network", GetParams().NetworkIDString());
+    chainObj.pushKV("coin_type_bip44", GetParams().ExtCoinType());
+    envelope.pushKV("chain", chainObj);
+
+    UniValue walletSummary(UniValue::VOBJ);
+    walletSummary.pushKV("wallet_name", pwallet->GetName());
+    walletSummary.pushKV("encrypted", UniValue(fEncrypted));
+    walletSummary.pushKV("locked", UniValue(fLocked));
+    walletSummary.pushKV("hd_enabled", UniValue(fHD));
+    walletSummary.pushKV("bip44_enabled", UniValue(fBip44));
+    walletSummary.pushKV("private_keys_included", UniValue(false));
+    walletSummary.pushKV("mnemonic_available", UniValue(hasMnemonic));
+    walletSummary.pushKV("watch_only_present", UniValue(hasWatchOnly));
+    walletSummary.pushKV("private_keys_present", UniValue(hasPrivateKeys));
+    walletSummary.pushKV("keypool_external", static_cast<int64_t>(kpExternal));
+
+    if (!seed_id.IsNull() && pwallet->CanSupportFeature(FEATURE_HD_SPLIT)) {
+        walletSummary.pushKV("keypool_internal", static_cast<int64_t>(pwallet->GetKeyPoolSize() - kpExternal));
+    } else {
+        walletSummary.pushKV("keypool_internal", NullUniValue);
+    }
+
+    envelope.pushKV("wallet_summary", walletSummary);
+
+    UniValue derivationProfiles(UniValue::VARR);
+    if (fHD) {
+        UniValue profile(UniValue::VOBJ);
+        profile.pushKV("profile_id", fBip44 ? "hemp0x.mainnet.bip44.p2pkh.coin420.v1" : "hemp0x.legacy.bip32.p2pkh.v1");
+        profile.pushKV("purpose", fBip44 ? 44 : 0);
+        profile.pushKV("coin_type", fBip44 ? GetParams().ExtCoinType() : 0);
+        profile.pushKV("address_type", "p2pkh");
+        if (fBip44) {
+            profile.pushKV("account_derivation_path", strprintf("m/44'/%d'/0'", GetParams().ExtCoinType()));
+        }
+
+        if (chainActive.Tip()) {
+            profile.pushKV("best_block_height", chainActive.Height());
+        }
+
+        derivationProfiles.push_back(profile);
+    }
+    envelope.pushKV("derivation", derivationProfiles);
+
+    UniValue keysArray(UniValue::VARR);
+    envelope.pushKV("keys", keysArray);
+
+    UniValue watchOnlyArray(UniValue::VARR);
+    envelope.pushKV("watch_only_entries", watchOnlyArray);
+
+    UniValue unsupportedArray(UniValue::VARR);
+    envelope.pushKV("unsupported_records", unsupportedArray);
+
+    UniValue metadata(UniValue::VOBJ);
+    if (chainActive.Tip()) {
+        metadata.pushKV("best_block_height", chainActive.Height());
+        metadata.pushKV("best_block_hash", chainActive.Tip()->GetBlockHash().GetHex());
+    }
+    metadata.pushKV("transaction_count", static_cast<int64_t>(pwallet->mapWallet.size()));
+    metadata.pushKV("balance", ValueFromAmount(pwallet->GetBalance()));
+    envelope.pushKV("metadata", metadata);
+
+    warnings.push_back("This file contains PUBLIC wallet metadata only. No private keys, mnemonics, seeds, xprv values, or passphrases are included.");
+    warnings.push_back("The 'keys' array is intentionally empty in this public-only export. Full key iteration requires a future build.");
+    warnings.push_back("Extended public keys are intentionally deferred in this public-only foundation because deriving them from legacy wallet data can require touching seed material.");
+    warnings.push_back("For private key export, use include_private=true in a future build.");
+    if (fEncrypted && fLocked) {
+        warnings.push_back("Wallet is encrypted and locked. Private key export would require walletpassphrase.");
+    }
+    envelope.pushKV("warnings", warnings);
+
+    std::string jsonContent = envelope.write(2);
+
+    boost::filesystem::path tempPath = filepath.parent_path() /
+        (filepath.filename().string() + "." + boost::filesystem::unique_path("%%%%%%").string() + ".tmp");
+
+    std::ofstream file;
+    file.open(tempPath.string().c_str(), std::ios::out | std::ios::trunc);
+    if (!file.is_open()) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Cannot open temporary output file: " + tempPath.string());
+    }
+
+    file << jsonContent;
+    if (file.fail()) {
+        file.close();
+        boost::filesystem::remove(tempPath);
+        throw JSONRPCError(RPC_WALLET_ERROR, "Error writing migration data to temporary file");
+    }
+    file.close();
+
+    if (fAllowOverwrite && boost::filesystem::exists(filepath)) {
+        boost::system::error_code ec;
+        boost::filesystem::remove(filepath, ec);
+        if (ec) {
+            boost::filesystem::remove(tempPath);
+            throw JSONRPCError(RPC_WALLET_ERROR, "Failed to remove existing destination before overwrite: " + filepath.string());
+        }
+    }
+
+    if (std::rename(tempPath.string().c_str(), filepath.string().c_str()) != 0) {
+        boost::filesystem::remove(tempPath);
+        throw JSONRPCError(RPC_WALLET_ERROR, "Failed to rename temporary file to final destination: " + filepath.string());
+    }
+
+    UniValue reply(UniValue::VOBJ);
+    reply.pushKV("filename", filepath.string());
+    reply.pushKV("exported_at", nExportTime);
+    reply.pushKV("envelope_version", 1);
+    reply.pushKV("chain", GetParams().NetworkIDString());
+    reply.pushKV("encrypted", UniValue(fEncrypted));
+    reply.pushKV("locked", UniValue(fLocked));
+    reply.pushKV("hd_enabled", UniValue(fHD));
+    reply.pushKV("bip44_enabled", UniValue(fBip44));
+    reply.pushKV("private_keys_included", UniValue(false));
+    reply.pushKV("mnemonic_available", UniValue(hasMnemonic));
+    reply.pushKV("watch_only_present", UniValue(hasWatchOnly));
+    reply.pushKV("private_keys_present", UniValue(hasPrivateKeys));
+    reply.pushKV("total_keys_exported", 0);
+    reply.pushKV("keypool_external", static_cast<int64_t>(kpExternal));
+    reply.pushKV("warnings", warnings);
+
+    return reply;
+}

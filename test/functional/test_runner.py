@@ -101,6 +101,7 @@ BASE_SCRIPTS= [
     'rpc_rawtransaction.py',
     'rpc_addressindex.py',
     'wallet_dump.py',
+    'wallet_migration_export.py',
     'mempool_persist.py',
     'rpc_timestampindex.py',
     'wallet_listreceivedby.py',

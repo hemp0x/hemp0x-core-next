@@ -3610,6 +3610,7 @@ extern UniValue importwallet(const JSONRPCRequest& request);
 extern UniValue importprunedfunds(const JSONRPCRequest& request);
 extern UniValue removeprunedfunds(const JSONRPCRequest& request);
 extern UniValue importmulti(const JSONRPCRequest& request);
+extern UniValue exportwalletmigration(const JSONRPCRequest& request); // in rpcdump.cpp
 extern UniValue rescanblockchain(const JSONRPCRequest& request);
 
 static const CRPCCommand commands[] =
@@ -3640,6 +3641,7 @@ static const CRPCCommand commands[] =
     { "wallet",             "getunconfirmedbalance",    &getunconfirmedbalance,    {} },
     { "wallet",             "getwalletinfo",            &getwalletinfo,            {} },
     { "wallet",             "getwalletmigrationinfo",   &getwalletmigrationinfo,   {} },
+    { "wallet",             "exportwalletmigration",    &exportwalletmigration,    {"filename","include_private","allow_overwrite"} },
     { "wallet",             "importmulti",              &importmulti,              {"requests","options"} },
     { "wallet",             "importprivkey",            &importprivkey,            {"privkey","label","rescan"} },
     { "wallet",             "importwallet",             &importwallet,             {"filename"} },

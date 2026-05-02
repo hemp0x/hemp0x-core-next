@@ -15,12 +15,13 @@
 #include <memenv.h>
 #include <stdint.h>
 #include <algorithm>
+#include <cstdarg>
 
 class CHemp0xLevelDBLogger : public leveldb::Logger {
 public:
     // This code is adapted from posix_logger.h, which is why it is using vsprintf.
     // Please do not do this in normal code
-    void Logv(const char * format, va_list ap) override {
+    void Logv(const char * format, std::va_list ap) override {
             if (!LogAcceptCategory(BCLog::LEVELDB)) {
                 return;
             }
@@ -41,7 +42,7 @@ public:
 
                 // Print the message
                 if (p < limit) {
-                    va_list backup_ap;
+                    std::va_list backup_ap;
                     va_copy(backup_ap, ap);
                     // Do not use vsnprintf elsewhere in hemp0x source code, see above.
                     p += vsnprintf(p, limit - p, format, backup_ap);

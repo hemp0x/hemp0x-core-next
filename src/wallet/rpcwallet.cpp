@@ -3641,7 +3641,7 @@ static const CRPCCommand commands[] =
     { "wallet",             "getunconfirmedbalance",    &getunconfirmedbalance,    {} },
     { "wallet",             "getwalletinfo",            &getwalletinfo,            {} },
     { "wallet",             "getwalletmigrationinfo",   &getwalletmigrationinfo,   {} },
-    { "wallet",             "exportwalletmigration",    &exportwalletmigration,    {"filename","include_private","allow_overwrite"} },
+    { "wallet",             "exportwalletmigration",    &exportwalletmigration,    {"filename","include_private","allow_overwrite","export_passphrase"} },
     { "wallet",             "importmulti",              &importmulti,              {"requests","options"} },
     { "wallet",             "importprivkey",            &importprivkey,            {"privkey","label","rescan"} },
     { "wallet",             "importwallet",             &importwallet,             {"filename"} },

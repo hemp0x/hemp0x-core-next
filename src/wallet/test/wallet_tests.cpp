@@ -17,6 +17,7 @@
 #include "validation.h"
 #include "wallet/coincontrol.h"
 #include "wallet/test/wallet_test_fixture.h"
+#include "wallet/migration_crypto.h"
 
 #include <boost/test/unit_test.hpp>
 #include <univalue.h>
@@ -895,7 +896,7 @@ BOOST_FIXTURE_TEST_SUITE(wallet_tests, WalletTestingSetup)
             boost::filesystem::remove(tmpExportPath);
         }
 
-        // Test 2: include_private=true is rejected and creates no file
+        // Test 2: include_private=true without passphrase is rejected
         {
             bool threw = false;
             JSONRPCRequest request;
@@ -903,6 +904,7 @@ BOOST_FIXTURE_TEST_SUITE(wallet_tests, WalletTestingSetup)
             request.params = UniValue(UniValue::VARR);
             request.params.push_back(tmpExportPath.string());
             request.params.push_back(UniValue(true));
+            request.params.push_back(UniValue(false));
             request.fHelp = false;
 
             try {
@@ -912,6 +914,239 @@ BOOST_FIXTURE_TEST_SUITE(wallet_tests, WalletTestingSetup)
             }
             BOOST_CHECK(threw);
             BOOST_CHECK(!boost::filesystem::exists(tmpExportPath));
+        }
+
+        // Test 2b: include_private=true with a valid passphrase - encrypted export
+        // The fixture wallet may not have BIP44 data; skip gracefully if rejected.
+        {
+            bool hasBip44 = pwalletMain->IsHDEnabled() && pwalletMain->GetHDChain().IsBip44() && pwalletMain->HasMnemonicData();
+
+            if (!hasBip44) {
+                bool threw = false;
+                JSONRPCRequest request;
+                request.strMethod = "exportwalletmigration";
+                request.params = UniValue(UniValue::VARR);
+                request.params.push_back(tmpExportPath.string());
+                request.params.push_back(UniValue(true));
+                request.params.push_back(UniValue(false));
+                request.params.push_back(std::string("my export passphrase"));
+                request.fHelp = false;
+                try {
+                    exportwalletmigration(request);
+                } catch (const UniValue& e) {
+                    threw = true;
+                } catch (...) {
+                    threw = true;
+                }
+                BOOST_CHECK(threw);
+                BOOST_CHECK(!boost::filesystem::exists(tmpExportPath));
+            } else {
+                JSONRPCRequest request;
+                request.strMethod = "exportwalletmigration";
+                request.params = UniValue(UniValue::VARR);
+                request.params.push_back(tmpExportPath.string());
+                request.params.push_back(UniValue(true));
+                request.params.push_back(UniValue(false));
+                request.params.push_back(std::string("my export passphrase"));
+                request.fHelp = false;
+
+                UniValue result = exportwalletmigration(request);
+                BOOST_CHECK(result.isObject());
+                BOOST_CHECK_EQUAL(result["envelope_version"].get_int(), 2);
+                BOOST_CHECK_EQUAL(result["private_keys_included"].get_bool(), true);
+                BOOST_CHECK(boost::filesystem::exists(tmpExportPath));
+
+                std::ifstream file(tmpExportPath.string(), std::ios::binary);
+                std::string content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+                file.close();
+                BOOST_CHECK(!content.empty());
+                UniValue envelope;
+                BOOST_CHECK(envelope.read(content));
+                BOOST_CHECK_EQUAL(envelope["envelope_version"].get_int(), 2);
+                BOOST_CHECK(envelope.exists("private"));
+                BOOST_CHECK(envelope["private"].exists("encrypted"));
+                BOOST_CHECK_EQUAL(envelope["private"]["encrypted"].get_bool(), true);
+                BOOST_CHECK(envelope["private"].exists("ciphertext"));
+
+                std::vector<std::string> responseKeys = result.getKeys();
+                std::vector<std::string> secretSubstrings = {"mnemonic", "xprv", "wif", "seed", "passphrase"};
+                for (const std::string& key : responseKeys) {
+                    for (const std::string& sub : secretSubstrings) {
+                        bool hasSecret = key.find(sub) != std::string::npos;
+                        if (hasSecret) {
+                            bool isSafeBool = (key == "mnemonic_available" || key == "private_keys_present");
+                            BOOST_CHECK_MESSAGE(
+                                isSafeBool,
+                                "RPC response contains secret-like field: " + key);
+                        }
+                    }
+                }
+
+                boost::filesystem::remove(tmpExportPath);
+            }
+        }
+
+        // Test 2c: decrypt payload with correct passphrase, verify fields
+        {
+            bool hasBip44 = pwalletMain->IsHDEnabled() && pwalletMain->GetHDChain().IsBip44() && pwalletMain->HasMnemonicData();
+
+            if (!hasBip44) {
+                bool threw = false;
+                JSONRPCRequest request;
+                request.strMethod = "exportwalletmigration";
+                request.params = UniValue(UniValue::VARR);
+                request.params.push_back(tmpExportPath.string());
+                request.params.push_back(UniValue(true));
+                request.params.push_back(UniValue(false));
+                request.params.push_back(std::string("my export passphrase"));
+                request.fHelp = false;
+                try {
+                    exportwalletmigration(request);
+                } catch (...) {
+                    threw = true;
+                }
+                BOOST_CHECK(threw);
+            } else {
+                JSONRPCRequest request;
+                request.strMethod = "exportwalletmigration";
+                request.params = UniValue(UniValue::VARR);
+                request.params.push_back(tmpExportPath.string());
+                request.params.push_back(UniValue(true));
+                request.params.push_back(UniValue(false));
+                request.params.push_back(std::string("my export passphrase"));
+                request.fHelp = false;
+
+                UniValue result = exportwalletmigration(request);
+                BOOST_CHECK(boost::filesystem::exists(tmpExportPath));
+
+                std::ifstream file(tmpExportPath.string(), std::ios::binary);
+                std::string content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+                file.close();
+                boost::filesystem::remove(tmpExportPath);
+
+                UniValue envelope;
+                BOOST_CHECK(envelope.read(content));
+
+                UniValue priv = envelope["private"];
+                BOOST_CHECK_EQUAL(priv["encrypted"].get_bool(), true);
+
+                std::string saltHex = priv["salt"].get_str();
+                std::string ivHex = priv["iv"].get_str();
+                std::string tagHex = priv["tag"].get_str();
+                std::string ciphertextHex = priv["ciphertext"].get_str();
+
+                BOOST_CHECK_EQUAL(saltHex.length(), MIGRATION_KDF_SALT_SIZE * 2u);
+                BOOST_CHECK_EQUAL(ivHex.length(), MIGRATION_GCM_IV_SIZE * 2u);
+                BOOST_CHECK_EQUAL(tagHex.length(), MIGRATION_GCM_TAG_SIZE * 2u);
+
+                std::vector<unsigned char> salt = ParseHex(saltHex);
+                std::vector<unsigned char> iv = ParseHex(ivHex);
+                std::vector<unsigned char> tag = ParseHex(tagHex);
+                std::vector<unsigned char> ciphertext = ParseHex(ciphertextHex);
+
+                std::vector<unsigned char> key = MigrationDeriveKey(
+                    "my export passphrase", salt, MIGRATION_KDF_ITERATIONS);
+                BOOST_CHECK(!key.empty());
+
+                int envVersion = envelope["envelope_version"].get_int();
+                std::string schemaId = envelope["schema_identifier"].get_str();
+                std::string network = envelope["chain"]["network"].get_str();
+                int coinType = envelope["chain"]["coin_type_bip44"].get_int();
+                int64_t exportedAt = envelope["exported_at"].get_int64();
+
+                std::vector<unsigned char> aad = MigrationBuildAAD(
+                    schemaId, envVersion, network, coinType, exportedAt,
+                    "private-payload");
+
+                std::vector<unsigned char> plaintext;
+                BOOST_CHECK(MigrationDecrypt(key, iv, ciphertext, aad, tag, plaintext));
+                BOOST_CHECK(!plaintext.empty());
+
+                std::string payloadStr(plaintext.begin(), plaintext.end());
+                UniValue payload;
+                BOOST_CHECK(payload.read(payloadStr));
+
+                BOOST_CHECK_EQUAL(payload["payload_version"].get_int(), 1);
+                BOOST_CHECK_EQUAL(payload["wallet_type"].get_str(), "bip39_bip44_p2pkh");
+                BOOST_CHECK_EQUAL(payload["coin_type"].get_int(), 420);
+                BOOST_CHECK_EQUAL(payload["account"].get_int(), 0);
+                BOOST_CHECK(payload.exists("mnemonic"));
+                BOOST_CHECK(payload["mnemonic"].exists("words"));
+                BOOST_CHECK(payload.exists("mnemonic_passphrase"));
+                BOOST_CHECK(payload.exists("external_count_hint"));
+                BOOST_CHECK(payload.exists("change_count_hint"));
+                BOOST_CHECK(payload.exists("exported_at"));
+
+                memory_cleanse(key.data(), key.size());
+                memory_cleanse(plaintext.data(), plaintext.size());
+            }
+        }
+
+        // Test 2d: wrong passphrase fails decryption (uniform error, no oracle)
+        {
+            bool hasBip44 = pwalletMain->IsHDEnabled() && pwalletMain->GetHDChain().IsBip44() && pwalletMain->HasMnemonicData();
+
+            if (!hasBip44) {
+                bool threw = false;
+                JSONRPCRequest request;
+                request.strMethod = "exportwalletmigration";
+                request.params = UniValue(UniValue::VARR);
+                request.params.push_back(tmpExportPath.string());
+                request.params.push_back(UniValue(true));
+                request.params.push_back(UniValue(false));
+                request.params.push_back(std::string("my export passphrase"));
+                request.fHelp = false;
+                try {
+                    exportwalletmigration(request);
+                } catch (...) {
+                    threw = true;
+                }
+                BOOST_CHECK(threw);
+            } else {
+                JSONRPCRequest request;
+                request.strMethod = "exportwalletmigration";
+                request.params = UniValue(UniValue::VARR);
+                request.params.push_back(tmpExportPath.string());
+                request.params.push_back(UniValue(true));
+                request.params.push_back(UniValue(false));
+                request.params.push_back(std::string("my export passphrase"));
+                request.fHelp = false;
+
+                exportwalletmigration(request);
+
+                std::ifstream file(tmpExportPath.string(), std::ios::binary);
+                std::string content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+                file.close();
+                boost::filesystem::remove(tmpExportPath);
+
+                UniValue envelope;
+                BOOST_CHECK(envelope.read(content));
+                UniValue priv = envelope["private"];
+
+                std::vector<unsigned char> salt = ParseHex(priv["salt"].get_str());
+                std::vector<unsigned char> iv = ParseHex(priv["iv"].get_str());
+                std::vector<unsigned char> tag = ParseHex(priv["tag"].get_str());
+                std::vector<unsigned char> ciphertext = ParseHex(priv["ciphertext"].get_str());
+
+                std::vector<unsigned char> wrongKey = MigrationDeriveKey(
+                    "wrong passphrase!!", salt, MIGRATION_KDF_ITERATIONS);
+                BOOST_CHECK(!wrongKey.empty());
+
+                int envVersion = envelope["envelope_version"].get_int();
+                std::string schemaId = envelope["schema_identifier"].get_str();
+                std::string network = envelope["chain"]["network"].get_str();
+                int coinType = envelope["chain"]["coin_type_bip44"].get_int();
+                int64_t exportedAt = envelope["exported_at"].get_int64();
+                std::vector<unsigned char> aad = MigrationBuildAAD(
+                    schemaId, envVersion, network, coinType, exportedAt,
+                    "private-payload");
+
+                std::vector<unsigned char> plaintext;
+                BOOST_CHECK(!MigrationDecrypt(wrongKey, iv, ciphertext, aad, tag, plaintext));
+                BOOST_CHECK(plaintext.empty());
+
+                memory_cleanse(wrongKey.data(), wrongKey.size());
+            }
         }
 
         // Test 3: existing destination rejected by default

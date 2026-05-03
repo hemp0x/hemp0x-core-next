@@ -223,6 +223,8 @@ HEMP0X_CORE_H = \
   wallet/feebumper.h \
   wallet/fees.h \
   wallet/init.h \
+  wallet/migration_crypto.h \
+  wallet/migration_envelope.h \
   wallet/rpcwallet.h \
   wallet/wallet.h \
   wallet/walletdb.h \
@@ -323,6 +325,7 @@ libhemp0x_wallet_a_SOURCES = \
   wallet/walletdb.cpp \
   wallet/bip39.cpp \
   wallet/migration_crypto.cpp \
+  wallet/migration_envelope.cpp \
   wallet/validatewalletmigration.cpp \
   $(HEMP0X_CORE_H)
 

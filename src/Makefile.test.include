@@ -108,7 +108,8 @@ HEMP0X_TESTS += \
   wallet/test/wallet_test_fixture.h \
   wallet/test/accounting_tests.cpp \
   wallet/test/wallet_tests.cpp \
-  wallet/test/crypto_tests.cpp
+  wallet/test/crypto_tests.cpp \
+  wallet/test/migration_crypto_tests.cpp
 endif
 
 test_test_hemp0x_SOURCES = $(HEMP0X_TESTS) $(JSON_TEST_FILES) $(RAW_TEST_FILES)

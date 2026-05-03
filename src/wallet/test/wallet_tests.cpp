@@ -35,6 +35,8 @@ extern UniValue getwalletmigrationinfo(const JSONRPCRequest &request);
 
 extern UniValue exportwalletmigration(const JSONRPCRequest &request);
 
+extern UniValue validatewalletmigration(const JSONRPCRequest &request);
+
 // how many times to run all the tests to have a chance to catch errors that only show up with particular random shuffles
 #define RUN_TESTS 100
 
@@ -1293,6 +1295,358 @@ BOOST_FIXTURE_TEST_SUITE(wallet_tests, WalletTestingSetup)
             BOOST_CHECK(result.isObject());
             BOOST_CHECK(result["wallet_name"].isStr());
             BOOST_CHECK_EQUAL(result["storage_backend"].get_str(), "bdb");
+        }
+
+        // --- validatewalletmigration tests ---
+
+        // Test V1: v1 public envelope validates without passphrase, restorable=false
+        {
+            JSONRPCRequest expReq;
+            expReq.strMethod = "exportwalletmigration";
+            expReq.params = UniValue(UniValue::VARR);
+            expReq.params.push_back(UniValue(tmpExportPath.string()));
+            expReq.params.push_back(UniValue(false));
+            expReq.fHelp = false;
+            exportwalletmigration(expReq);
+
+            JSONRPCRequest valReq;
+            valReq.strMethod = "validatewalletmigration";
+            valReq.params = UniValue(UniValue::VARR);
+            valReq.params.push_back(UniValue(tmpExportPath.string()));
+            valReq.fHelp = false;
+
+            UniValue result = validatewalletmigration(valReq);
+            BOOST_CHECK(result.isObject());
+            BOOST_CHECK_EQUAL(result["valid"].get_bool(), true);
+            BOOST_CHECK_EQUAL(result["envelope_version"].get_int(), 1);
+            BOOST_CHECK_EQUAL(result["restorable"].get_bool(), false);
+
+            boost::filesystem::remove(tmpExportPath);
+        }
+
+        // Test V2: v1 public envelope validates when passphrase supplied (ignored)
+        {
+            JSONRPCRequest expReq;
+            expReq.strMethod = "exportwalletmigration";
+            expReq.params = UniValue(UniValue::VARR);
+            expReq.params.push_back(UniValue(tmpExportPath.string()));
+            expReq.params.push_back(UniValue(false));
+            expReq.fHelp = false;
+            exportwalletmigration(expReq);
+
+            JSONRPCRequest valReq;
+            valReq.strMethod = "validatewalletmigration";
+            valReq.params = UniValue(UniValue::VARR);
+            valReq.params.push_back(UniValue(tmpExportPath.string()));
+            valReq.params.push_back(UniValue("some irrelevant passphrase"));
+            valReq.fHelp = false;
+
+            UniValue result = validatewalletmigration(valReq);
+            BOOST_CHECK_EQUAL(result["valid"].get_bool(), true);
+            BOOST_CHECK_EQUAL(result["envelope_version"].get_int(), 1);
+
+            boost::filesystem::remove(tmpExportPath);
+        }
+
+        // Test V3: malformed JSON rejects cleanly
+        {
+            std::ofstream f(tmpExportPath.string(), std::ios::binary);
+            f << "not valid json";
+            f.close();
+
+            JSONRPCRequest req;
+            req.strMethod = "validatewalletmigration";
+            req.params = UniValue(UniValue::VARR);
+            req.params.push_back(UniValue(tmpExportPath.string()));
+            req.fHelp = false;
+
+            bool threw = false;
+            try { validatewalletmigration(req); } catch (...) { threw = true; }
+            BOOST_CHECK(threw);
+
+            boost::filesystem::remove(tmpExportPath);
+        }
+
+        // Test V4: unknown envelope version rejects
+        {
+            UniValue badEnv(UniValue::VOBJ);
+            badEnv.pushKV("envelope_version", 99);
+            std::ofstream f(tmpExportPath.string(), std::ios::binary);
+            f << badEnv.write();
+            f.close();
+
+            JSONRPCRequest req;
+            req.strMethod = "validatewalletmigration";
+            req.params = UniValue(UniValue::VARR);
+            req.params.push_back(UniValue(tmpExportPath.string()));
+            req.fHelp = false;
+
+            UniValue result = validatewalletmigration(req);
+            BOOST_CHECK_EQUAL(result["valid"].get_bool(), false);
+            BOOST_CHECK_EQUAL(result["envelope_version"].get_int(), 99);
+
+            boost::filesystem::remove(tmpExportPath);
+        }
+
+        // Test V5: v2 encrypted envelope without passphrase rejects
+        {
+            bool hasBip44 = pwalletMain->IsHDEnabled() && pwalletMain->GetHDChain().IsBip44() &&
+                pwalletMain->HasMnemonicData() && !pwalletMain->IsLocked();
+
+            if (hasBip44) {
+                JSONRPCRequest expReq;
+                expReq.strMethod = "exportwalletmigration";
+                expReq.params = UniValue(UniValue::VARR);
+                expReq.params.push_back(UniValue(tmpExportPath.string()));
+                expReq.params.push_back(UniValue(true));
+                expReq.params.push_back(UniValue(false));
+                expReq.params.push_back(UniValue("my export passphrase"));
+                expReq.fHelp = false;
+                exportwalletmigration(expReq);
+
+                JSONRPCRequest valReq;
+                valReq.strMethod = "validatewalletmigration";
+                valReq.params = UniValue(UniValue::VARR);
+                valReq.params.push_back(UniValue(tmpExportPath.string()));
+                valReq.fHelp = false;
+
+                UniValue result = validatewalletmigration(valReq);
+                BOOST_CHECK_EQUAL(result["valid"].get_bool(), false);
+
+                boost::filesystem::remove(tmpExportPath);
+            }
+        }
+
+        // Test V6: v2 envelope validates with correct passphrase, restorable=true, no secrets in response
+        {
+            bool hasBip44 = pwalletMain->IsHDEnabled() && pwalletMain->GetHDChain().IsBip44() &&
+                pwalletMain->HasMnemonicData() && !pwalletMain->IsLocked();
+
+            if (hasBip44) {
+                JSONRPCRequest expReq;
+                expReq.strMethod = "exportwalletmigration";
+                expReq.params = UniValue(UniValue::VARR);
+                expReq.params.push_back(UniValue(tmpExportPath.string()));
+                expReq.params.push_back(UniValue(true));
+                expReq.params.push_back(UniValue(false));
+                expReq.params.push_back(UniValue("my export passphrase"));
+                expReq.fHelp = false;
+                exportwalletmigration(expReq);
+
+                JSONRPCRequest valReq;
+                valReq.strMethod = "validatewalletmigration";
+                valReq.params = UniValue(UniValue::VARR);
+                valReq.params.push_back(UniValue(tmpExportPath.string()));
+                valReq.params.push_back(UniValue("my export passphrase"));
+                valReq.fHelp = false;
+
+                UniValue result = validatewalletmigration(valReq);
+                BOOST_CHECK_EQUAL(result["valid"].get_bool(), true);
+                BOOST_CHECK_EQUAL(result["envelope_version"].get_int(), 2);
+                BOOST_CHECK_EQUAL(result["restorable"].get_bool(), true);
+                BOOST_CHECK_EQUAL(result["wallet_type"].get_str(), "bip39_bip44_p2pkh");
+                BOOST_CHECK_EQUAL(result["coin_type"].get_int(), 420);
+                BOOST_CHECK(result["private"].exists("decryption_successful"));
+                BOOST_CHECK_EQUAL(result["private"]["decryption_successful"].get_bool(), true);
+
+                std::vector<std::string> responseKeys = result.getKeys();
+                std::vector<std::string> secretSubstrings = {"mnemonic", "xprv", "wif", "seed", "passphrase"};
+                for (const std::string& key : responseKeys) {
+                    for (const std::string& sub : secretSubstrings) {
+                        bool hasSecret = key.find(sub) != std::string::npos;
+                        if (hasSecret) {
+                            bool isSafeBool = (key == "mnemonic_available" || key == "private_keys_present" ||
+                                              key == "private_keys_included" || key == "mnemonic_language" ||
+                                              key == "mnemonic_word_count" || key == "change_count_hint");
+                            BOOST_CHECK_MESSAGE(isSafeBool,
+                                "RPC response contains secret-like field: " + key);
+                        }
+                    }
+                }
+
+                boost::filesystem::remove(tmpExportPath);
+            }
+        }
+
+        // Test V7: v2 envelope with wrong passphrase fails uniformly
+        {
+            bool hasBip44 = pwalletMain->IsHDEnabled() && pwalletMain->GetHDChain().IsBip44() &&
+                pwalletMain->HasMnemonicData() && !pwalletMain->IsLocked();
+
+            if (hasBip44) {
+                JSONRPCRequest expReq;
+                expReq.strMethod = "exportwalletmigration";
+                expReq.params = UniValue(UniValue::VARR);
+                expReq.params.push_back(UniValue(tmpExportPath.string()));
+                expReq.params.push_back(UniValue(true));
+                expReq.params.push_back(UniValue(false));
+                expReq.params.push_back(UniValue("my export passphrase"));
+                expReq.fHelp = false;
+                exportwalletmigration(expReq);
+
+                JSONRPCRequest valReq;
+                valReq.strMethod = "validatewalletmigration";
+                valReq.params = UniValue(UniValue::VARR);
+                valReq.params.push_back(UniValue(tmpExportPath.string()));
+                valReq.params.push_back(UniValue("wrong passphrase totally"));
+                valReq.fHelp = false;
+
+                UniValue result = validatewalletmigration(valReq);
+                BOOST_CHECK_EQUAL(result["valid"].get_bool(), false);
+                std::string firstError = result["errors"].getValues()[0].get_str();
+                BOOST_CHECK(firstError.find("Authentication failed") != std::string::npos);
+
+                boost::filesystem::remove(tmpExportPath);
+            }
+        }
+
+        // Test V8: tampered private.ciphertext fails uniformly
+        {
+            bool hasBip44 = pwalletMain->IsHDEnabled() && pwalletMain->GetHDChain().IsBip44() &&
+                pwalletMain->HasMnemonicData() && !pwalletMain->IsLocked();
+
+            if (hasBip44) {
+                JSONRPCRequest expReq;
+                expReq.strMethod = "exportwalletmigration";
+                expReq.params = UniValue(UniValue::VARR);
+                expReq.params.push_back(UniValue(tmpExportPath.string()));
+                expReq.params.push_back(UniValue(true));
+                expReq.params.push_back(UniValue(false));
+                expReq.params.push_back(UniValue("my export passphrase"));
+                expReq.fHelp = false;
+                exportwalletmigration(expReq);
+
+                std::ifstream file(tmpExportPath.string(), std::ios::binary);
+                std::string raw((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+                file.close();
+                std::string mark = "\"ciphertext\": \"";
+                size_t p = raw.find(mark);
+                if (p != std::string::npos) {
+                    size_t vs = p + mark.length();
+                    if (vs < raw.length()) raw[vs] = (raw[vs] == 'a') ? 'b' : 'a';
+                }
+
+                boost::filesystem::path tamperPath = boost::filesystem::temp_directory_path() /
+                    boost::filesystem::unique_path("hemp0x-tct-%%%%%%.json");
+                std::ofstream out(tamperPath.string(), std::ios::binary);
+                out << raw;
+                out.close();
+
+                JSONRPCRequest valReq;
+                valReq.strMethod = "validatewalletmigration";
+                valReq.params = UniValue(UniValue::VARR);
+                valReq.params.push_back(UniValue(tamperPath.string()));
+                valReq.params.push_back(UniValue("my export passphrase"));
+                valReq.fHelp = false;
+
+                UniValue result = validatewalletmigration(valReq);
+                BOOST_CHECK_EQUAL(result["valid"].get_bool(), false);
+                std::string firstError = result["errors"].getValues()[0].get_str();
+                BOOST_CHECK(firstError.find("Authentication failed") != std::string::npos);
+
+                boost::filesystem::remove(tmpExportPath);
+                boost::filesystem::remove(tamperPath);
+            }
+        }
+
+        // Test V9: tampered private.tag fails uniformly
+        {
+            bool hasBip44 = pwalletMain->IsHDEnabled() && pwalletMain->GetHDChain().IsBip44() &&
+                pwalletMain->HasMnemonicData() && !pwalletMain->IsLocked();
+
+            if (hasBip44) {
+                JSONRPCRequest expReq;
+                expReq.strMethod = "exportwalletmigration";
+                expReq.params = UniValue(UniValue::VARR);
+                expReq.params.push_back(UniValue(tmpExportPath.string()));
+                expReq.params.push_back(UniValue(true));
+                expReq.params.push_back(UniValue(false));
+                expReq.params.push_back(UniValue("my export passphrase"));
+                expReq.fHelp = false;
+                exportwalletmigration(expReq);
+
+                std::ifstream file(tmpExportPath.string(), std::ios::binary);
+                std::string raw((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+                file.close();
+                std::string mark = "\"tag\": \"";
+                size_t p = raw.find(mark);
+                if (p != std::string::npos) {
+                    size_t vs = p + mark.length();
+                    if (vs < raw.length()) raw[vs] = (raw[vs] == 'a') ? 'b' : 'a';
+                }
+
+                boost::filesystem::path tamperPath = boost::filesystem::temp_directory_path() /
+                    boost::filesystem::unique_path("hemp0x-ttag-%%%%%%.json");
+                std::ofstream out(tamperPath.string(), std::ios::binary);
+                out << raw;
+                out.close();
+
+                JSONRPCRequest valReq;
+                valReq.strMethod = "validatewalletmigration";
+                valReq.params = UniValue(UniValue::VARR);
+                valReq.params.push_back(UniValue(tamperPath.string()));
+                valReq.params.push_back(UniValue("my export passphrase"));
+                valReq.fHelp = false;
+
+                UniValue result = validatewalletmigration(valReq);
+                BOOST_CHECK_EQUAL(result["valid"].get_bool(), false);
+                std::string firstError = result["errors"].getValues()[0].get_str();
+                BOOST_CHECK(firstError.find("Authentication failed") != std::string::npos);
+
+                boost::filesystem::remove(tmpExportPath);
+                boost::filesystem::remove(tamperPath);
+            }
+        }
+
+        // Test V10: tampered chain.network fails through AAD binding
+        {
+            bool hasBip44 = pwalletMain->IsHDEnabled() && pwalletMain->GetHDChain().IsBip44() &&
+                pwalletMain->HasMnemonicData() && !pwalletMain->IsLocked();
+
+            if (hasBip44) {
+                JSONRPCRequest expReq;
+                expReq.strMethod = "exportwalletmigration";
+                expReq.params = UniValue(UniValue::VARR);
+                expReq.params.push_back(UniValue(tmpExportPath.string()));
+                expReq.params.push_back(UniValue(true));
+                expReq.params.push_back(UniValue(false));
+                expReq.params.push_back(UniValue("my export passphrase"));
+                expReq.fHelp = false;
+                exportwalletmigration(expReq);
+
+                std::ifstream file(tmpExportPath.string(), std::ios::binary);
+                std::string raw((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+                file.close();
+                std::string netKey = "\"network\": \"";
+                size_t p = raw.find(netKey);
+                if (p != std::string::npos) {
+                    size_t vs = p + netKey.length();
+                    if (raw.substr(vs, 4) == "main") raw.replace(vs, 4, "test");
+                }
+
+                boost::filesystem::path tamperPath = boost::filesystem::temp_directory_path() /
+                    boost::filesystem::unique_path("hemp0x-taad-%%%%%%.json");
+                std::ofstream out(tamperPath.string(), std::ios::binary);
+                out << raw;
+                out.close();
+
+                JSONRPCRequest valReq;
+                valReq.strMethod = "validatewalletmigration";
+                valReq.params = UniValue(UniValue::VARR);
+                valReq.params.push_back(UniValue(tamperPath.string()));
+                valReq.params.push_back(UniValue("my export passphrase"));
+                valReq.fHelp = false;
+
+                UniValue result = validatewalletmigration(valReq);
+                BOOST_CHECK_EQUAL(result["valid"].get_bool(), false);
+
+                boost::filesystem::remove(tmpExportPath);
+                boost::filesystem::remove(tamperPath);
+            }
+        }
+
+        if (boost::filesystem::exists(tmpExportPath)) {
+            boost::filesystem::remove(tmpExportPath);
         }
     }
 

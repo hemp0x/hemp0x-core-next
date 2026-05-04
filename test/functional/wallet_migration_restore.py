@@ -149,6 +149,8 @@ class WalletMigrationRestoreTest(Hemp0xTestFramework):
         assert_equal(info["walletname"], restore_wallet_name)
         assert info["hdseedid"] is not None, "restored wallet missing hdseedid"
         assert len(str(info["hdseedid"])) > 0
+        assert restore_wallet_name in node.listwallets()
+        assert_equal(node.getmessaginginfo()["wallet_available"], True)
 
         restored_new_addr = restored.getnewaddress()
         new_validation = restored.validateaddress(restored_new_addr)

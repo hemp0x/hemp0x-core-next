@@ -220,6 +220,8 @@ bool ScanForMessageChannels(std::string& strError)
         }
         pwalletForScan = vpwallets[0];
     }
+    // Keep cs_wallets out of the block scan; this is only a lifetime-safe
+    // snapshot because wallets are not unloaded while the daemon is running.
 
     CBlockIndex* blockIndex = chainActive[GetParams().GetAssetActivationHeight()];
 

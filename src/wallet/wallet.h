@@ -36,6 +36,9 @@
 
 typedef CWallet* CWalletRef;
 extern std::vector<CWalletRef> vpwallets;
+// Protects runtime access to the wallet list. Snapshot pointers are safe today
+// because wallets are added at runtime but only removed during shutdown.
+// Revisit all snapshot users if runtime wallet unloading is added.
 extern CCriticalSection cs_wallets;
 
 /**

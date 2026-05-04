@@ -105,6 +105,8 @@ void AddCoins(CCoinsViewCache& cache, const CTransaction &tx, int nHeight, uint2
         if (vpwallets.size()) pwalletForMessaging = vpwallets[0];
     }
 #endif
+    // Use the wallet snapshot below without holding cs_wallets; messaging paths
+    // take cs_messaging later and must not nest it under the wallet-list lock.
 
     /** HEMP START */
     if (AreAssetsDeployed()) {

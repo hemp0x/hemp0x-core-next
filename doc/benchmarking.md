@@ -4,7 +4,11 @@ Benchmarking
 Hemp0x has an internal benchmarking framework, with benchmarks
 for cryptographic algorithms such as SHA1, SHA256, SHA512 and RIPEMD160. As well as the rolling bloom filter.
 
-After compiling hemp0x-core, the benchmarks can be run with:
+Benchmarks are opt-in. To compile them, pass `--enable-bench` to configure:
+
+    ./configure --enable-bench
+
+After compiling, the benchmarks can be run with:
 `src/bench/bench_hemp0x`
 
 The output will look similar to:

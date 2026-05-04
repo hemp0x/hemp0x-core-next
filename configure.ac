@@ -128,9 +128,9 @@ AC_ARG_ENABLE(tests,
     [use_tests=yes])
 
 AC_ARG_ENABLE(bench,
-    AS_HELP_STRING([--disable-bench],[do not compile benchmarks (default is to compile)]),
+    AS_HELP_STRING([--enable-bench],[compile benchmarks (default is no)]),
     [use_bench=$enableval],
-    [use_bench=yes])
+    [use_bench=no])
 
 AC_ARG_ENABLE([extended-functional-tests],
     AS_HELP_STRING([--enable-extended-functional-tests],[enable expensive functional tests when using lcov (default no)]),

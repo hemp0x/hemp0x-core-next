@@ -12,6 +12,8 @@
 #include <string>
 #include <vector>
 
+#include "support/allocators/secure.h"
+
 struct MigrationDerivationProfileEntry {
     std::string profile_id;
     int purpose = -1;
@@ -55,10 +57,24 @@ struct MigrationEnvelopeValidation {
     std::vector<std::string> warnings;
 };
 
+struct MigrationEnvelopeRestoreData {
+    MigrationEnvelopeValidation validation;
+    SecureString mnemonic_words;
+    SecureString mnemonic_passphrase;
+    int64_t best_block_height;
+    int64_t exported_at;
+};
+
 bool ValidateMigrationEnvelopeFile(
     const boost::filesystem::path& path,
     const std::string& passphrase,
     MigrationEnvelopeValidation& out,
+    std::string& rpc_error);
+
+bool ReadMigrationEnvelopeRestoreData(
+    const boost::filesystem::path& path,
+    const std::string& passphrase,
+    MigrationEnvelopeRestoreData& out,
     std::string& rpc_error);
 
 #endif // HEMP0X_WALLET_MIGRATION_ENVELOPE_H

@@ -1204,6 +1204,11 @@ public:
        caller must ensure the current wallet version is correct before calling
        this function). */
     bool SetHDSeed(const CPubKey& key);
+
+    static CWallet* RestoreFromMnemonic(
+        const std::string& walletName,
+        const SecureString& mnemonicWords,
+        const SecureString& mnemonicPassphrase);
 };
 
 /** A key allocated from the key pool. */

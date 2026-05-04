@@ -327,6 +327,7 @@ libhemp0x_wallet_a_SOURCES = \
   wallet/migration_crypto.cpp \
   wallet/migration_envelope.cpp \
   wallet/validatewalletmigration.cpp \
+  wallet/restorewalletmigration.cpp \
   $(HEMP0X_CORE_H)
 
 # crypto primitives library

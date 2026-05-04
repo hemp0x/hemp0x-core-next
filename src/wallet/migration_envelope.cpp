@@ -501,3 +501,226 @@ bool ValidateMigrationEnvelopeFile(
 
     return true;
 }
+
+static SecureString ExtractMnemonicWordsFromPayload(std::string& json)
+{
+    size_t begin = 0;
+    size_t end = 0;
+    if (!FindJsonStringValue(json, "words", begin, end) || begin == end) {
+        return SecureString();
+    }
+    SecureString result(json.begin() + begin, json.begin() + end);
+    return result;
+}
+
+static SecureString ExtractMnemonicPassphraseFromPayload(std::string& json)
+{
+    size_t begin = 0;
+    size_t end = 0;
+    if (!FindJsonStringValue(json, "mnemonic_passphrase", begin, end)) {
+        return SecureString();
+    }
+    if (begin == end) {
+        return SecureString();
+    }
+    SecureString result(json.begin() + begin, json.begin() + end);
+    return result;
+}
+
+static int64_t ExtractInt64FromPayload(std::string& json, const std::string& key)
+{
+    size_t pos = json.find("\"" + key + "\"");
+    if (pos == std::string::npos) {
+        return 0;
+    }
+    pos = json.find(':', pos);
+    if (pos == std::string::npos) {
+        return 0;
+    }
+    ++pos;
+    while (pos < json.size() && (json[pos] == ' ' || json[pos] == '\t' || json[pos] == '\n' || json[pos] == '\r')) {
+        ++pos;
+    }
+    if (pos >= json.size() || !isdigit(json[pos])) {
+        return 0;
+    }
+    int64_t result = 0;
+    while (pos < json.size() && isdigit(json[pos])) {
+        result = result * 10 + (json[pos] - '0');
+        ++pos;
+    }
+    return result;
+}
+
+static int64_t ExtractBestBlockHeightFromEnvelope(const UniValue& envelope)
+{
+    if (!envelope.exists("derivation") || !envelope["derivation"].isArray()) {
+        return 0;
+    }
+
+    for (const UniValue& prof : envelope["derivation"].getValues()) {
+        if (!prof.isObject()) {
+            continue;
+        }
+        if (prof.exists("best_block_height") && prof["best_block_height"].isNum()) {
+            return prof["best_block_height"].get_int64();
+        }
+    }
+
+    return 0;
+}
+
+bool ReadMigrationEnvelopeRestoreData(
+    const boost::filesystem::path& path,
+    const std::string& passphrase,
+    MigrationEnvelopeRestoreData& out,
+    std::string& rpc_error)
+{
+    out = MigrationEnvelopeRestoreData();
+    out.best_block_height = 0;
+    out.exported_at = 0;
+
+    if (path.empty()) {
+        rpc_error = "Filename cannot be empty";
+        return false;
+    }
+
+    std::string strPassphrase = passphrase;
+
+    MigrationEnvelopeValidation result;
+    std::string validate_rpc_error;
+    bool ok = ValidateMigrationEnvelopeFile(path, strPassphrase, result, validate_rpc_error);
+    CleansePassphrase(strPassphrase);
+    if (!ok) {
+        rpc_error = validate_rpc_error;
+        return false;
+    }
+
+    out.validation = result;
+
+    if (!result.valid) {
+        rpc_error = "Migration envelope is not valid.";
+        return false;
+    }
+
+    if (result.envelope_version == 1) {
+        rpc_error = "Cannot restore a wallet from a v1 public-only envelope. Use include_private=true in exportwalletmigration to produce a restorable envelope.";
+        return false;
+    }
+
+    if (!result.restorable) {
+        rpc_error = "Migration envelope is not restorable: " + result.restorable_reason;
+        return false;
+    }
+
+    if (!result.decryption_successful) {
+        rpc_error = "Migration envelope failed to decrypt internal payload. The passphrase may be incorrect or the envelope may be tampered with.";
+        return false;
+    }
+
+    if (result.payload_coin_type != 420) {
+        rpc_error = strprintf("Cannot restore coin type %d. Only canonical coin type 420 is supported.", result.payload_coin_type);
+        return false;
+    }
+
+    if (result.account != 0) {
+        rpc_error = strprintf("Cannot restore account %d. Only account 0 is supported.", result.account);
+        return false;
+    }
+
+    if (path.empty()) {
+        rpc_error = "Filename cannot be empty";
+        return false;
+    }
+
+    if (!boost::filesystem::exists(path)) {
+        rpc_error = "File not found: " + path.string();
+        return false;
+    }
+
+    std::ifstream file(path.string(), std::ios::binary);
+    if (!file.is_open()) {
+        rpc_error = "Cannot open file: " + path.string();
+        return false;
+    }
+    std::string content((std::istreambuf_iterator<char>(file)),
+                         std::istreambuf_iterator<char>());
+    file.close();
+
+    UniValue envelope;
+    if (!envelope.read(content)) {
+        rpc_error = "Migration envelope file is not valid JSON.";
+        return false;
+    }
+
+    strPassphrase = passphrase;
+
+    int envVersion = envelope["envelope_version"].get_int();
+    std::string schemaId = envelope["schema_identifier"].get_str();
+
+    out.exported_at = envelope.exists("exported_at") && envelope["exported_at"].isNum()
+        ? envelope["exported_at"].get_int64() : 0;
+
+    UniValue priv = envelope["private"];
+
+    std::string saltHex = priv["salt"].get_str();
+    std::string ivHex = priv["iv"].get_str();
+    std::string tagHex = priv["tag"].get_str();
+    std::string ciphertextHex = priv["ciphertext"].get_str();
+
+    std::vector<unsigned char> salt = ParseHex(saltHex);
+    std::vector<unsigned char> iv = ParseHex(ivHex);
+    std::vector<unsigned char> tag = ParseHex(tagHex);
+    std::vector<unsigned char> ciphertext = ParseHex(ciphertextHex);
+
+    std::string network = envelope["chain"]["network"].get_str();
+    int coinType = envelope["chain"]["coin_type_bip44"].get_int();
+    int64_t exportedAt = out.exported_at;
+
+    std::vector<unsigned char> aad = MigrationBuildAAD(
+        schemaId, envVersion, network, coinType, exportedAt, "private-payload");
+
+    int64_t kdfIterations = priv["kdf_iterations"].get_int64();
+
+    std::vector<unsigned char> key = MigrationDeriveKey(
+        strPassphrase, salt, (unsigned int)kdfIterations);
+    CleansePassphrase(strPassphrase);
+    if (key.empty()) {
+        rpc_error = "Authentication failed. The passphrase is incorrect or the envelope has been tampered with.";
+        return false;
+    }
+
+    std::vector<unsigned char> plaintext;
+    bool decrypted = MigrationDecrypt(key, iv, ciphertext, aad, tag, plaintext);
+    CleanseBytes(key);
+
+    if (!decrypted) {
+        rpc_error = "Authentication failed. The passphrase is incorrect or the envelope has been tampered with.";
+        return false;
+    }
+
+    std::string plaintextStr(plaintext.begin(), plaintext.end());
+    CleanseBytes(plaintext);
+
+    SecureString ssWords = ExtractMnemonicWordsFromPayload(plaintextStr);
+    SecureString ssPassphrase = ExtractMnemonicPassphraseFromPayload(plaintextStr);
+    int64_t bestBlockHeight = ExtractBestBlockHeightFromEnvelope(envelope);
+    if (bestBlockHeight == 0) {
+        bestBlockHeight = ExtractInt64FromPayload(plaintextStr, "best_block_height");
+    }
+
+    if (!plaintextStr.empty()) {
+        memory_cleanse(&plaintextStr[0], plaintextStr.size());
+    }
+
+    if (ssWords.empty()) {
+        rpc_error = "Failed to extract mnemonic from envelope payload.";
+        return false;
+    }
+
+    out.mnemonic_words = ssWords;
+    out.mnemonic_passphrase = ssPassphrase;
+    out.best_block_height = bestBlockHeight;
+
+    return true;
+}

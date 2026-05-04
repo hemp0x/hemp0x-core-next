@@ -37,6 +37,8 @@ extern UniValue exportwalletmigration(const JSONRPCRequest &request);
 
 extern UniValue validatewalletmigration(const JSONRPCRequest &request);
 
+extern UniValue restorewalletmigration(const JSONRPCRequest &request);
+
 // how many times to run all the tests to have a chance to catch errors that only show up with particular random shuffles
 #define RUN_TESTS 100
 
@@ -1643,6 +1645,377 @@ BOOST_FIXTURE_TEST_SUITE(wallet_tests, WalletTestingSetup)
                 boost::filesystem::remove(tmpExportPath);
                 boost::filesystem::remove(tamperPath);
             }
+        }
+
+        if (boost::filesystem::exists(tmpExportPath)) {
+            boost::filesystem::remove(tmpExportPath);
+        }
+    }
+
+    BOOST_AUTO_TEST_CASE(restorewalletmigration_test)
+    {
+        struct WalletVectorGuard {
+            std::vector<CWallet*> saved_wallets;
+            explicit WalletVectorGuard(CWallet* wallet) : saved_wallets(vpwallets)
+            {
+                vpwallets.clear();
+                vpwallets.push_back(wallet);
+            }
+            ~WalletVectorGuard()
+            {
+                vpwallets = saved_wallets;
+            }
+        } wallet_guard(pwalletMain);
+
+        boost::filesystem::path tmpExportPath = boost::filesystem::temp_directory_path() /
+            boost::filesystem::unique_path("hemp0x-test-restore-envelope-%%%%%%.json");
+
+        auto cleanupRestoredWallet = [](const std::string& walletName) {
+            for (auto it = vpwallets.begin(); it != vpwallets.end();) {
+                CWallet* wallet = *it;
+                if (wallet && (wallet->GetName() == walletName ||
+                               wallet->GetName() == walletName + "/wallet.dat")) {
+                    UnregisterValidationInterface(wallet);
+                    it = vpwallets.erase(it);
+                    delete wallet;
+                } else {
+                    ++it;
+                }
+            }
+        };
+
+        // Test R1: v1 public envelope restore rejects and creates no wallet
+        {
+            JSONRPCRequest expReq;
+            expReq.strMethod = "exportwalletmigration";
+            expReq.params = UniValue(UniValue::VARR);
+            expReq.params.push_back(UniValue(tmpExportPath.string()));
+            expReq.params.push_back(UniValue(false));
+            expReq.params.push_back(UniValue(false));
+            expReq.fHelp = false;
+            exportwalletmigration(expReq);
+
+            std::string restoreWalletName = "test_restore_v1_reject";
+            boost::filesystem::path restoreWalletDir = GetDataDir() / restoreWalletName;
+            if (boost::filesystem::exists(restoreWalletDir)) {
+                boost::filesystem::remove_all(restoreWalletDir);
+            }
+
+            JSONRPCRequest restReq;
+            restReq.strMethod = "restorewalletmigration";
+            restReq.params = UniValue(UniValue::VARR);
+            restReq.params.push_back(UniValue(tmpExportPath.string()));
+            restReq.params.push_back(UniValue(restoreWalletName));
+            restReq.params.push_back(UniValue("irrelevant passphrase"));
+            restReq.fHelp = false;
+
+            bool threw = false;
+            try { restorewalletmigration(restReq); } catch (...) { threw = true; }
+            BOOST_CHECK(threw);
+            BOOST_CHECK(!boost::filesystem::exists(restoreWalletDir));
+
+            boost::filesystem::remove(tmpExportPath);
+        }
+
+        // Test R2: v2 restore with wrong passphrase rejects and creates no wallet
+        {
+            bool hasBip44 = pwalletMain->IsHDEnabled() &&
+                pwalletMain->GetHDChain().IsBip44() &&
+                pwalletMain->HasMnemonicData() && !pwalletMain->IsLocked();
+
+            if (hasBip44) {
+                JSONRPCRequest expReq;
+                expReq.strMethod = "exportwalletmigration";
+                expReq.params = UniValue(UniValue::VARR);
+                expReq.params.push_back(UniValue(tmpExportPath.string()));
+                expReq.params.push_back(UniValue(true));
+                expReq.params.push_back(UniValue(false));
+                expReq.params.push_back(UniValue("my export passphrase"));
+                expReq.fHelp = false;
+                exportwalletmigration(expReq);
+
+                std::string restoreWalletName = "test_restore_wrong_pass";
+                boost::filesystem::path restoreWalletDir = GetDataDir() / restoreWalletName;
+                if (boost::filesystem::exists(restoreWalletDir)) {
+                    boost::filesystem::remove_all(restoreWalletDir);
+                }
+
+                JSONRPCRequest restReq;
+                restReq.strMethod = "restorewalletmigration";
+                restReq.params = UniValue(UniValue::VARR);
+                restReq.params.push_back(UniValue(tmpExportPath.string()));
+                restReq.params.push_back(UniValue(restoreWalletName));
+                restReq.params.push_back(UniValue("wrong passphrase totally"));
+                restReq.fHelp = false;
+
+                bool threw = false;
+                try { restorewalletmigration(restReq); } catch (...) { threw = true; }
+                BOOST_CHECK(threw);
+                BOOST_CHECK(!boost::filesystem::exists(restoreWalletDir));
+
+                boost::filesystem::remove(tmpExportPath);
+            }
+        }
+
+        // Test R3: invalid wallet names reject and create no wallet
+        {
+            std::istringstream fakeJson(
+                "{\"envelope_version\":1,"
+                "\"schema_identifier\":\"hemp0x-core.migration-envelope.v1\","
+                "\"exported_at\":1,"
+                "\"chain\":{\"network\":\"main\",\"coin_type_bip44\":420}}");
+
+            std::vector<std::string> badNames;
+            badNames.push_back("");
+            badNames.push_back("../../escape");
+            badNames.push_back("with/path");
+            badNames.push_back("has:colon");
+
+            for (size_t i = 0; i < badNames.size(); ++i) {
+                const std::string& badName = badNames[i];
+
+                boost::filesystem::path testDir = GetDataDir();
+                if (!badName.empty()) {
+                    testDir = testDir / badName;
+                    if (boost::filesystem::exists(testDir)) {
+                        boost::filesystem::remove_all(testDir);
+                    }
+                }
+
+                JSONRPCRequest restReq;
+                restReq.strMethod = "restorewalletmigration";
+                restReq.params = UniValue(UniValue::VARR);
+                restReq.params.push_back(UniValue(tmpExportPath.string()));
+                restReq.params.push_back(UniValue(badName));
+                restReq.params.push_back(UniValue("passphrase"));
+                restReq.fHelp = false;
+
+                bool threw = false;
+                try { restorewalletmigration(restReq); } catch (...) { threw = true; }
+                BOOST_CHECK(threw);
+
+                if (!badName.empty() && boost::filesystem::exists(testDir)) {
+                    boost::filesystem::remove_all(testDir);
+                }
+            }
+        }
+
+        // Test R4: existing destination wallet rejects
+        {
+            std::string existingName = "test_restore_existing";
+            boost::filesystem::path existingDir = GetDataDir() / existingName;
+            boost::filesystem::create_directories(existingDir);
+
+            // Use the v1 export from R1's first export; we need a fresh v1 file
+            JSONRPCRequest expReq;
+            expReq.strMethod = "exportwalletmigration";
+            expReq.params = UniValue(UniValue::VARR);
+            expReq.params.push_back(UniValue(tmpExportPath.string()));
+            expReq.params.push_back(UniValue(false));
+            expReq.params.push_back(UniValue(false));
+            expReq.fHelp = false;
+            exportwalletmigration(expReq);
+
+            JSONRPCRequest restReq;
+            restReq.strMethod = "restorewalletmigration";
+            restReq.params = UniValue(UniValue::VARR);
+            restReq.params.push_back(UniValue(tmpExportPath.string()));
+            restReq.params.push_back(UniValue(existingName));
+            restReq.params.push_back(UniValue("passphrase"));
+            restReq.fHelp = false;
+
+            bool threw = false;
+            try { restorewalletmigration(restReq); } catch (...) { threw = true; }
+            BOOST_CHECK(threw);
+
+            boost::filesystem::remove_all(existingDir);
+            boost::filesystem::remove(tmpExportPath);
+        }
+
+        // Test R5: valid v2 restore creates a new wallet, is BIP44/coin420/account 0
+        {
+            bool hasBip44 = pwalletMain->IsHDEnabled() &&
+                pwalletMain->GetHDChain().IsBip44() &&
+                pwalletMain->HasMnemonicData() && !pwalletMain->IsLocked();
+
+            if (hasBip44) {
+                JSONRPCRequest expReq;
+                expReq.strMethod = "exportwalletmigration";
+                expReq.params = UniValue(UniValue::VARR);
+                expReq.params.push_back(UniValue(tmpExportPath.string()));
+                expReq.params.push_back(UniValue(true));
+                expReq.params.push_back(UniValue(false));
+                expReq.params.push_back(UniValue("my export passphrase"));
+                expReq.fHelp = false;
+                exportwalletmigration(expReq);
+
+                std::string restoreWalletName = "test_restore_success";
+                boost::filesystem::path restoreWalletDir = GetDataDir() / restoreWalletName;
+                if (boost::filesystem::exists(restoreWalletDir)) {
+                    boost::filesystem::remove_all(restoreWalletDir);
+                }
+
+                JSONRPCRequest restReq;
+                restReq.strMethod = "restorewalletmigration";
+                restReq.params = UniValue(UniValue::VARR);
+                restReq.params.push_back(UniValue(tmpExportPath.string()));
+                restReq.params.push_back(UniValue(restoreWalletName));
+                restReq.params.push_back(UniValue("my export passphrase"));
+                restReq.params.push_back(UniValue((int64_t)0));
+                restReq.fHelp = false;
+
+                UniValue result = restorewalletmigration(restReq);
+                BOOST_CHECK(result.isObject());
+                BOOST_CHECK_EQUAL(result["wallet_name"].get_str(), restoreWalletName);
+                BOOST_CHECK_EQUAL(result["coin_type"].get_int(), 420);
+                BOOST_CHECK_EQUAL(result["account"].get_int(), 0);
+                BOOST_CHECK(result["wallet_file"].isStr());
+                BOOST_CHECK(boost::filesystem::exists(restoreWalletDir));
+
+                // Verify restored wallet was added to vpwallets and is BIP44
+                bool foundRestored = false;
+                for (size_t j = 0; j < vpwallets.size(); ++j) {
+                    if (vpwallets[j] && (vpwallets[j]->GetName() == restoreWalletName ||
+                                         vpwallets[j]->GetName() == restoreWalletName + "/wallet.dat")) {
+                        foundRestored = true;
+                        BOOST_CHECK(vpwallets[j]->IsBip44Enabled());
+                        break;
+                    }
+                }
+                BOOST_CHECK(foundRestored);
+
+                cleanupRestoredWallet(restoreWalletName);
+
+                boost::filesystem::remove_all(restoreWalletDir);
+                boost::filesystem::remove(tmpExportPath);
+            }
+        }
+
+        // Test R6: response contains no mnemonic/passphrase/seed/WIF/xprv/decrypted payload
+        {
+            bool hasBip44 = pwalletMain->IsHDEnabled() &&
+                pwalletMain->GetHDChain().IsBip44() &&
+                pwalletMain->HasMnemonicData() && !pwalletMain->IsLocked();
+
+            if (hasBip44) {
+                JSONRPCRequest expReq;
+                expReq.strMethod = "exportwalletmigration";
+                expReq.params = UniValue(UniValue::VARR);
+                expReq.params.push_back(UniValue(tmpExportPath.string()));
+                expReq.params.push_back(UniValue(true));
+                expReq.params.push_back(UniValue(false));
+                expReq.params.push_back(UniValue("my export passphrase"));
+                expReq.fHelp = false;
+                exportwalletmigration(expReq);
+
+                std::string restoreWalletName = "test_restore_nosecrets";
+                boost::filesystem::path restoreWalletDir = GetDataDir() / restoreWalletName;
+                if (boost::filesystem::exists(restoreWalletDir)) {
+                    boost::filesystem::remove_all(restoreWalletDir);
+                }
+
+                JSONRPCRequest restReq;
+                restReq.strMethod = "restorewalletmigration";
+                restReq.params = UniValue(UniValue::VARR);
+                restReq.params.push_back(UniValue(tmpExportPath.string()));
+                restReq.params.push_back(UniValue(restoreWalletName));
+                restReq.params.push_back(UniValue("my export passphrase"));
+                restReq.params.push_back(UniValue((int64_t)0));
+                restReq.fHelp = false;
+
+                UniValue result = restorewalletmigration(restReq);
+
+                std::vector<std::string> responseKeys = result.getKeys();
+                std::vector<std::string> secretSubstrings;
+                secretSubstrings.push_back("mnemonic");
+                secretSubstrings.push_back("xprv");
+                secretSubstrings.push_back("wif");
+                secretSubstrings.push_back("seed");
+                secretSubstrings.push_back("passphrase");
+                secretSubstrings.push_back("decrypted");
+                secretSubstrings.push_back("plaintext");
+                secretSubstrings.push_back("ciphertext");
+                secretSubstrings.push_back("private_key");
+
+                for (size_t ki = 0; ki < responseKeys.size(); ++ki) {
+                    const std::string& key = responseKeys[ki];
+                    for (size_t si = 0; si < secretSubstrings.size(); ++si) {
+                        const std::string& sub = secretSubstrings[si];
+                        bool hasSecret = (key.find(sub) != std::string::npos);
+                        if (hasSecret) {
+                            bool isSafe = (key == "mnemonic_language" ||
+                                          key == "mnemonic_word_count" ||
+                                          key == "change_count_hint" ||
+                                          key == "keypool_size_after_restore" ||
+                                          key == "derivation_profile_id" ||
+                                          key == "rescan_start_height" ||
+                                          key == "rescan_end_height");
+                            BOOST_CHECK_MESSAGE(isSafe,
+                                "Restore RPC response contains secret-like field: " + key);
+                        }
+                    }
+                }
+
+                // Scan string values for BIP39 words or WIF patterns
+                for (size_t ki = 0; ki < responseKeys.size(); ++ki) {
+                    const std::string& key = responseKeys[ki];
+                    if (result[key].isStr()) {
+                        std::string val = result[key].get_str();
+                        BOOST_CHECK_MESSAGE(
+                            val.find("abandon") == std::string::npos,
+                            "Secret-like content in field: " + key);
+                        BOOST_CHECK_MESSAGE(
+                            val.find("xprv") == std::string::npos,
+                            "xprv in response field: " + key);
+                    }
+                }
+
+                cleanupRestoredWallet(restoreWalletName);
+
+                boost::filesystem::remove_all(restoreWalletDir);
+                boost::filesystem::remove(tmpExportPath);
+            }
+        }
+
+        // Test R7: validatewalletmigration tests still pass
+        {
+            JSONRPCRequest expReq;
+            expReq.strMethod = "exportwalletmigration";
+            expReq.params = UniValue(UniValue::VARR);
+            expReq.params.push_back(UniValue(tmpExportPath.string()));
+            expReq.params.push_back(UniValue(false));
+            expReq.params.push_back(UniValue(false));
+            expReq.fHelp = false;
+            exportwalletmigration(expReq);
+
+            JSONRPCRequest valReq;
+            valReq.strMethod = "validatewalletmigration";
+            valReq.params = UniValue(UniValue::VARR);
+            valReq.params.push_back(UniValue(tmpExportPath.string()));
+            valReq.fHelp = false;
+
+            UniValue result = validatewalletmigration(valReq);
+            BOOST_CHECK_EQUAL(result["valid"].get_bool(), true);
+            BOOST_CHECK_EQUAL(result["envelope_version"].get_int(), 1);
+
+            boost::filesystem::remove(tmpExportPath);
+        }
+
+        // Test R8: exportwalletmigration tests still pass
+        {
+            JSONRPCRequest request;
+            request.strMethod = "exportwalletmigration";
+            request.params = UniValue(UniValue::VARR);
+            request.params.push_back(tmpExportPath.string());
+            request.params.push_back(UniValue(false));
+            request.params.push_back(UniValue(false));
+            request.fHelp = false;
+
+            UniValue result = exportwalletmigration(request);
+            BOOST_CHECK(result.isObject());
+            BOOST_CHECK_EQUAL(result["envelope_version"].get_int(), 1);
+
+            boost::filesystem::remove(tmpExportPath);
         }
 
         if (boost::filesystem::exists(tmpExportPath)) {

@@ -29,6 +29,7 @@
 #include "timedata.h"
 #include "txmempool.h"
 #include "util.h"
+#include "support/cleanse.h"
 #include "ui_interface.h"
 #include "utilmoneystr.h"
 #include "wallet/fees.h"
@@ -1567,6 +1568,108 @@ CPubKey CWallet::GenerateNewSeed()
 
 	return seed;
 
+}
+
+CWallet* CWallet::RestoreFromMnemonic(
+    const std::string& walletName,
+    const SecureString& mnemonicWords,
+    const SecureString& mnemonicPassphrase)
+{
+    bitdb.Open(GetDataDir());
+
+    fs::path walletDir = GetDataDir() / walletName;
+    fs::create_directories(walletDir);
+    const std::string walletFileName = (fs::path(walletName) / DEFAULT_WALLET_DAT).string();
+
+    std::unique_ptr<CWalletDBWrapper> dbw(new CWalletDBWrapper(&bitdb, walletFileName));
+    std::unique_ptr<CWallet> walletInstance(new CWallet(std::move(dbw)));
+
+    std::string strWords;
+    std::vector<unsigned char> vchWords;
+    std::vector<unsigned char> vchSeed;
+    std::vector<unsigned char> vchPassphrase;
+
+    auto CleanseLocalSecrets = [&]() {
+        if (!strWords.empty()) {
+            memory_cleanse(&strWords[0], strWords.size());
+        }
+        if (!vchWords.empty()) {
+            memory_cleanse(vchWords.data(), vchWords.size());
+        }
+        if (!vchSeed.empty()) {
+            memory_cleanse(vchSeed.data(), vchSeed.size());
+        }
+        if (!vchPassphrase.empty()) {
+            memory_cleanse(vchPassphrase.data(), vchPassphrase.size());
+        }
+    };
+
+    try {
+        walletInstance->SetMinVersion(FEATURE_NO_DEFAULT_KEY);
+        walletInstance->UseBip44(true);
+
+        CHDChain newHdChain(walletInstance.get());
+        newHdChain.UseBip44(true);
+
+        if (!newHdChain.SetMnemonic(mnemonicWords, mnemonicPassphrase, newHdChain.vchSeed)) {
+            throw std::runtime_error(std::string(__func__) + ": SetMnemonic failed");
+        }
+
+        walletInstance->g_vchSeed = std::vector<unsigned char>(
+            newHdChain.vchSeed.begin(), newHdChain.vchSeed.end());
+
+        CPubKey seed(newHdChain.vchSeed.begin(), newHdChain.vchSeed.end());
+        newHdChain.seed_id = seed.GetID();
+
+        if (!walletInstance->SetHDChain(newHdChain, false)) {
+            throw std::runtime_error(std::string(__func__) + ": SetHDChain failed");
+        }
+
+        if (!walletInstance->TopUpKeyPool()) {
+            throw std::runtime_error(std::string(__func__) + ": TopUpKeyPool failed");
+        }
+
+        walletInstance->SetBestChain(chainActive.GetLocator());
+
+        CWalletDB walletdb(walletInstance->GetDBHandle());
+
+        strWords.assign(mnemonicWords.begin(), mnemonicWords.end());
+        vchWords.assign(mnemonicWords.begin(), mnemonicWords.end());
+
+        auto hash = Hash(strWords.begin(), strWords.end());
+        if (!walletdb.WriteBip39Words(hash, vchWords, false)) {
+            throw std::runtime_error(std::string(__func__) + ": WriteBip39Words failed");
+        }
+
+        walletInstance->LoadWords(hash, vchWords);
+
+        vchSeed.assign(walletInstance->hdChain.vchSeed.begin(),
+            walletInstance->hdChain.vchSeed.end());
+        if (!walletdb.WriteBip39VchSeed(vchSeed, false)) {
+            throw std::runtime_error(std::string(__func__) + ": WriteBip39VchSeed failed");
+        }
+
+        walletInstance->LoadVchSeed(vchSeed);
+
+        if (!mnemonicPassphrase.empty()) {
+            vchPassphrase.assign(
+                mnemonicPassphrase.begin(), mnemonicPassphrase.end());
+            if (!walletdb.WriteBip39Passphrase(vchPassphrase, false)) {
+                throw std::runtime_error(std::string(__func__) + ": WriteBip39Passphrase failed");
+            }
+            walletInstance->LoadPassphrase(vchPassphrase);
+        }
+
+        RegisterValidationInterface(walletInstance.get());
+        walletInstance->SetBroadcastTransactions(
+            gArgs.GetBoolArg("-walletbroadcast", DEFAULT_WALLETBROADCAST));
+
+        CleanseLocalSecrets();
+        return walletInstance.release();
+    } catch (...) {
+        CleanseLocalSecrets();
+        throw;
+    }
 }
 
 CPubKey CWallet::DeriveNewSeed(const CKey& key)

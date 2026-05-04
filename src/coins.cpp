@@ -98,6 +98,14 @@ void AddCoins(CCoinsViewCache& cache, const CTransaction &tx, int nHeight, uint2
     bool fCoinbase = tx.IsCoinBase();
     const uint256& txid = tx.GetHash();
 
+    CWallet* pwalletForMessaging = nullptr;
+#ifdef ENABLE_WALLET
+    {
+        LOCK(cs_wallets);
+        if (vpwallets.size()) pwalletForMessaging = vpwallets[0];
+    }
+#endif
+
     /** HEMP START */
     if (AreAssetsDeployed()) {
         if (assetsCache) {
@@ -281,7 +289,7 @@ void AddCoins(CCoinsViewCache& cache, const CTransaction &tx, int nHeight, uint2
 #ifdef ENABLE_WALLET
                         if (fMessaging && pMessageSubscribedChannelsCache) {
                             LOCK(cs_messaging);
-                            if (vpwallets.size() && vpwallets[0]->IsMine(tx.vout[i]) == ISMINE_SPENDABLE) {
+                            if (pwalletForMessaging && pwalletForMessaging->IsMine(tx.vout[i]) == ISMINE_SPENDABLE) {
                                 AssetType aType;
                                 IsAssetNameValid(assetTransfer.strName, aType);
 
@@ -304,10 +312,10 @@ void AddCoins(CCoinsViewCache& cache, const CTransaction &tx, int nHeight, uint2
 #ifdef ENABLE_WALLET
                         if (fMessaging && pMessageSubscribedChannelsCache) {
                             LOCK(cs_messaging);
-                            if (vpwallets.size()) {
+                            if (pwalletForMessaging) {
                                 AssetType aType;
                                 IsAssetNameValid(assetData.assetName, aType);
-                                if (vpwallets[0]->IsMine(tx.vout[i]) == ISMINE_SPENDABLE) {
+                                if (pwalletForMessaging->IsMine(tx.vout[i]) == ISMINE_SPENDABLE) {
                                     if (aType == AssetType::ROOT || aType == AssetType::SUB) {
                                         AddChannel(assetData.assetName + OWNER_TAG);
                                         AddAddressSeen(EncodeDestination(assetData.destination));

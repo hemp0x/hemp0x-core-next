@@ -831,7 +831,13 @@ void MaybeCompactWalletDB()
         return;
     }
 
-    for (CWalletRef pwallet : vpwallets) {
+    std::vector<CWalletRef> vpwalletsCopy;
+    {
+        LOCK(cs_wallets);
+        vpwalletsCopy = vpwallets;
+    }
+
+    for (CWalletRef pwallet : vpwalletsCopy) {
         CWalletDBWrapper& dbh = pwallet->GetDBHandle();
 
         unsigned int nUpdateCounter = dbh.nUpdateCounter;

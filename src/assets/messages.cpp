@@ -211,9 +211,14 @@ bool ScanForMessageChannels(std::string& strError)
 
     LogPrintf("%s : Start Scanning For Message Channels\n", __func__);
 
-    if (vpwallets.size() == 0) {
-        strError = "Wallet isn't active on this client. Can't scan for MsgChannels";
-        return false;
+    CWallet* pwalletForScan = nullptr;
+    {
+        LOCK(cs_wallets);
+        if (vpwallets.size() == 0) {
+            strError = "Wallet isn't active on this client. Can't scan for MsgChannels";
+            return false;
+        }
+        pwalletForScan = vpwallets[0];
     }
 
     CBlockIndex* blockIndex = chainActive[GetParams().GetAssetActivationHeight()];
@@ -236,7 +241,7 @@ bool ScanForMessageChannels(std::string& strError)
             for (auto out : ptx->vout) {
                 int nType = -1;
                 bool fOwner = false;
-                if (vpwallets[0]->IsMine(out) == ISMINE_SPENDABLE) { // Is the out mine
+                if (pwalletForScan && pwalletForScan->IsMine(out) == ISMINE_SPENDABLE) { // Is the out mine
                     if (out.scriptPubKey.IsAssetScript(nType, fOwner)) {
                         CAssetOutputEntry assetData;
                         // Get the asset data from the script

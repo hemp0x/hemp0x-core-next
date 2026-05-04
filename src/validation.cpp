@@ -2854,6 +2854,11 @@ static bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockInd
     }
 #ifdef ENABLE_WALLET
     if (AreRestrictedAssetsDeployed() && myNullAssetData.size() && pmyrestricteddb) {
+        CWallet* pwalletForRestricted = nullptr;
+        {
+            LOCK(cs_wallets);
+            if (vpwallets.size()) pwalletForRestricted = vpwallets[0];
+        }
         for (auto item : myNullAssetData) {
             if (IsAssetNameAQualifier(item.second.asset_name)) {
                 // TODO we can add block height to this data also, and use it to pull more info on when this was tagged/untagged
@@ -2863,8 +2868,8 @@ static bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockInd
             }
 
 
-            if (vpwallets.size())
-                vpwallets[0]->UpdateMyRestrictedAssets(item.first, item.second.asset_name, item.second.flag, block.nTime);
+            if (pwalletForRestricted)
+                pwalletForRestricted->UpdateMyRestrictedAssets(item.first, item.second.asset_name, item.second.flag, block.nTime);
 
         }
     }
@@ -3399,8 +3404,15 @@ bool static ConnectTip(CValidationState& state, const CChainParams& chainparams,
     }
 
 #ifdef ENABLE_WALLET
-    if (vpwallets.size()) {
-        CheckRewardDistributions(vpwallets[0]);
+    {
+        CWallet* pwalletForRewards = nullptr;
+        {
+            LOCK(cs_wallets);
+            if (vpwallets.size()) pwalletForRewards = vpwallets[0];
+        }
+        if (pwalletForRewards) {
+            CheckRewardDistributions(pwalletForRewards);
+        }
     }
 #endif
     /** HEMP END */

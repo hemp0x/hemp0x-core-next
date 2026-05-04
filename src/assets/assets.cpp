@@ -3753,11 +3753,16 @@ bool GetBestAssetAddressAmount(CAssetsCache& cache, const std::string& assetName
 bool GetAllMyAssetBalances(std::map<std::string, std::vector<COutput> >& outputs, std::map<std::string, CAmount>& amounts, const int confirmations, const std::string& prefix) {
 
     // Return false if no wallet was found to compute asset balances
-    if (!vpwallets.size())
+    CWallet* pwallet = nullptr;
+    {
+        LOCK(cs_wallets);
+        if (vpwallets.size()) pwallet = vpwallets[0];
+    }
+    if (!pwallet)
         return false;
 
     // Get the map of assetnames to outputs
-    vpwallets[0]->AvailableAssets(outputs, true, nullptr, 1, MAX_MONEY, MAX_MONEY, 0, confirmations);
+    pwallet->AvailableAssets(outputs, true, nullptr, 1, MAX_MONEY, MAX_MONEY, 0, confirmations);
 
     // Loop through all pairs of Asset Name -> vector<COutput>
     for (const auto& pair : outputs) {
@@ -3778,12 +3783,17 @@ bool GetAllMyAssetBalances(std::map<std::string, std::vector<COutput> >& outputs
 bool GetMyAssetBalance(const std::string& name, CAmount& balance, const int& confirmations) {
 
     // Return false if no wallet was found to compute asset balances
-    if (!vpwallets.size())
+    CWallet* pwallet = nullptr;
+    {
+        LOCK(cs_wallets);
+        if (vpwallets.size()) pwallet = vpwallets[0];
+    }
+    if (!pwallet)
         return false;
 
     // Get the map of assetnames to outputs
     std::map<std::string, std::vector<COutput> > outputs;
-    vpwallets[0]->AvailableAssets(outputs, true, nullptr, 1, MAX_MONEY, MAX_MONEY, 0, confirmations);
+    pwallet->AvailableAssets(outputs, true, nullptr, 1, MAX_MONEY, MAX_MONEY, 0, confirmations);
 
     // Loop through all pairs of Asset Name -> vector<COutput>
     if (outputs.count(name)) {
@@ -4377,10 +4387,13 @@ bool SendAssetTransaction(CWallet* pwallet, CWalletTx& transaction, CReserveKey&
 
 bool VerifyWalletHasAsset(const std::string& asset_name, std::pair<int, std::string>& pairError)
 {
-    CWallet* pwallet;
-    if (vpwallets.size() > 0)
-        pwallet = vpwallets[0];
-    else {
+    CWallet* pwallet = nullptr;
+    {
+        LOCK(cs_wallets);
+        if (vpwallets.size() > 0)
+            pwallet = vpwallets[0];
+    }
+    if (!pwallet) {
         pairError = std::make_pair(RPC_WALLET_ERROR, strprintf("Wallet not found. Can't verify if it contains: %s", asset_name));
         return false;
     }
@@ -5094,8 +5107,13 @@ bool ContextualCheckNullAssetTxOut(const CTxOut& txout, CAssetsCache* assetCache
     }
 
 #ifdef ENABLE_WALLET
-    if (myNullAssetData && vpwallets.size()) {
-        if (IsMine(*vpwallets[0], DecodeDestination(address)) & ISMINE_ALL) {
+    if (myNullAssetData) {
+        CWallet* pwallet = nullptr;
+        {
+            LOCK(cs_wallets);
+            if (vpwallets.size()) pwallet = vpwallets[0];
+        }
+        if (pwallet && IsMine(*pwallet, DecodeDestination(address)) & ISMINE_ALL) {
             myNullAssetData->emplace_back(std::make_pair(address, data));
         }
     }

@@ -31,9 +31,12 @@
 #include <utility>
 #include <vector>
 
+#include "sync.h"
+
 
 typedef CWallet* CWalletRef;
 extern std::vector<CWalletRef> vpwallets;
+extern CCriticalSection cs_wallets;
 
 /**
  * Settings

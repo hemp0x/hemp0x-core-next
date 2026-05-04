@@ -116,13 +116,16 @@ UniValue restorewalletmigration(const JSONRPCRequest& request)
             "Cannot restore into an existing wallet. Choose a different wallet name.");
     }
 
-    for (const auto& loaded : vpwallets) {
-        if (loaded && (loaded->GetName() == strWalletName ||
-                       loaded->GetName() == walletFileArg ||
-                       loaded->GetName() == walletFile.string())) {
-            throw JSONRPCError(RPC_INVALID_PARAMETER,
-                "A wallet with the name \"" + strWalletName + "\" is already loaded. "
-                "Choose a different wallet name.");
+    {
+        LOCK(cs_wallets);
+        for (const auto& loaded : vpwallets) {
+            if (loaded && (loaded->GetName() == strWalletName ||
+                           loaded->GetName() == walletFileArg ||
+                           loaded->GetName() == walletFile.string())) {
+                throw JSONRPCError(RPC_INVALID_PARAMETER,
+                    "A wallet with the name \"" + strWalletName + "\" is already loaded. "
+                    "Choose a different wallet name.");
+            }
         }
     }
 
@@ -180,7 +183,10 @@ UniValue restorewalletmigration(const JSONRPCRequest& request)
             throw std::runtime_error("RestoreFromMnemonic returned null.");
         }
         shouldCleanup = false;
-        vpwallets.push_back(restoredWallet);
+        {
+            LOCK(cs_wallets);
+            vpwallets.push_back(restoredWallet);
+        }
         walletLoaded = true;
     } catch (const std::runtime_error& e) {
         CleanseRestoreSecrets();

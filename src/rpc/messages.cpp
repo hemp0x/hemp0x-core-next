@@ -125,7 +125,10 @@ UniValue getmessaginginfo(const JSONRPCRequest& request) {
 
     bool wallet_available = false;
 #ifdef ENABLE_WALLET
-    wallet_available = vpwallets.size() > 0;
+    {
+        LOCK(cs_wallets);
+        wallet_available = vpwallets.size() > 0;
+    }
 #endif
     obj.pushKV("wallet_available", wallet_available);
 

@@ -45,6 +45,7 @@
 #include "assets/assets.h"
 
 std::vector<CWalletRef> vpwallets;
+CCriticalSection cs_wallets;
 /** Transaction fee set by the user */
 CFeeRate payTxFee(DEFAULT_TRANSACTION_FEE);
 unsigned int nTxConfirmTarget = DEFAULT_TX_CONFIRM_TARGET;

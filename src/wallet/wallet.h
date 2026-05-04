@@ -1208,7 +1208,8 @@ public:
     static CWallet* RestoreFromMnemonic(
         const std::string& walletName,
         const SecureString& mnemonicWords,
-        const SecureString& mnemonicPassphrase);
+        const SecureString& mnemonicPassphrase,
+        int64_t nTimeFirstKey);
 };
 
 /** A key allocated from the key pool. */

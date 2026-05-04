@@ -107,11 +107,10 @@ UniValue restorewalletmigration(const JSONRPCRequest& request)
             "path separators, '..', ':', or '\\'.");
     }
 
-    fs::path walletDir = GetDataDir() / strWalletName;
-    fs::path walletFile = walletDir / "wallet.dat";
-    std::string walletFileArg = (fs::path(strWalletName) / "wallet.dat").string();
+    fs::path walletFile = GetDataDir() / strWalletName;
+    std::string walletFileArg = strWalletName;
 
-    if (boost::filesystem::exists(walletDir)) {
+    if (boost::filesystem::exists(walletFile)) {
         throw JSONRPCError(RPC_INVALID_PARAMETER,
             "Destination wallet \"" + strWalletName + "\" already exists. "
             "Cannot restore into an existing wallet. Choose a different wallet name.");
@@ -154,6 +153,8 @@ UniValue restorewalletmigration(const JSONRPCRequest& request)
     CWallet* restoredWallet = nullptr;
     bool shouldCleanup = true;
     bool walletLoaded = false;
+    bool rescanIncomplete = false;
+    int64_t nTimeFirstKey = 1;
 
     auto CleanseRestoreSecrets = [&]() {
         if (!strPassphrase.empty()) {
@@ -168,8 +169,13 @@ UniValue restorewalletmigration(const JSONRPCRequest& request)
     };
 
     try {
+        CBlockIndex* pindexBirthday = birthHeight > 0 ? chainActive[birthHeight] : nullptr;
+        if (pindexBirthday) {
+            nTimeFirstKey = pindexBirthday->GetBlockTime();
+        }
+
         restoredWallet = CWallet::RestoreFromMnemonic(
-            strWalletName, restoreData.mnemonic_words, restoreData.mnemonic_passphrase);
+            strWalletName, restoreData.mnemonic_words, restoreData.mnemonic_passphrase, nTimeFirstKey);
         if (!restoredWallet) {
             throw std::runtime_error("RestoreFromMnemonic returned null.");
         }
@@ -178,14 +184,14 @@ UniValue restorewalletmigration(const JSONRPCRequest& request)
         walletLoaded = true;
     } catch (const std::runtime_error& e) {
         CleanseRestoreSecrets();
-        if (shouldCleanup && boost::filesystem::exists(walletDir)) {
-            try { boost::filesystem::remove_all(walletDir); } catch (...) {}
+        if (shouldCleanup && boost::filesystem::exists(walletFile)) {
+            try { boost::filesystem::remove_all(walletFile); } catch (...) {}
         }
         throw JSONRPCError(RPC_WALLET_ERROR, std::string("Wallet restore failed: ") + e.what());
     } catch (...) {
         CleanseRestoreSecrets();
-        if (shouldCleanup && boost::filesystem::exists(walletDir)) {
-            try { boost::filesystem::remove_all(walletDir); } catch (...) {}
+        if (shouldCleanup && boost::filesystem::exists(walletFile)) {
+            try { boost::filesystem::remove_all(walletFile); } catch (...) {}
         }
         throw JSONRPCError(RPC_WALLET_ERROR, "Wallet restore failed due to an unexpected error.");
     }
@@ -205,7 +211,7 @@ UniValue restorewalletmigration(const JSONRPCRequest& request)
         CBlockIndex* scanResult = restoredWallet->ScanForWalletTransactions(
             pindexRescan, nullptr, true);
         if (scanResult) {
-            restoredWallet->SetBestChain(chainActive.GetLocator());
+            rescanIncomplete = true;
             endHeight = scanResult->nHeight;
         } else {
             if (restoredWallet->IsAbortingRescan()) {
@@ -276,6 +282,10 @@ UniValue restorewalletmigration(const JSONRPCRequest& request)
     warnings.push_back("Restored wallet is NOT encrypted. Use encryptwallet to protect it.");
     warnings.push_back("Ensure the source envelope file and its passphrase are stored securely or deleted.");
     warnings.push_back("Restart the daemon with -wallet=" + walletFileArg + " to use this wallet as the default.");
+    if (rescanIncomplete) {
+        warnings.push_back("Rescan stopped before the current tip because block data was unavailable. "
+            "Funds before the reported rescan_end_height may not be visible on pruned nodes.");
+    }
     if (!restoreData.validation.matches_current_chain) {
         warnings.push_back("Envelope network does not match current chain. Addresses will differ.");
     }

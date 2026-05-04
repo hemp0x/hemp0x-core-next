@@ -1037,7 +1037,7 @@ bool CHDChain::SetMnemonic(const SecureString& ssMnemonic, const SecureString& s
     }
     // NOTE: default mnemonic passphrase is an empty string
     if (!CMnemonic::Check(ssMnemonicTmp)) {
-        throw std::runtime_error(std::string(__func__) + ": invalid mnemonic: `" + std::string(ssMnemonicTmp.c_str()) + "`");
+        throw std::runtime_error(std::string(__func__) + ": invalid mnemonic");
     }
 
     CMnemonic::ToSeed(ssMnemonicTmp, ssMnemonicPassphrase, vchSeed);

@@ -1867,10 +1867,12 @@ BOOST_FIXTURE_TEST_SUITE(wallet_tests, WalletTestingSetup)
                 UniValue result = restorewalletmigration(restReq);
                 BOOST_CHECK(result.isObject());
                 BOOST_CHECK_EQUAL(result["wallet_name"].get_str(), restoreWalletName);
+                BOOST_CHECK_EQUAL(result["wallet_arg"].get_str(), restoreWalletName);
                 BOOST_CHECK_EQUAL(result["coin_type"].get_int(), 420);
                 BOOST_CHECK_EQUAL(result["account"].get_int(), 0);
                 BOOST_CHECK(result["wallet_file"].isStr());
                 BOOST_CHECK(boost::filesystem::exists(restoreWalletDir));
+                BOOST_CHECK(boost::filesystem::is_regular_file(restoreWalletDir));
 
                 // Verify restored wallet was added to vpwallets and is BIP44
                 bool foundRestored = false;

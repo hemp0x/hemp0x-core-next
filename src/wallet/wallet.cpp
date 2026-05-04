@@ -1573,15 +1573,14 @@ CPubKey CWallet::GenerateNewSeed()
 CWallet* CWallet::RestoreFromMnemonic(
     const std::string& walletName,
     const SecureString& mnemonicWords,
-    const SecureString& mnemonicPassphrase)
+    const SecureString& mnemonicPassphrase,
+    int64_t nTimeFirstKey)
 {
-    bitdb.Open(GetDataDir());
+    if (!bitdb.Open(GetDataDir())) {
+        throw std::runtime_error(std::string(__func__) + ": wallet database environment open failed");
+    }
 
-    fs::path walletDir = GetDataDir() / walletName;
-    fs::create_directories(walletDir);
-    const std::string walletFileName = (fs::path(walletName) / DEFAULT_WALLET_DAT).string();
-
-    std::unique_ptr<CWalletDBWrapper> dbw(new CWalletDBWrapper(&bitdb, walletFileName));
+    std::unique_ptr<CWalletDBWrapper> dbw(new CWalletDBWrapper(&bitdb, walletName));
     std::unique_ptr<CWallet> walletInstance(new CWallet(std::move(dbw)));
 
     std::string strWords;
@@ -1627,6 +1626,11 @@ CWallet* CWallet::RestoreFromMnemonic(
 
         if (!walletInstance->TopUpKeyPool()) {
             throw std::runtime_error(std::string(__func__) + ": TopUpKeyPool failed");
+        }
+
+        {
+            LOCK(walletInstance->cs_wallet);
+            walletInstance->UpdateTimeFirstKey(nTimeFirstKey > 0 ? nTimeFirstKey : 1);
         }
 
         walletInstance->SetBestChain(chainActive.GetLocator());

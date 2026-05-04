@@ -283,7 +283,7 @@ ECCVerifyHandle::ECCVerifyHandle()
 {
     if (refcount == 0) {
         assert(secp256k1_context_verify == nullptr);
-        secp256k1_context_verify = secp256k1_context_create(SECP256K1_CONTEXT_VERIFY);
+        secp256k1_context_verify = secp256k1_context_create(SECP256K1_CONTEXT_NONE);
         assert(secp256k1_context_verify != nullptr);
     }
     refcount++;

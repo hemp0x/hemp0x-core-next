@@ -1604,6 +1604,10 @@ CWallet* CWallet::RestoreFromMnemonic(
     };
 
     try {
+        {
+            CWalletDB createDB(*walletInstance->dbw, "cr+");
+        }
+
         walletInstance->SetMinVersion(FEATURE_NO_DEFAULT_KEY);
         walletInstance->UseBip44(true);
 

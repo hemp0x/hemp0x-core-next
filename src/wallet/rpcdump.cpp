@@ -1665,7 +1665,7 @@ UniValue exportwalletmigration(const JSONRPCRequest& request)
         CleanseBytes(vchPassphrase);
 
         UniValue encObj(UniValue::VOBJ);
-        encObj.pushKV("encrypted", true);
+        encObj.pushKV("encrypted", UniValue(true));
         encObj.pushKV("payload_format", "hemp0x-core.private-migration-payload.v1");
         encObj.pushKV("kdf_profile", MIGRATION_KDF_PROFILE);
         encObj.pushKV("kdf_iterations", static_cast<int64_t>(MIGRATION_KDF_ITERATIONS));

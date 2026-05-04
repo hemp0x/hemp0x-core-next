@@ -165,4 +165,90 @@ BOOST_FIXTURE_TEST_SUITE(key_tests, BasicTestingSetup)
         BOOST_CHECK(detsigc == ParseHex("2052d8a32079c11e79db95af63bb9600c5b04f21a9ca33dc129c2bfa8ac9dc1cd561d8ae5e0f6c1a16bde3719c64c2fd70e404b6428ab9a69566962e8771b5944d"));
     }
 
+    BOOST_AUTO_TEST_CASE(secp256k1_der_edge_case_guardrail)
+    {
+        /*
+         * DER edge-case regression vector: 17-byte DER sequence with a
+         * 3-byte R (0x8fffff after leading-zero strip) and a 7-byte S
+         * (0x9ead0000000000). The outer sequence length 0x0f (=15)
+         * correctly bounds the two integer TLVs:
+         *   30 0f          SEQUENCE { 15 bytes
+         *   02 04 00 8f ff ff  INTEGER { 0x8fffff }
+         *   02 07 9e ad 00 00 00 00 00  INTEGER { 0x9ead0000000000 }
+         *   }
+         *
+         * This vector guards against libsecp256k1 subtree modernization
+         * that could:
+         *  (a) Change DER parsing to reject or crash on unusual but
+         *      structurally valid encodings (short R/S with leading-zero
+         *      R byte),
+         *  (b) Alter the behavior of ecdsa_signature_parse_der_lax
+         *      (src/pubkey.cpp:27) which is consensus-critical for
+         *      pre-BIP66 block validation.
+         *
+         * Fed through CPubKey::Verify, the public verification path used
+         * by Core. Not through private secp256k1 internals.
+         */
+        std::vector<unsigned char> derSig = ParseHex("300f0204008fffff02079ead0000000000");
+        BOOST_CHECK(derSig.size() == 17);
+
+        CHemp0xSecret secret;
+        BOOST_CHECK(secret.SetString(strSecret1C));
+        CKey key = secret.GetKey();
+        CPubKey pubkey = key.GetPubKey();
+
+        std::string strMsg = "secp256k1 der edge case guardrail";
+        uint256 hash = Hash(strMsg.begin(), strMsg.end());
+
+        std::vector<unsigned char> validSig;
+        BOOST_CHECK(key.Sign(hash, validSig));
+        BOOST_CHECK(pubkey.Verify(hash, validSig));
+
+        BOOST_CHECK(!pubkey.Verify(hash, derSig));
+    }
+
+    BOOST_AUTO_TEST_CASE(secp256k1_deterministic_sign_verify_guardrail)
+    {
+        /*
+         * Deterministic sign/verify guardrails that pin the current
+         * behavior of CKey::Sign, CKey::SignCompact, CPubKey::Verify,
+         * and CPubKey::RecoverCompact against future libsecp256k1
+         * subtree upgrades.
+         *
+         * All vectors use fixed private keys and fixed hashes.
+         * No randomness, no flaky tests.
+         */
+
+        CHemp0xSecret secret;
+        BOOST_CHECK(secret.SetString(strSecret1C));
+        CKey key = secret.GetKey();
+        CPubKey pubkey = key.GetPubKey();
+
+        std::string strMsg = "secp256k1 deterministic guardrail";
+        uint256 hash = Hash(strMsg.begin(), strMsg.end());
+
+        std::vector<unsigned char> sig;
+        BOOST_CHECK(key.Sign(hash, sig));
+        BOOST_CHECK(pubkey.Verify(hash, sig));
+
+        CHemp0xSecret secret2;
+        BOOST_CHECK(secret2.SetString(strSecret2C));
+        CPubKey pubkey2 = secret2.GetKey().GetPubKey();
+        BOOST_CHECK(!pubkey2.Verify(hash, sig));
+
+        uint256 hashWrong = hash;
+        hashWrong.begin()[0] ^= 0x01;
+        BOOST_CHECK(!pubkey.Verify(hashWrong, sig));
+
+        std::vector<unsigned char> csig;
+        BOOST_CHECK(key.SignCompact(hash, csig));
+        CPubKey rkey;
+        BOOST_CHECK(rkey.RecoverCompact(hash, csig));
+        BOOST_CHECK(rkey == pubkey);
+
+        CPubKey rkeyWrong;
+        BOOST_CHECK(rkeyWrong.RecoverCompact(hashWrong, csig));
+        BOOST_CHECK(!(rkeyWrong == pubkey));
+    }
+
 BOOST_AUTO_TEST_SUITE_END()

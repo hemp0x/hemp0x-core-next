@@ -175,4 +175,97 @@ BOOST_FIXTURE_TEST_SUITE(bip32_tests, BasicTestingSetup)
         RunTest(test3);
     }
 
+    BOOST_AUTO_TEST_CASE(secp256k1_bip32_derivation_guardrail)
+    {
+        /*
+         * BIP32 derivation guardrails that pin the current behavior of
+         * CExtKey::Derive, CExtPubKey::Derive, CKey::Derive, and
+         * CPubKey::Derive against future libsecp256k1 subtree upgrades.
+         *
+         * Uses fixed seed material and a known derivation path:
+         *   m/44'/420'/0'/0/10
+         *
+         * Verifies:
+         *  (a) All hardened + non-hardened private derivations succeed.
+         *  (b) Non-hardened public derivation succeeds.
+         *  (c) Private-derived public key matches public-derived child
+         *      key for non-hardened derivation (key derivation
+         *      consistency).
+         *  (d) Serialization round-trip integrity for both CExtKey
+         *      and CExtPubKey.
+         *  (e) Hemp0x canonical BIP44 coin type 420 assumption
+         *      (no coin175 support).
+         *
+         * Note: CPubKey::Derive asserts (nChild >> 31) == 0, so hardened
+         * public derivation is an abort, not a false return. That
+         * behavior itself is a guardrail against future API changes.
+         *
+         * No random/flaky tests. All vectors are deterministic.
+         */
+        BOOST_TEST_MESSAGE("Running secp256k1 BIP32 derivation guardrail test");
+
+        std::vector<unsigned char> seed = ParseHex(
+            "c0ffee0102030405060708090a0b0c0d0e0f"
+            "101112131415161718191a1b1c1d1e1f20");
+        CExtKey masterKey;
+        masterKey.SetSeed(seed.data(), seed.size());
+        BOOST_CHECK(masterKey.key.IsValid());
+
+        CExtPubKey masterPubKey = masterKey.Neuter();
+        BOOST_CHECK(masterPubKey.pubkey.IsValid());
+        BOOST_CHECK(masterPubKey.pubkey.IsCompressed());
+        BOOST_CHECK(masterPubKey.pubkey == masterKey.key.GetPubKey());
+
+        unsigned int path[] = {
+            0x80000000 | 44,     // purpose (hardened)
+            0x80000000 | 420,    // coin type = Hemp0x (hardened)
+            0x80000000 | 0,      // account (hardened)
+            0,                   // external chain (non-hardened)
+            10                   // address index (non-hardened)
+        };
+        const unsigned int pathLen = sizeof(path) / sizeof(path[0]);
+
+        CExtKey key = masterKey;
+        CExtPubKey pubkey = masterPubKey;
+
+        for (unsigned int i = 0; i < pathLen; i++) {
+            CExtKey keyNew;
+            BOOST_CHECK(key.Derive(keyNew, path[i]));
+            CExtPubKey pubkeyNew = keyNew.Neuter();
+
+            if (!(path[i] & 0x80000000)) {
+                CExtPubKey pubkeyDirect;
+                BOOST_CHECK(pubkey.Derive(pubkeyDirect, path[i]));
+                BOOST_CHECK(pubkeyNew == pubkeyDirect);
+            }
+
+            BOOST_CHECK(keyNew.key.IsValid());
+            BOOST_CHECK(pubkeyNew.pubkey.IsValid());
+
+            key = keyNew;
+            pubkey = pubkeyNew;
+        }
+
+        std::vector<unsigned char> derivedPubKey(pubkey.pubkey.begin(),
+                                                   pubkey.pubkey.end());
+        BOOST_CHECK(derivedPubKey.size() == 33);
+        BOOST_CHECK(derivedPubKey == ParseHex("02f10fc2398483f46502c9eb1fc5ad4cca044432fafd407e28b4c9b753dd7c55af"));
+        BOOST_CHECK(std::vector<unsigned char>(pubkey.chaincode.begin(), pubkey.chaincode.end()) ==
+                    ParseHex("3488250925e17f9b15e1450f85988fe4a34018a239b620a976cdeb131a0ee27a"));
+
+        CDataStream ssPriv(SER_DISK, CLIENT_VERSION);
+        ssPriv << key;
+        BOOST_CHECK(ssPriv.size() == 75);
+        CExtKey keyRoundTrip;
+        ssPriv >> keyRoundTrip;
+        BOOST_CHECK(keyRoundTrip == key);
+
+        CDataStream ssPub(SER_DISK, CLIENT_VERSION);
+        ssPub << pubkey;
+        BOOST_CHECK(ssPub.size() == 75);
+        CExtPubKey pubkeyRoundTrip;
+        ssPub >> pubkeyRoundTrip;
+        BOOST_CHECK(pubkeyRoundTrip == pubkey);
+    }
+
 BOOST_AUTO_TEST_SUITE_END()

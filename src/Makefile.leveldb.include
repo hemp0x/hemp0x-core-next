@@ -119,7 +119,6 @@ leveldb_libleveldb_a_SOURCES += leveldb/util/coding.cc
 leveldb_libleveldb_a_SOURCES += leveldb/util/comparator.cc
 leveldb_libleveldb_a_SOURCES += leveldb/util/crc32c.cc
 leveldb_libleveldb_a_SOURCES += leveldb/util/env.cc
-leveldb_libleveldb_a_SOURCES += leveldb/util/env_posix.cc
 leveldb_libleveldb_a_SOURCES += leveldb/util/filter_policy.cc
 leveldb_libleveldb_a_SOURCES += leveldb/util/hash.cc
 leveldb_libleveldb_a_SOURCES += leveldb/util/histogram.cc
@@ -132,6 +131,7 @@ leveldb_libleveldb_a_SOURCES += leveldb/util/env_windows.cc
 leveldb_libleveldb_a_SOURCES += leveldb/util/env_windows_test_helper.h
 leveldb_libleveldb_a_SOURCES += leveldb/util/windows_logger.h
 else
+leveldb_libleveldb_a_SOURCES += leveldb/util/env_posix.cc
 leveldb_libleveldb_a_SOURCES += leveldb/port/port_stdcxx.cc
 endif
 

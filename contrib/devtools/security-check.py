@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # Copyright (c) 2015-2016 The Bitcoin Core developers
 # Copyright (c) 2017-2020 The Raven Core developers
 # Distributed under the MIT software license, see the accompanying
@@ -214,4 +214,3 @@ if __name__ == '__main__':
             print('%s: cannot open' % filename)
             retval = 1
     sys.exit(retval)
-

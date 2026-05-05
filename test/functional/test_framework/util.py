@@ -373,7 +373,7 @@ def get_rpc_proxy(url, node_number, timeout=None, coverage_dir=None):
 
 
 def p2p_port(n):
-    if p2p_ports[n] is -1:
+    if p2p_ports[n] == -1:
         # Port isn't in the list, find one that is available
         p2p_ports[n] = find_free_port()[0]
         return p2p_ports[n]
@@ -382,7 +382,7 @@ def p2p_port(n):
 
 
 def rpc_port(n):
-    if rpc_ports[n] is -1:
+    if rpc_ports[n] == -1:
         # Port isn't in the list, find one that is available
         rpc_ports[n] = find_free_port()[0]
         return rpc_ports[n]

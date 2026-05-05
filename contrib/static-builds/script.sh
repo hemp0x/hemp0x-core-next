@@ -44,19 +44,17 @@ make HOST=x86_64-linux-gnu $MAKEOPTS
 cd ~/hemp0x
 export PATH=$PWD/depends/x86_64-linux-gnu/native/bin:$PATH
 ./autogen.sh
-CONFIG_SITE=$PWD/depends/x86_64-linux-gnu/share/config.site ./configure --prefix=/ --disable-ccache --disable-maintainer-mode --disable-dependency-tracking --enable-glibc-back-compat --enable-reduce-exports CFLAGS="-O2 -g" CXXFLAGS="-O2 -g" LDFLAGS="-static-libstdc++"
+CONFIG_SITE=$PWD/depends/x86_64-linux-gnu/share/config.site ./configure --prefix=/ --disable-ccache --disable-maintainer-mode --disable-dependency-tracking --enable-glibc-back-compat --enable-reduce-exports CFLAGS="-O2" CXXFLAGS="-O2" LDFLAGS="-static-libstdc++"
 make $MAKEOPTS
 make -C src check-security
 make -C src check-symbols
 mkdir ~/linux64
-make install DESTDIR=~/linux64/$DISTNAME
+make install-strip DESTDIR=~/linux64/$DISTNAME
 cd ~/linux64
 find . -name "lib*.la" -delete
 find . -name "lib*.a" -delete
 rm -rf $DISTNAME/lib/pkgconfig
-find ${DISTNAME}/bin -type f -executable -exec ../hemp0x/contrib/devtools/split-debug.sh {} {} {}.dbg \;
-find ${DISTNAME}/lib -type f -exec ../hemp0x/contrib/devtools/split-debug.sh {} {} {}.dbg \;
-find $DISTNAME/ -not -name "*.dbg" | sort | tar --no-recursion --mode='u+rw,go+r-w,a+X' --owner=0 --group=0 -c -T - | gzip -9n > ~/release/$DISTNAME-x86_64-linux-gnu.tar.gz
+find $DISTNAME/ | sort | tar --no-recursion --mode='u+rw,go+r-w,a+X' --owner=0 --group=0 -c -T - | gzip -9n > ~/release/$DISTNAME-x86_64-linux-gnu.tar.gz
 cd ~/hemp0x
 rm -rf ~/linux64
 make clean
@@ -118,19 +116,17 @@ unset HOST_ID_SALT
 cd ~/hemp0x
 export PATH=$PWD/depends/i686-pc-linux-gnu/native/bin:$PATH
 ./autogen.sh
-CONFIG_SITE=$PWD/depends/i686-pc-linux-gnu/share/config.site ./configure --prefix=/ --disable-ccache --disable-maintainer-mode --disable-dependency-tracking --enable-glibc-back-compat --enable-reduce-exports CFLAGS="-O2 -g" CXXFLAGS="-O2 -g" LDFLAGS="-static-libstdc++"
+CONFIG_SITE=$PWD/depends/i686-pc-linux-gnu/share/config.site ./configure --prefix=/ --disable-ccache --disable-maintainer-mode --disable-dependency-tracking --enable-glibc-back-compat --enable-reduce-exports CFLAGS="-O2" CXXFLAGS="-O2" LDFLAGS="-static-libstdc++"
 make $MAKEOPTS
 make -C src check-security
 make -C src check-symbols
 mkdir -p ~/linux32
-make install DESTDIR=~/linux32/$DISTNAME
+make install-strip DESTDIR=~/linux32/$DISTNAME
 cd ~/linux32
 find . -name "lib*.la" -delete
 find . -name "lib*.a" -delete
 rm -rf $DISTNAME/lib/pkgconfig
-find ${DISTNAME}/bin -type f -executable -exec ../hemp0x/contrib/devtools/split-debug.sh {} {} {}.dbg \;
-find ${DISTNAME}/lib -type f -exec ../hemp0x/contrib/devtools/split-debug.sh {} {} {}.dbg \;
-find $DISTNAME/ -not -name "*.dbg" | sort | tar --no-recursion --mode='u+rw,go+r-w,a+X' --owner=0 --group=0 -c -T - | gzip -9n > ~/release/$DISTNAME-i686-pc-linux-gnu.tar.gz
+find $DISTNAME/ | sort | tar --no-recursion --mode='u+rw,go+r-w,a+X' --owner=0 --group=0 -c -T - | gzip -9n > ~/release/$DISTNAME-i686-pc-linux-gnu.tar.gz
 cd ~/hemp0x
 rm -rf ~/linux32
 rm -rf ~/wrapped
@@ -147,18 +143,16 @@ make HOST=arm-linux-gnueabihf $MAKEOPTS
 cd ~/hemp0x
 export PATH=$PWD/depends/arm-linux-gnueabihf/native/bin:$PATH
 ./autogen.sh
-CONFIG_SITE=$PWD/depends/arm-linux-gnueabihf/share/config.site ./configure --prefix=/ --disable-ccache --disable-maintainer-mode --disable-dependency-tracking --enable-glibc-back-compat --enable-reduce-exports CFLAGS="-O2 -g" CXXFLAGS="-O2 -g" LDFLAGS="-static-libstdc++"
+CONFIG_SITE=$PWD/depends/arm-linux-gnueabihf/share/config.site ./configure --prefix=/ --disable-ccache --disable-maintainer-mode --disable-dependency-tracking --enable-glibc-back-compat --enable-reduce-exports CFLAGS="-O2" CXXFLAGS="-O2" LDFLAGS="-static-libstdc++"
 make $MAKEOPTS
 make -C src check-security
 mkdir -p ~/linuxARM
-make install DESTDIR=~/linuxARM/$DISTNAME
+make install-strip DESTDIR=~/linuxARM/$DISTNAME
 cd ~/linuxARM
 find . -name "lib*.la" -delete
 find . -name "lib*.a" -delete
 rm -rf $DISTNAME/lib/pkgconfig
-find ${DISTNAME}/bin -type f -executable -exec ../hemp0x/contrib/devtools/split-debug.sh {} {} {}.dbg \;
-find ${DISTNAME}/lib -type f -exec ../hemp0x/contrib/devtools/split-debug.sh {} {} {}.dbg \;
-find $DISTNAME/ -not -name "*.dbg" | sort | tar --no-recursion --mode='u+rw,go+r-w,a+X' --owner=0 --group=0 -c -T - | gzip -9n > ~/release/$DISTNAME-arm-linux-gnueabihf.tar.gz
+find $DISTNAME/ | sort | tar --no-recursion --mode='u+rw,go+r-w,a+X' --owner=0 --group=0 -c -T - | gzip -9n > ~/release/$DISTNAME-arm-linux-gnueabihf.tar.gz
 cd ~/hemp0x
 rm -rf ~/linuxARM
 make clean
@@ -174,18 +168,16 @@ make HOST=aarch64-linux-gnu $MAKEOPTS
 cd ~/hemp0x
 export PATH=$PWD/depends/aarch64-linux-gnu/native/bin:$PATH
 ./autogen.sh
-CONFIG_SITE=$PWD/depends/aarch64-linux-gnu/share/config.site ./configure --prefix=/ --disable-ccache --disable-maintainer-mode --disable-dependency-tracking --enable-glibc-back-compat --enable-reduce-exports CFLAGS="-O2 -g" CXXFLAGS="-O2 -g" LDFLAGS="-static-libstdc++"
+CONFIG_SITE=$PWD/depends/aarch64-linux-gnu/share/config.site ./configure --prefix=/ --disable-ccache --disable-maintainer-mode --disable-dependency-tracking --enable-glibc-back-compat --enable-reduce-exports CFLAGS="-O2" CXXFLAGS="-O2" LDFLAGS="-static-libstdc++"
 make $MAKEOPTS
 make -C src check-security
 mkdir -p ~/linuxaarch64
-make install DESTDIR=~/linuxaarch64/$DISTNAME
+make install-strip DESTDIR=~/linuxaarch64/$DISTNAME
 cd ~/linuxaarch64
 find . -name "lib*.la" -delete
 find . -name "lib*.a" -delete
 rm -rf $DISTNAME/lib/pkgconfig
-find ${DISTNAME}/bin -type f -executable -exec ../hemp0x/contrib/devtools/split-debug.sh {} {} {}.dbg \;
-find ${DISTNAME}/lib -type f -exec ../hemp0x/contrib/devtools/split-debug.sh {} {} {}.dbg \;
-find $DISTNAME/ -not -name "*.dbg" | sort | tar --no-recursion --mode='u+rw,go+r-w,a+X' --owner=0 --group=0 -c -T - | gzip -9n > ~/release/$DISTNAME-aarch64-linux-gnu.tar.gz
+find $DISTNAME/ | sort | tar --no-recursion --mode='u+rw,go+r-w,a+X' --owner=0 --group=0 -c -T - | gzip -9n > ~/release/$DISTNAME-aarch64-linux-gnu.tar.gz
 cd ~/hemp0x
 rm -rf ~/linuxaarch64
 make clean
@@ -205,7 +197,7 @@ make HOST=x86_64-w64-mingw32 $MAKEOPTS
 cd ~/hemp0x
 export PATH=$PWD/depends/x86_64-w64-mingw32/native/bin:$PATH
 ./autogen.sh
-CONFIG_SITE=$PWD/depends/x86_64-w64-mingw32/share/config.site ./configure --prefix=/ --disable-ccache --disable-maintainer-mode --disable-dependency-tracking --enable-reduce-exports CFLAGS="-O2 -g" CXXFLAGS="-O2 -g"
+CONFIG_SITE=$PWD/depends/x86_64-w64-mingw32/share/config.site ./configure --prefix=/ --disable-ccache --disable-maintainer-mode --disable-dependency-tracking --enable-reduce-exports CFLAGS="-O2" CXXFLAGS="-O2"
 make $MAKEOPTS
 make -C src check-security
 make deploy
@@ -248,7 +240,7 @@ make HOST=i686-w64-mingw32 $MAKEOPTS
 cd ~/hemp0x
 export PATH=$PWD/depends/i686-w64-mingw32/native/bin:$PATH
 ./autogen.sh
-CONFIG_SITE=$PWD/depends/i686-w64-mingw32/share/config.site ./configure --prefix=/ --disable-ccache --disable-maintainer-mode --disable-dependency-tracking --enable-reduce-exports CFLAGS="-O2 -g" CXXFLAGS="-O2 -g"
+CONFIG_SITE=$PWD/depends/i686-w64-mingw32/share/config.site ./configure --prefix=/ --disable-ccache --disable-maintainer-mode --disable-dependency-tracking --enable-reduce-exports CFLAGS="-O2" CXXFLAGS="-O2"
 make $MAKEOPTS
 make -C src check-security
 make deploy

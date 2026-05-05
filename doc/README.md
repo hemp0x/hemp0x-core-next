@@ -3,7 +3,7 @@ Hemp0x Core
 
 Setup
 ---------------------
-Hemp0x Core is the original Hemp0x client and it builds the backbone of the network. It downloads and, by default, stores the entire history of Hemp0x transactions; depending on the speed of your computer and network connection, the synchronization process is typically complete in under an hour.
+Hemp0x Core is the original Hemp0x client and it builds the backbone of the network. It downloads and, by default, stores the entire history of Hemp0x transactions; depending on hardware and network conditions, initial synchronization can take several hours or longer.
 
 To download compiled daemon and command-line binaries, visit the [GitHub release page](https://github.com/hemp0x/hemp0x-core/releases). Core Next release builds do not include the old bundled Qt wallet GUI; wallet RPC support remains available in wallet-enabled daemon builds.
 
@@ -73,18 +73,16 @@ The following are developer notes on how to build the Hemp0x core software on yo
 - [Windows Build Notes](build-windows.md)
 - [OpenBSD Build Notes](build-openbsd.md)
 - [FreeBSD Build Notes](build-freebsd.md)
-- [Raspberry Pi Build Notes](build-rasberrypi.md)
+- [Raspberry Pi Build Notes](build-raspberrypi.md)
 
 Development
 ---------------------
-Hemp0x repo's [root README](https://github.com/hemp0x/hemp0x-core/blob/master/README.md) contains relevant information on the development process and automated testing.
+The [root README](../README.md) contains relevant information on the development process and automated testing.
 
 - [Developer Notes](developer-notes.md)
 - [Release Notes](release-notes.md)
 - [Release Process](release-process.md)
-- [Source Code Documentation (External Link)](https://dev.visucore.com/hemp0x/doxygen/)
-- [Translation Process](translation_process.md)
-- [Translation Strings Policy](translation_strings_policy.md)
+- Source Code Documentation: generate locally with Doxygen when needed.
 - [Unauthenticated REST Interface](REST-interface.md)
 - [Shared Libraries](shared-libraries.md)
 - [BIPS](bips.md)

@@ -271,7 +271,7 @@ General Hemp0x Core
   - *Rationale*: RPC allows for better automatic testing. The test suite for
     external-client review coverage is very limited
 
-- Make sure pull requests pass Travis CI before merging
+- Make sure pull requests pass CI before merging
 
   - *Rationale*: Makes sure that they pass thorough testing, and that the tester will keep passing
      on the master branch. Otherwise all new pull requests will start failing the tests, resulting in
@@ -493,7 +493,7 @@ Current subtrees include:
     merging upstream changes to the leveldb subtree.
 
 - src/libsecp256k1
-  - Upstream at https://github.com/bitcoin-core/secp256k1/ ; actively maintaned by Bitcoin Core contributors.
+  - Upstream at https://github.com/bitcoin-core/secp256k1/ ; actively maintained by Bitcoin Core contributors.
 
 - src/crypto/ctaes
   - Upstream at https://github.com/bitcoin-core/ctaes ; actively maintained by Bitcoin Core contributors.
@@ -511,7 +511,7 @@ you must be aware of.
 
 In most configurations we use the default LevelDB value for `max_open_files`,
 which is 1000 at the time of this writing. If LevelDB actually uses this many
-file descriptors it will cause problems with Bitcoin's `select()` loop, because
+file descriptors it will cause problems with Hemp0x Core's `select()` loop, because
 it may cause new sockets to be created where the fd value is >= 1024. For this
 reason, on 64-bit Unix systems we rely on an internal LevelDB optimization that
 uses `mmap()` + `close()` to open table files without actually retaining
@@ -522,7 +522,7 @@ In addition to reviewing the upstream changes in `env_posix.cc`, you can use `ls
 check this. For example, on Linux this command will show open `.ldb` file counts:
 
 ```bash
-$ lsof -p $(pidof bitcoind) |\
+$ lsof -p $(pidof hemp0xd) |\
     awk 'BEGIN { fd=0; mem=0; } /ldb$/ { if ($4 == "mem") mem++; else fd++ } END { printf "mem = %s, fd = %s\n", mem, fd}'
 mem = 119, fd = 0
 ```
@@ -544,8 +544,8 @@ to check for issues affecting consensus compatibility.
 For example, if LevelDB had a bug that accidentally prevented a key from being
 returned in an edge case, and that bug was fixed upstream, the bug "fix" would
 be an incompatible consensus change. In this situation the correct behavior
-would be to revert the upstream fix before applying the updates to Bitcoin's
-copy of LevelDB. In general you should be wary of any upstream changes affecting
+would be to revert the upstream fix before applying the updates to the vendored
+LevelDB copy. In general you should be wary of any upstream changes affecting
 what data is returned from LevelDB queries.
 
 Git and GitHub tips
@@ -600,7 +600,7 @@ Scripted diffs
 --------------
 
 For reformatting and refactoring commits where the changes can be easily automated using a bash script, we use
-scripted-diff commits. The bash script is included in the commit message and our Travis CI job checks that
+scripted-diff commits. The bash script is included in the commit message and CI checks that
 the result of the script is identical to the commit. This aids reviewers since they can verify that the script
 does exactly what it's supposed to do. It is also helpful for rebasing (since the same script can just be re-run
 on the new master commit).

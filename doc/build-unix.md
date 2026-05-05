@@ -86,8 +86,9 @@ ZMQ dependencies (provides ZMQ API):
 
 Notes
 -----
-The release is built with GCC. Run "strip hemp0xd" to strip remaining
-non-essential sections from binaries before distribution.
+Release packaging should stage binaries with `make install-strip`. For manual
+test builds, `strip hemp0xd hemp0x-cli hemp0x-tx` can be used before local
+distribution.
 
 
 miniupnpc

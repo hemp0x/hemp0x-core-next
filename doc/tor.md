@@ -43,10 +43,10 @@ config file):
 
 	HiddenServiceDir /var/lib/tor/hemp0x-service/
 	HiddenServicePort 42069 127.0.0.1:42069
-	HiddenServicePort 18766 127.0.0.1:18766
 
-The directory can be different of course, but (both) port numbers should be equal to
-your hemp0xd's P2P listen port (42069 by default).
+The directory can be different, but the port number should be equal to your
+hemp0xd's P2P listen port (42069 by default). Do not expose RPC as a public Tor
+hidden service.
 
 	-externalip=X   You can tell Hemp0x Core about its publicly reachable address using
 	                this option, and this can be a .onion address. Given the above

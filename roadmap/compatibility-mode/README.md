@@ -1,7 +1,7 @@
 # Compatibility Mode - Emulation
 
 ## The problem
-The Hemp0x asset platform could have an uphill climb getting adoption because of its incompatibility with the existing infrastructure.  Most exchanges, and crypto merchant acceptance systems are configured to handle coins (tokens) that work like Bitcoin (RPC to bitcoind) or Ethereum (IPC to geth using web3).
+The Hemp0x asset platform could have an uphill climb getting adoption because of its incompatibility with the existing infrastructure. Most exchanges and crypto merchant acceptance systems are configured to handle Bitcoin-style daemons over RPC or Ethereum-style nodes over IPC using web3.
 
 Direct use of the RPC transfer call for moving assets has been possible from the day that assets launched on Hemp0x - November 5, 2018.  But expecting each and every exchange to modify their infrastructure to handle assets with different RPC calls might slow down Hemp0x asset adoption.
 
@@ -45,5 +45,4 @@ Most of the Hemp0x RPC calls do not interact with assets.  These can be straight
 ```listunspent ( minconf maxconf  ["addresses",...] [include_unsafe] [query_options])```  
 ```getreceivedbyaddress "address" ( minconf )```  
 ```getunconfirmedbalance```  
-
 

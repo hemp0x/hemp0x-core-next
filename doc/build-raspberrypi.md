@@ -1,4 +1,4 @@
-RASBERRY PI BUILD NOTES
+RASPBERRY PI BUILD NOTES
 ====================
 Origin: traysi.org/hemp0x_rpi.php
 

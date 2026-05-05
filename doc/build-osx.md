@@ -66,7 +66,7 @@ compiled in `disable-wallet` mode with:
 ./configure --disable-wallet
 ```
 
-In this case there is no dependency on Berkeley DB 4.8 and SQLite.
+In this case there is no dependency on Berkeley DB 4.8.
 
 External pool software can request block templates in disable-wallet mode using the
 `getblocktemplate` RPC call.

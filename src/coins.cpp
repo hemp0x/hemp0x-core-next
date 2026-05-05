@@ -98,8 +98,8 @@ void AddCoins(CCoinsViewCache& cache, const CTransaction &tx, int nHeight, uint2
     bool fCoinbase = tx.IsCoinBase();
     const uint256& txid = tx.GetHash();
 
-    CWallet* pwalletForMessaging = nullptr;
 #ifdef ENABLE_WALLET
+    CWallet* pwalletForMessaging = nullptr;
     {
         LOCK(cs_wallets);
         if (vpwallets.size()) pwalletForMessaging = vpwallets[0];

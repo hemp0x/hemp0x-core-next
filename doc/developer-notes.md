@@ -165,7 +165,7 @@ on all categories (and give you a very large debug.log file).
 
 **testnet and regtest modes**
 
-Run with the -testnet option to run with "play hemp0xs" on the test network, if you
+Run with the -testnet option to run with "play HEMPs" on the test network, if you
 are testing multi-machine code that needs to operate across the internet.
 
 If you are testing something that can run on one machine, run with the -regtest option.

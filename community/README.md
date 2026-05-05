@@ -2,7 +2,7 @@
 
 “Every new mechanism frees the human mind for more creative adventures and accomplishments” - Life After Google by George Gilder  
 
-We’re all in this together. There are new capabilities included in the latest Phoenix version (3.2+) of Hemp0x that open up new business opportunities.  Join in and build something.  This is not an exhaustive list, but just a starting point to fire the imagination.  
+We’re all in this together. There are new capabilities included in the latest Hemp0x Core Next that open up new business opportunities. Join in and build something. This is not an exhaustive list, but just a starting point to fire the imagination.
 
 
 ### Anyone with a computer
@@ -36,7 +36,7 @@ We’re all in this together. There are new capabilities included in the latest 
         * List of Addresses per tag
 * White label mobile wallet
     * Filter to specific assets or sub-assets
-* QT Wallet
+* Desktop Wallet (Hemp0x Commander)
     * UI improvements
     * List of Tags per Address
     * Tighter integration with IPFS

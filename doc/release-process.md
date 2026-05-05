@@ -33,7 +33,7 @@ Before every major release:
 
 Write release notes. git shortlog helps a lot, for example:
 
-    git shortlog --no-merges v(current version, e.g. 0.7.2)..v(new version, e.g. 0.8.0)
+    git shortlog --no-merges v(current version, e.g. 4.6.0)..v(new version, e.g. 4.7.0)
 
 Generate list of authors:
 
@@ -41,7 +41,7 @@ Generate list of authors:
 
 Tag version (or release candidate) in git
 
-    git tag -s v(new version, e.g. 0.8.0)
+    git tag -s v(new version, e.g. 4.7.0)
 
 
 ### Build binaries. 
@@ -82,9 +82,7 @@ hemp0x-${VERSION}-aarch64-linux-gnu.tar.gz
 hemp0x-${VERSION}-arm-linux-gnueabihf.tar.gz
 hemp0x-${VERSION}-x86_64-linux-gnu.tar.gz
 hemp0x-${VERSION}-osx64.tar.gz
-hemp0x-${VERSION}-osx.dmg
 hemp0x-${VERSION}.tar.gz
-hemp0x-${VERSION}-win64-setup.exe
 hemp0x-${VERSION}-win64.zip
 
 - GPG-sign it, delete the unsigned file:
@@ -101,7 +99,7 @@ Note: check that SHA256SUMS itself doesn't end up in SHA256SUMS, which is a spur
 
 - Announce the release:
 
-  - hemp0xcore.org blog post
+  - hemp0x.com blog post
 
   - Optionally twitter, reddit /r/Hemp0x, ... but this will usually sort out itself
 

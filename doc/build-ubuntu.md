@@ -1,65 +1,17 @@
 Build instructions for Hemp0x
 =================================
 
-This will install most of the dependencies from ubuntu.
-The only one we build, is Berkeley DB 4.8.
+This will install most of the dependencies from Ubuntu.
+The only one we build is Berkeley DB 4.8.
 
 
-Ubuntu 21.10 - Impish Indri - Install dependencies:
----------------------------
-`$ sudo apt install
-build-essential
-libssl-dev
-libboost-chrono1.74-dev
-libboost-filesystem1.74-dev
-libboost-program-options1.74-dev
-libboost-system1.74-dev
-libboost-thread1.74-dev
-libboost-test1.74-dev
-bison
-libevent-dev
-libminiupnpc-dev
-zlib1g-dev
-libczmq-dev
-autoconf
-automake
-libtool
-`
-
-Ubuntu 21.04 - Hirsute Hippo - Install dependencies:
+Ubuntu 22.04 and later - Install dependencies:
 ----------------------------
 `$ sudo apt install
 build-essential
 libssl-dev
-libboost-chrono1.71-dev
-libboost-filesystem1.71-dev
-libboost-program-options1.71-dev
-libboost-system1.71-dev
-libboost-thread1.71-dev
-libboost-test1.71-dev
+libboost-all-dev
 bison
-libevent-dev
-libminiupnpc-dev
-zlib1g-dev
-libczmq-dev
-autoconf
-automake
-libtool
-`
-
-Ubuntu 18.04 - Bionic Beaver - Install dependencies:
-----------------------------
-`$ sudo apt install
-build-essential
-libssl-dev
-libboost-chrono-dev
-libboost-filesystem-dev
-libboost-program-options-dev
-libboost-system-dev
-libboost-thread-dev
-libboost-test-dev
-bison
-libfreetype6-dev
 libevent-dev
 libminiupnpc-dev
 zlib1g-dev
@@ -93,8 +45,6 @@ __Download Hemp0x source.__
 
 `cd hemp0x-core`
 
-`git checkout develop` # this checks out the develop branch.
-
 __Download and build Berkeley DB 4.8__
 
 `contrib/install_db4.sh ../`
@@ -110,7 +60,7 @@ __The build process:__
 _Adjust to own needs. This will install the binaries to `/usr/local/bin`_
 
 
-`make -j8`  # 8 for 8 build threads, adjust to fit your setup.
+`make -j$(nproc)`
 
 hemp0xd and hemp0x-cli are in `src/`
 

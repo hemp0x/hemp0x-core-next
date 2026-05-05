@@ -2,21 +2,19 @@
 
   1. Check PROTOCOL_VERSION in the following location: src/version.h
 
-  2. Check Hemp0xd Version in the following locations: configure.ac, src/version.h
+  2. Check Hemp0x Core version in the following locations: configure.ac, src/version.h
 
   3. All unit and functional tests pass
 
-  4. Check PROTOCOL_VERSION in the iOS app located at hemp0xwallet-ios
+  4. Check Hemp0x Commander (desktop wallet) for any block serialization or RPC changes
 
-  5. Check PROTOCOL_VERSION is the android app located at hemp0xwallet-android
+  5. Check Hemp0x WebCom for any block serialization or RPC changes
 
-  6. Check the Javascript stack (hemp0xcore) for any block serialization or rpc changes
-  
-  7. Build release notes for all new features and bug fixes
+  6. Build release notes for all new features and bug fixes
 
 **If hard fork:**
 
-  1. Notify all exchanges, pools, and wallets of release of critical update
+   1. Coordinate with all exchanges, pools, and wallet providers on migration timeline
 
 **Post Release :**
 

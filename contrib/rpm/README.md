@@ -15,7 +15,7 @@ It is considered good form for all sources to reference a URL where the source
 can be downloaded.
 
 Sources 0-9 should be reserved for source code tarballs. `Source0` should
-reference the release tarball available from https://hemp0x.org/bin/ and
+reference the release tarball available from https://github.com/hemp0x/hemp0x-core/releases and
 `Source1` should reference the BerkeleyDB source.
 
 Sources 10-99 are for source files that are maintained in the
@@ -34,7 +34,7 @@ release, the full URL specified in the RPM spec file will not work. You can get
 them from the git repository where you retrieved this file.
 
 Sources 100+ are for files that are not source tarballs and are not maintained
-in the hemp0x git repository. At present only an SVG version of the Hemp0x
+in the hemp0x-core git repository. At present only an SVG version of the Hemp0x
 icon is used.
 
 ## Patches

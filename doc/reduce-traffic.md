@@ -33,7 +33,7 @@ blocks and transactions to fewer nodes.
 ## 3. Reduce maximum connections (`-maxconnections=<num>`)
 
 Reducing the maximum connected nodes to a minimum could be desirable if traffic
-limits are tiny. Keep in mind that hemp0x's trustless model works best if you are
+limits are tiny. Keep in mind that Hemp0x's trustless model works best if you are
 connected to a handful of nodes.
 
 ## 4. Turn off transaction relay (`-blocksonly`)

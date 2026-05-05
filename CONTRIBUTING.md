@@ -60,7 +60,7 @@ the pull request affects. Valid areas as:
   - *Consensus* for changes to consensus critical code
   - *Depends* for changes to depends
   - *Docs* for changes to the documentation
-  - *Mining* for changes to the mining code
+  - *Mining* for changes to pool-facing RPCs (getblocktemplate) or difficulty logic
   - *Net* or *P2P* for changes to the peer-to-peer network code
   - *RPC/REST/ZMQ* for changes to the RPC, REST or ZMQ APIs
   - *Scripts and tools* for changes to the scripts and tools
@@ -273,7 +273,7 @@ about:
 Release Policy
 --------------
 
-The Hemp0xQT-SIG selects a release manager for each Hemp0x release.
+The project maintainers select a release manager for each Hemp0x Core release.
 
 Copyright
 ---------

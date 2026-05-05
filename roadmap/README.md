@@ -3,9 +3,9 @@
 ### Phase 1 - (Complete)
 
 Hemp0x (HEMP) is a Proof of Work coin built on the Bitcoin UTXO model. As with other Bitcoin derivatives, HEMP coins are distributed to persons augmenting the Hemp0x network by mining Hemp0x.
-*  x1000 coin distribution (21 Billion Total)
-*  10x faster blocks (1 per minute)
-*  In app CPU verification, with GPU specific PoW decentralised mining
+*  Approximately 500 million HEMP before burns
+*  5-second block target
+*  KAWPOW ASIC-resistant Proof of Work (Ethash/ProgPow variant)
 *  Dark Gravity Wave difficulty adjustment (180 block average)
 *  Addresses start with R... for regular addresses, or r... for multisig
 *  Network Port: 42069
@@ -15,7 +15,7 @@ Hemp0x (HEMP) is a Proof of Work coin built on the Bitcoin UTXO model. As with o
 
 #### ASIC Resistance
 
-ASIC Resistance - A published commitment to continual attempts at ASIC resistance. If ASICs are created for x16r, then we will, at a specific block number, modify one of the algorithms to add some varients of Equihash or similar efforts to increase the resistance to ASIC miners for Hemp0x. ASIC's have been developed for X16R (and X16RV2) and the community has forked to KAWPOW (a variant of ethash and progpow) to maximise the ASIC resistance by reducing the potential efficiency increase of ASICs by requiring the feature set and capabilities within over the counter consumer graphics cards. We are not anticipating future forks to change the algorithm as the current algorithm allows a fair distribution of HEMP via PoW to the community.
+ASIC Resistance - The Hemp0x network uses KAWPOW (a variant of Ethash and ProgPow) to maximise ASIC resistance by requiring the feature set and capabilities of consumer graphics cards. The algorithm migrated from X16R/X16RV2 to KAWPOW at a scheduled block height to maintain fair distribution of HEMP via PoW.
 
 #### Asset Support
 
@@ -133,4 +133,3 @@ Lists addresses by asset.
 
 `getassetdata (asset_name)`
 Lists asset data of an asset.
-

@@ -8,9 +8,8 @@ the removed Qt wallet GUI.
 Most developers use cross-compilation from Ubuntu to build executables for
 Windows. Cross-compilation is also used to build the release binaries.
 
-Currently only building on Ubuntu Trusty 14.04 or Ubuntu Zesty 17.04 or later is supported.
-Building on Ubuntu Xenial 16.04 is known to be broken, see extensive discussion in issue [8732](https://github.com/bitcoin/bitcoin/issues/8732).
-While it may be possible to do so with work arounds, it's potentially dangerous and not recommended.
+Cross-compilation from a recent Ubuntu (22.04 or later) is the recommended way
+to build executables for Windows.
 
 While there are potentially a number of ways to build on Windows (for example using msys / mingw-w64),
 using the Windows Subsystem For Linux is the most straightforward. If you are building with
@@ -66,8 +65,8 @@ packages need to build host utilities that are used in the build process.
 
 See also: [dependencies.md](dependencies.md).
 
-If you're building on Ubuntu 17.04 or later, run these two commands, selecting the 'posix' variant for both,
-to work around issues with mingw-w64. See issue [8732](https://github.com/bitcoin/bitcoin/issues/8732) for more information.
+If you're building on Ubuntu 18.04 or later, run these two commands, selecting the 'posix' variant for both,
+to work around issues with mingw-w64:
 ```
 sudo update-alternatives --config x86_64-w64-mingw32-g++
 sudo update-alternatives --config x86_64-w64-mingw32-gcc

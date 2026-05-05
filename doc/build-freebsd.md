@@ -34,9 +34,7 @@ __Download Hemp0x source.__
 
 `git clone https://github.com/hemp0x/hemp0x-core`
 
-`cd Hemp0x`
-
-`git checkout develop` # this checks out the develop branch.
+`cd hemp0x-core`
 
 __Download and build Berkeley DB 4.8__
 
@@ -55,15 +53,14 @@ This is for `sh` or `bash`.
 _Adjust to own needs. `--prefix=/usr/local` will install the binaries to `/usr/local/bin`_
 
 
-`gmake -j8`  # 8 for 8 build threads, adjust to fit your setup.
+`gmake -j$(sysctl -n hw.ncpu)`
 
 hemp0xd and hemp0x-cli are in `src/`
 
 
 __Optional:__
 
-`make install`  # if you want to install the binaries to /usr/local/bin.
-
+`gmake install`  # if you want to install the binaries to /usr/local/bin.
 
 
 

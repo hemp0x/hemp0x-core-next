@@ -19,7 +19,7 @@ Then install [Homebrew](https://brew.sh).
 Dependencies
 ----------------------
 
-    brew install automake berkeley-db4 libtool boost miniupnpc openssl@1.1 pkg-config python libevent
+    brew install automake berkeley-db4 libtool boost miniupnpc openssl@3 pkg-config python libevent
 
 If you run into issues, check [Homebrew's troubleshooting page](https://docs.brew.sh/Troubleshooting).
 See [dependencies.md](dependencies.md) for a complete overview.
@@ -101,6 +101,6 @@ Other commands:
 Notes
 -----
 
-* Tested on OS X 10.8 through 10.15 on 64-bit Intel processors only.
+* Tested on macOS 10.15 and later on 64-bit Intel and Apple Silicon processors.
 
 * autoreconf (boost issue)

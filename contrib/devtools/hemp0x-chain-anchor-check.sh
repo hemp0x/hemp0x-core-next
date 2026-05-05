@@ -48,8 +48,8 @@ Usage: hemp0x-chain-anchor-check.sh --cli <path> --conf <path> --datadir <path>
   --conf          Path to hemp0x.conf configuration file
   --datadir       Path to the node data directory
   --allow-default-datadir
-                  Permit /home/bcr/.hemp0x or $HOME/.hemp0x as datadir
-                  (omitted otherwise)
+                  Permit the platform default Hemp0x datadir
+                  (refused otherwise)
   --help          Show this help message
 EOF
   exit 0
@@ -70,7 +70,7 @@ check_default_datadir() {
     home_default="$HOME/.hemp0x"
   fi
 
-  if [[ "$dir" == "/home/bcr/.hemp0x" ]] || [[ -n "$home_default" && "$dir" == "$home_default" ]]; then
+  if [[ -n "$home_default" && "$dir" == "$home_default" ]]; then
     if [[ "$ALLOW_DEFAULT_DATADIR" -ne 1 ]]; then
       error_exit "Refusing to use default datadir '${dir}'. Supply --allow-default-datadir to override."
     fi

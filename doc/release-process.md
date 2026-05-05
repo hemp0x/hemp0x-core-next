@@ -3,8 +3,6 @@ Release Process
 
 Before every release candidate:
 
-* Update translations see [translation_process.md](https://github.com/hemp0x/hemp0x-core/blob/master/doc/translation_process.md#synchronising-translations).
-
 * Update manpages, see [gen-manpages.sh](https://github.com/hemp0x/hemp0x-core/blob/master/contrib/devtools/README.md#gen-manpagessh).
 
 Before every minor and major release:
@@ -44,29 +42,27 @@ Tag version (or release candidate) in git
     git tag -s v(new version, e.g. 4.7.0)
 
 
-### Build binaries. 
+### Build binaries
 
-TODO: describe process.
+Build release artifacts from a clean, signed tag on a dedicated builder. Release
+builds should use the default optimized configuration and must not enable debug
+flags unless producing separate developer diagnostics. Do not publish Qt wallet
+installers or local mining binaries.
 
+Recommended checks for each release build:
 
-Codesigner only: Create Windows/OS X detached signatures:
-- Only one person handles codesigning. Everyone else should skip to the next step.
-- Only once the Windows/OS X builds each have 3 matching signatures may they be signed with their respective release keys.
+```bash
+./autogen.sh
+./configure --enable-reduce-exports
+make -j"$(nproc)"
+make check
+make -C src check-security
+make -C src check-symbols
+```
 
-Codesigner only: Sign the osx binary:
-
-    transfer hemp0x-osx-unsigned.tar.gz to osx for signing
-    tar xf hemp0x-osx-unsigned.tar.gz
-    ./detached-sig-create.sh -s "Key ID"
-    Enter the keychain password and authorize the signature
-    Move signature-osx.tar.gz back to the gitian host
-
-Codesigner only: Sign the windows binaries:
-
-    tar xf hemp0x-win-unsigned.tar.gz
-    ./detached-sig-create.sh -key /path/to/codesign.key
-    Enter the passphrase for the key when prompted
-    signature-win.tar.gz will be created
+Package only the expected daemon, CLI, transaction utility, supporting runtime
+libraries where needed, license, and README files. Strip release binaries or use
+the release packaging scripts that strip artifacts during staging.
 
 ### After binaries are built:
 
@@ -84,6 +80,7 @@ hemp0x-${VERSION}-x86_64-linux-gnu.tar.gz
 hemp0x-${VERSION}-osx64.tar.gz
 hemp0x-${VERSION}.tar.gz
 hemp0x-${VERSION}-win64.zip
+```
 
 - GPG-sign it, delete the unsigned file:
 ```
@@ -93,7 +90,7 @@ rm SHA256SUMS
 (the digest algorithm is forced to sha256 to avoid confusion of the `Hash:` header that GPG adds with the SHA256 used for the files)
 Note: check that SHA256SUMS itself doesn't end up in SHA256SUMS, which is a spurious/nonsensical entry.
 
-- Upload zips and installers, as well as `SHA256SUMS.asc` from last step, to the github-release page.
+- Upload release archives and `SHA256SUMS.asc` from the last step to the GitHub release page.
 
 - Update hemp0x.com version
 
@@ -107,4 +104,4 @@ Note: check that SHA256SUMS itself doesn't end up in SHA256SUMS, which is a spur
 
   - Create a [new GitHub release](https://github.com/hemp0x/hemp0x-core/releases/new) with a link to the archived release notes.
 
-  - Celebrate
+  - Monitor network health, support channels, and issue reports after publication.

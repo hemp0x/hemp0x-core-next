@@ -26,10 +26,10 @@ Contains files used to package hemp0xd, hemp0x-cli, and hemp0x-tx
 for Debian-based Linux systems.
 
 ### [Gitian-descriptors](/contrib/gitian-descriptors) ###
-Files used during the gitian build process. For more information about gitian, see the [the Hemp0x Core documentation repository](https://github.com/hemp0x-core/docs).
+Legacy deterministic-build descriptors retained for historical reference.
 
 ### [Gitian-keys](/contrib/gitian-keys)
-PGP keys used for signing Hemp0x Core [Gitian release](/doc/release-process.md) results.
+PGP keys historically used for signing deterministic release results.
 
 ### [macOS SDK](/contrib/macdeploy) ###
 Mac SDK extraction helper for cross builds.
@@ -38,7 +38,7 @@ Mac SDK extraction helper for cross builds.
 RPM spec file for building hemp0x-core on RPM based distributions.
 
 ### [Gitian-build](/contrib/gitian-build.sh) ###
-Script for running full Gitian builds.
+Legacy script for historical deterministic builds.
 
 Test and Verify Tools 
 ---------------------

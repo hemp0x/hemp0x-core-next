@@ -3,13 +3,13 @@
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 '''
-A script to check that the (Linux) executables produced by gitian only contain
+A script to check that Linux release executables only contain
 allowed gcc, glibc and libstdc++ version symbols.  This makes sure they are
 still compatible with the minimum supported Linux distribution versions.
 
 Example usage:
 
-    find ../gitian-builder/build -type f -executable | xargs python contrib/devtools/symbol-check.py
+    find ./release-staging -type f -executable | xargs python contrib/devtools/symbol-check.py
 '''
 from __future__ import division, print_function, unicode_literals
 import subprocess
@@ -125,7 +125,7 @@ def read_libraries(filename):
     for line in stdout.split(b'\n'):
         tokens = line.split()
         if len(tokens)>2 and tokens[1] == b'(NEEDED)':
-            match = re.match(b'^Shared library: \[(.*)\]$', b' '.join(tokens[2:]))
+            match = re.match(br'^Shared library: \[(.*)\]$', b' '.join(tokens[2:]))
             if match:
                 libraries.append(match.group(1))
             else:

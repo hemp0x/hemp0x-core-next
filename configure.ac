@@ -46,10 +46,17 @@ dnl make the compilation flags quiet unless V=1 is used
 m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
 
 dnl Compiler checks (here before libtool).
+if test "x${CFLAGS+set}" = "xset"; then
+  CFLAGS_overridden=yes
+else
+  CFLAGS_overridden=no
+  CFLAGS="-O2"
+fi
 if test "x${CXXFLAGS+set}" = "xset"; then
   CXXFLAGS_overridden=yes
 else
   CXXFLAGS_overridden=no
+  CXXFLAGS="-O2"
 fi
 AC_PROG_CXX
 

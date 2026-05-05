@@ -22,7 +22,7 @@ host:=$(HOST)
 host_toolchain:=$(HOST)-
 endif
 
-ifneq ($(DEBUG),)
+ifneq ($(filter 1 yes,$(DEBUG)),)
 release_type=debug
 else
 release_type=release
@@ -103,6 +103,8 @@ include funcs.mk
 
 toolchain_path=$($($(host_arch)_$(host_os)_native_toolchain)_prefixbin)
 final_build_id_long+=$(shell $(build_SHA256SUM) config.site.in)
+final_build_id_long+=$(release_type)
+final_build_id_long+=$(DEBUG)
 final_build_id+=$(shell echo -n "$(final_build_id_long)" | $(build_SHA256SUM) | cut -c-$(HASH_LENGTH))
 $(host_prefix)/.stamp_$(final_build_id): $(native_packages) $(packages)
 	$(AT)rm -rf $(@D)
@@ -130,7 +132,7 @@ $(host_prefix)/share/config.site : config.site.in $(host_prefix)/.stamp_$(final_
             -e 's|@allow_host_packages@|$(ALLOW_HOST_PACKAGES)|' \
             -e 's|@no_wallet@|$(NO_WALLET)|' \
             -e 's|@no_upnp@|$(NO_UPNP)|' \
-            -e 's|@debug@|$(DEBUG)|' \
+            -e 's|@debug@|$(if $(filter 1 yes,$(DEBUG)),1,)|' \
             $< > $@
 	$(AT)touch $@
 

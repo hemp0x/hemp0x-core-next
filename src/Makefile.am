@@ -525,7 +525,7 @@ hemp0x_cli_LDADD += $(BOOST_LIBS) $(SSL_LIBS) $(CRYPTO_LIBS) $(EVENT_LIBS)
 #
 
 # hemp0x-tx binary #
-hemp0x_tx_SOURCES = hemp0x-tx.cpp
+hemp0x_tx_SOURCES = hemp0x-tx.cpp hemp0x-tx-stubs.cpp
 hemp0x_tx_CPPFLAGS = $(AM_CPPFLAGS) $(HEMP0X_INCLUDES)
 hemp0x_tx_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 hemp0x_tx_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS)

@@ -40,10 +40,12 @@ For a one-command Windows release-style build:
 contrib/build-hemp0x-core.sh --target windows --with-tx --run-tests
 ```
 
-Ubuntu packages
----------------
+Linux Build Host Packages
+-------------------------
 
 If you prefer to install build tools yourself first:
+
+Ubuntu, Debian, Linux Mint:
 
 ```bash
 sudo apt update
@@ -51,6 +53,29 @@ sudo apt install -y build-essential autoconf automake libtool pkg-config \
   bsdmainutils curl python3 gawk ca-certificates \
   gcc-mingw-w64-x86-64-posix g++-mingw-w64-x86-64-posix \
   binutils-mingw-w64-x86-64 mingw-w64
+```
+
+Fedora, Nobara:
+
+```bash
+sudo dnf install -y gcc gcc-c++ make autoconf automake libtool pkgconf \
+  curl python3 gawk diffutils patch findutils util-linux \
+  mingw64-gcc mingw64-gcc-c++
+```
+
+Arch Linux:
+
+```bash
+sudo pacman -S --needed base-devel autoconf automake libtool pkgconf \
+  curl python gawk patch util-linux mingw-w64-gcc
+```
+
+openSUSE:
+
+```bash
+sudo zypper install -y gcc gcc-c++ make autoconf automake libtool \
+  pkg-config curl python3 gawk patch util-linux mingw64-cross-gcc \
+  mingw64-cross-gcc-c++ mingw64-filesystem
 ```
 
 Select the POSIX MinGW variant if alternatives are present:

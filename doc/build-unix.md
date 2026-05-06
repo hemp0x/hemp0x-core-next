@@ -63,9 +63,9 @@ For the versions used, see [dependencies.md](dependencies.md)
 
 ## Linux Distribution Specific Instructions
 
-### Ubuntu & Debian
+### Linux
 
-Ubuntu/Debian specific instructions, see [build-ubuntu.md](build-ubuntu.md))
+Linux distribution-specific instructions, see [build-linux.md](build-linux.md).
 
 
 ### Fedora

@@ -5,7 +5,7 @@ Setup
 ---------------------
 Hemp0x Core is the original Hemp0x client and it builds the backbone of the network. It downloads and, by default, stores the entire history of Hemp0x transactions; depending on hardware and network conditions, initial synchronization can take several hours or longer.
 
-To download compiled daemon and command-line binaries, visit the [GitHub release page](https://github.com/hemp0x/hemp0x-core/releases). Core Next release builds do not include the old bundled Qt wallet GUI; wallet RPC support remains available in wallet-enabled daemon builds.
+To download compiled daemon and command-line binaries, visit the project release page. Core Next release builds provide daemon, CLI, and transaction-utility binaries; wallet RPC support remains available in wallet-enabled daemon builds. Users who want a graphical wallet should use Hemp0x Commander with a compatible `hemp0xd` backend.
 
 Running
 ---------------------
@@ -69,7 +69,7 @@ The following are developer notes on how to build the Hemp0x core software on yo
 - [Dependencies](dependencies.md)
 - [macOS Build Notes](build-osx.md)
 - [Unix Build Notes](build-unix.md)
-- [Ubuntu Build Notes](build-ubuntu.md)
+- [Linux Build Notes](build-linux.md)
 - [Windows Build Notes](build-windows.md)
 - [OpenBSD Build Notes](build-openbsd.md)
 - [FreeBSD Build Notes](build-freebsd.md)

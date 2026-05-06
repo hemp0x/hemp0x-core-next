@@ -98,6 +98,34 @@ dnf_packages() {
     printf '%s\n' "${packages[@]}"
 }
 
+pacman_packages() {
+    local target="$1"
+    local packages=(
+        base-devel autoconf automake libtool pkgconf curl python gawk patch
+        util-linux
+    )
+
+    if [ "$target" = "windows" ]; then
+        packages+=(mingw-w64-gcc)
+    fi
+
+    printf '%s\n' "${packages[@]}"
+}
+
+zypper_packages() {
+    local target="$1"
+    local packages=(
+        gcc gcc-c++ make autoconf automake libtool pkg-config curl python3
+        gawk patch util-linux
+    )
+
+    if [ "$target" = "windows" ]; then
+        packages+=(mingw64-cross-gcc mingw64-cross-gcc-c++ mingw64-filesystem)
+    fi
+
+    printf '%s\n' "${packages[@]}"
+}
+
 package_hint() {
     local target="$1"
 
@@ -122,6 +150,16 @@ EOF
         printf '  sudo dnf install -y' >&2
         dnf_packages "$target" | while read -r package; do printf ' %s' "$package" >&2; done
         echo >&2
+    elif have pacman; then
+        echo "Arch Linux example:" >&2
+        printf '  sudo pacman -S --needed' >&2
+        pacman_packages "$target" | while read -r package; do printf ' %s' "$package" >&2; done
+        echo >&2
+    elif have zypper; then
+        echo "openSUSE example:" >&2
+        printf '  sudo zypper install -y' >&2
+        zypper_packages "$target" | while read -r package; do printf ' %s' "$package" >&2; done
+        echo >&2
     else
         echo "Install a C/C++ compiler, make, autoconf, automake, libtool, pkg-config, curl, python3, gawk, patch, hexdump, and the MinGW-w64 POSIX toolchain for Windows builds." >&2
     fi
@@ -141,8 +179,26 @@ install_packages() {
     elif have dnf; then
         mapfile -t packages < <(dnf_packages "$target")
         sudo dnf install -y "${packages[@]}"
+    elif have pacman; then
+        mapfile -t packages < <(pacman_packages "$target")
+        sudo pacman -S --needed "${packages[@]}"
+    elif have zypper; then
+        mapfile -t packages < <(zypper_packages "$target")
+        sudo zypper install -y "${packages[@]}"
     else
         return 1
+    fi
+}
+
+run_build_checks() {
+    local target="$1"
+
+    if [ "$target" = "windows" ]; then
+        make -C src check-security
+    else
+        make check
+        make -C src check-security
+        make -C src check-symbols
     fi
 }
 
@@ -313,6 +369,8 @@ debug=0
 update_tree=0
 jobs="$(nproc 2>/dev/null || echo 2)"
 interactive=0
+test_status="skipped"
+test_exit=0
 
 if [ "$#" -eq 0 ] && [ -t 0 ]; then
     interactive=1
@@ -467,22 +525,36 @@ if [ "$debug" -eq 0 ]; then
 fi
 
 if [ "$run_tests" -eq 1 ]; then
-    if [ "$target" = "windows" ]; then
-        make -C src check-security
+    set +e
+    run_build_checks "$target"
+    test_exit=$?
+    set -e
+    if [ "$test_exit" -eq 0 ]; then
+        test_status="passed"
     else
-        make check
-        make -C src check-security
-        make -C src check-symbols
+        test_status="failed"
     fi
 fi
 
 echo
-echo "Built Hemp0x Core $target binaries:"
+echo "Hemp0x Core build report"
+echo "  build status: success"
+echo "  test status:  $test_status"
+echo "  target:       $target"
+echo "  profile:      $([ "$debug" -eq 1 ] && echo dev/debug || echo release)"
+echo "  jobs:         $jobs"
+echo
+echo "Binary outputs:"
 for file in "${output_files[@]}"; do
     if [ -f "$file" ]; then
         ls -lh "$file"
+        echo "  path: $ROOT/$file"
     else
         echo "missing: $file" >&2
         exit 1
     fi
 done
+
+if [ "$test_exit" -ne 0 ]; then
+    exit "$test_exit"
+fi

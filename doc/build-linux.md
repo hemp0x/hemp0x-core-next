@@ -1,7 +1,7 @@
-Build Hemp0x Core on Ubuntu
-===========================
+Build Hemp0x Core on Linux
+==========================
 
-This document explains how to build Hemp0x Core on Ubuntu without installing
+This document explains how to build Hemp0x Core on Linux without installing
 the binaries system-wide or touching an existing node data directory.
 
 The normal Linux build produces:
@@ -13,9 +13,9 @@ src/hemp0x-tx
 ```
 
 `hemp0xd` is the daemon/full node. `hemp0x-cli` is the RPC command-line tool.
-`hemp0x-tx` is an optional transaction utility.
+`hemp0x-tx` is an optional offline transaction utility.
 
-Recommended build helper
+Recommended Build Helper
 ------------------------
 
 From the repository root, run:
@@ -26,7 +26,8 @@ contrib/build-hemp0x-core.sh
 
 The helper asks what to build, checks for required tools, offers to install
 missing build packages on supported Linux distributions, builds dependencies
-through `depends/`, strips release binaries, and can run the build checks.
+through `depends/`, strips release binaries, and can run build checks.
+
 Choose `Release binaries` for normal builds. Choose `Dev/debug binaries` only
 when debugging or testing developer integrations. The helper selects a parallel
 job count automatically from the host CPU count; use `--jobs N` only when you
@@ -42,10 +43,26 @@ The helper uses the depends system by default. This avoids fragile system
 package combinations for Berkeley DB, Boost, OpenSSL, miniupnpc, ZeroMQ, and
 other libraries.
 
-Ubuntu packages
----------------
+Supported Package Managers
+--------------------------
 
-If you prefer to install build tools yourself first:
+The helper can suggest and, in interactive mode, install build packages on
+systems that use:
+
+- `apt-get` for Ubuntu, Debian, Linux Mint, and related distributions
+- `dnf` for Fedora, Nobara, CentOS Stream, RHEL-family systems with DNF, and
+  related distributions
+- `pacman` for Arch Linux and related distributions
+- `zypper` for openSUSE and SUSE-family systems
+
+Other Linux distributions can still build Hemp0x Core. Install the equivalent
+compiler, autotools, libtool, pkg-config, curl, Python 3, gawk, patch, hexdump,
+and standard build utilities, then run the helper again.
+
+Manual Package Installation
+---------------------------
+
+Ubuntu, Debian, Linux Mint:
 
 ```bash
 sudo apt update
@@ -53,7 +70,28 @@ sudo apt install -y build-essential autoconf automake libtool pkg-config \
   bsdmainutils curl python3 gawk ca-certificates
 ```
 
-Manual build
+Fedora, Nobara:
+
+```bash
+sudo dnf install -y gcc gcc-c++ make autoconf automake libtool pkgconf \
+  curl python3 gawk diffutils patch findutils util-linux
+```
+
+Arch Linux:
+
+```bash
+sudo pacman -S --needed base-devel autoconf automake libtool pkgconf \
+  curl python gawk patch util-linux
+```
+
+openSUSE:
+
+```bash
+sudo zypper install -y gcc gcc-c++ make autoconf automake libtool \
+  pkg-config curl python3 gawk patch util-linux
+```
+
+Manual Build
 ------------
 
 The helper runs the same basic commands:
@@ -72,7 +110,7 @@ make -C src check-security
 make -C src check-symbols
 ```
 
-Debug builds
+Debug Builds
 ------------
 
 Debug binaries are larger and are not intended for release packaging:

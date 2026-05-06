@@ -1,67 +1,144 @@
-Hemp0x Core integration/staging tree
+Hemp0x Core Next
+================
 
-https://hemp0x.com
+Hemp0x Core Next is the modernized Hemp0x full-node software. It provides the
+daemon, command-line RPC client, wallet RPC support, offline transaction
+utility, peer-to-peer networking, block and transaction validation, native asset
+support, and the services used by Hemp0x infrastructure.
 
-To see how to run Hemp0x, please read the respective files in the doc folder.
+This branch is designed to stay compatible with the live Hemp0x network while
+raising the quality bar for builds, security hardening, maintainability, and
+release packaging. Node operators should be able to test Core Next beside
+existing Hemp0x Core nodes without changing consensus rules or chain data.
 
-What is Hemp0x?
+Project Goals
+-------------
 
-Hemp0x is an experimental proof of work digital currency and asset network designed for peer to peer value transfer and native asset issuance.
+Hemp0x is a proof-of-work UTXO blockchain focused on payments, native assets,
+and long-term open participation. Core Next keeps those network rules intact
+while improving the software around them:
 
-In addition to enabling payments, the Hemp0x platform allows anyone to create assets directly on the blockchain without smart contracts or centralized intermediaries. Assets may represent tokens, NFTs, commodities, products, access rights, gift cards, or other forms of transferable value.
+- daemon and RPC compatibility for existing operators and services
+- wallet-enabled `hemp0xd` and `hemp0x-cli` builds without the old bundled GUI
+- Linux and Windows release builds through the tracked depends system
+- smaller stripped release binaries by default
+- stronger P2P, RPC, dependency, and wallet migration test coverage
+- updated dependency baselines, including OpenSSL 3.5 LTS, LevelDB 1.23, and a
+  modern libsecp256k1 import
+- hardened request accounting, relay limits, RPC exposure warnings, and
+  operational status reporting
+- wallet migration RPCs for exporting and restoring encrypted migration
+  envelopes from legacy wallet data
+- messaging and asset feature validation through functional tests
+- cleaner release documentation and build tooling for operators and developers
 
-Hemp0x uses peer to peer technology to operate with no central authority. Transaction validation, asset issuance, and monetary supply are enforced by consensus rules and carried out collectively by miners and node operators.
+Core Next intentionally does not ship the old desktop GUI wallet. Users who
+want a graphical wallet should use Hemp0x Commander with a compatible
+`hemp0xd` backend.
 
-Hemp0x follows the original Bitcoin ethos of fair launch, open participation, censorship resistance, and permissionless access. There is no premine, no developer allocation, and no controlling entity.
+Live Network Compatibility
+--------------------------
 
-License
+Core Next is a non-consensus modernization line. It does not change genesis
+data, network magic, ports, address prefixes, proof-of-work validation,
+difficulty rules, subsidy rules, asset rules, transaction validation, or block
+acceptance semantics.
 
-Hemp0x Core is released under the terms of the MIT license. See COPYING for more
-information or see https://opensource.org/licenses/MIT.
+Consensus-sensitive work remains out of scope unless it is separately designed,
+reviewed, tested, and coordinated with the network.
 
-Development Process
+Builds
+------
 
-The master branch is regularly built and tested but is not guaranteed to be completely stable.
-Tags are created to indicate official stable release versions of Hemp0x Core.
+The recommended build path is the guided helper:
 
-Active development is done on reviewed topic and release branches.
+```bash
+contrib/build-hemp0x-core.sh
+```
 
-The contribution workflow is described in CONTRIBUTING.md.
+The helper can build native Linux binaries or cross-build Windows binaries from
+Linux. It checks required tools, can install missing build packages on common
+distributions, builds third-party dependencies through `depends/`, strips
+release binaries, and can run build checks.
 
-Developer IRC is inactive. Please join us on Discord in #development.
-https://discord.gg/Eu4UsYPMGS
+Common release build commands:
+
+```bash
+contrib/build-hemp0x-core.sh --target linux --with-tx --run-tests
+contrib/build-hemp0x-core.sh --target windows --with-tx --run-tests
+```
+
+Detailed build notes:
+
+- [Linux build guide](doc/build-linux.md)
+- [Windows cross-build guide](doc/build-windows.md)
+- [macOS build guide](doc/build-osx.md)
+- [FreeBSD build guide](doc/build-freebsd.md)
+- [OpenBSD build guide](doc/build-openbsd.md)
+- [Raspberry Pi build guide](doc/build-raspberrypi.md)
+
+Release Binaries
+----------------
+
+Release builds produce:
+
+```text
+hemp0xd      / hemp0xd.exe
+hemp0x-cli   / hemp0x-cli.exe
+hemp0x-tx    / hemp0x-tx.exe
+```
+
+`hemp0xd` is the full node and daemon. `hemp0x-cli` is the RPC command-line
+client. `hemp0x-tx` is an optional offline transaction utility.
+
+Developer/debug builds are available from the helper menu or with `--debug`.
+They are intentionally larger and are not intended for release packaging.
 
 Testing
+-------
 
-Testing and code review is a limiting factor for development. Please be patient and help out by testing other people’s pull requests. This is a security critical project where any mistake may result in loss of funds or asset integrity.
+Core changes should be tested with the relevant unit, security, symbol, and
+functional tests before release:
 
-Testnet is up and running and available to use during development.
+```bash
+make check
+make -C src check-security
+make -C src check-symbols
+test/functional/test_runner.py --jobs=4
+```
 
-Automated Testing
+Targeted functional tests cover wallet migration, messaging, RPC exposure,
+authentication throttling, node status reporting, P2P request limits, invalid
+block storage behavior, and command-line compatibility.
 
-Developers are strongly encouraged to write unit tests for new code and to submit new unit tests for existing code. Unit tests can be compiled and run assuming they were not disabled in configure with make check.
+Contributing
+------------
 
-Further details on running and extending unit tests can be found in /src/test/README.md.
+Testing and review are valuable contributions. Hemp0x Core is security-critical
+software, and careful reproduction steps, build logs, operating-system details,
+and test results help move the project forward.
 
-There are also regression and integration tests written in Python that are run automatically on the build server. These tests can be run if the test dependencies are installed with test/functional/test_runner.py.
+Before opening a pull request:
 
-Manual Quality Assurance (QA) Testing
+- build with the depends system when possible
+- keep consensus behavior unchanged unless the change is explicitly scoped as a
+  network upgrade proposal
+- preserve daemon, CLI, wallet RPC, mining-pool RPC, explorer, WebCom, and
+  Commander compatibility
+- include tests or a clear test plan for behavioral changes
+- keep commits small enough to review
 
-Changes should be tested by somebody other than the developer who wrote the code. This is especially important for large or high risk changes. If testing is not straightforward it is recommended to include a test plan in the pull request description.
+Community
+---------
 
-About Hemp0x
+- Website: <https://hemp0x.com>
+- Wiki: <https://hemp0x.wiki/wiki/Hemp0x_Wiki>
+- Discord: <https://discord.gg/Eu4UsYPMGS>
+- Telegram: <https://t.me/Hemp0xDev>
+- Reddit: <https://www.reddit.com/r/Hemp0x/>
 
-Hemp0x is a decentralized proof-of-work blockchain focused on payments, native
-asset issuance, and asset transfer. It preserves the UTXO security model while
-adding Hemp0x network parameters, 5-second block targets, KAWPOW proof of work,
-and asset functionality.
+License
+-------
 
-Hemp0x is free and open source. It launched without a premine, developer
-allocation, or protocol-level tax. The project is built on work from the Bitcoin
-and Ravencoin open source communities and keeps the MIT license notices required
-by that history.
-
-Core release builds provide the daemon, RPC client, and offline transaction
-utility. The old bundled Qt wallet GUI is not part of Core Next; external
-applications such as Hemp0x Commander and WebCom use the daemon and RPC
-interface.
+Hemp0x Core is released under the MIT license. See [COPYING](COPYING) for the
+full license text and copyright notices.

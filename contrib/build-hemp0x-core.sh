@@ -14,6 +14,7 @@ Options:
   --interactive       Force the interactive menu.
   --target linux      Build native Linux binaries.
   --target windows    Cross-build 64-bit Windows binaries with MinGW-w64.
+  --update            Fetch and fast-forward the current branch before building.
   --with-tx           Build hemp0x-tx in addition to hemp0xd and hemp0x-cli.
   --with-libs         Also build libhemp0xconsensus for developers.
   --run-tests         Run build checks after compiling.
@@ -232,6 +233,27 @@ configured_host() {
     sed -n 's/^host='\''\(.*\)'\''$/\1/p' config.log | tail -1
 }
 
+update_source_tree() {
+    local branch upstream
+
+    if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+        die "cannot update source tree because this is not a git checkout"
+    fi
+
+    if [ -n "$(git status --porcelain)" ]; then
+        die "refusing to update with local changes present; commit, stash, or clean them first"
+    fi
+
+    branch="$(git symbolic-ref --quiet --short HEAD || true)"
+    [ -n "$branch" ] || die "cannot update a detached HEAD checkout"
+
+    upstream="$(git rev-parse --abbrev-ref --symbolic-full-name '@{u}' 2>/dev/null || true)"
+    [ -n "$upstream" ] || die "current branch has no upstream configured"
+
+    git fetch --prune
+    git merge --ff-only "$upstream"
+}
+
 interactive_menu() {
     local choice answer
 
@@ -252,6 +274,7 @@ interactive_menu() {
     done
 
     ask_yes_no "Build hemp0x-tx?" yes && with_tx=1 || with_tx=0
+    ask_yes_no "Update this checkout before building?" no && update_tree=1 || update_tree=0
     ask_yes_no "Run build checks after compiling?" yes && run_tests=1 || run_tests=0
     ask_yes_no "Build debug binaries? Release binaries are smaller." no && debug=1 || debug=0
     ask_yes_no "Build libhemp0xconsensus? Most users do not need it." no && with_libs=1 || with_libs=0
@@ -270,6 +293,7 @@ run_tests=0
 skip_depends=0
 clean=1
 debug=0
+update_tree=0
 jobs="$(nproc 2>/dev/null || echo 2)"
 interactive=0
 
@@ -288,6 +312,9 @@ while [ "$#" -gt 0 ]; do
             ;;
         --target=*)
             target="${1#*=}"
+            ;;
+        --update)
+            update_tree=1
             ;;
         --with-tx)
             with_tx=1
@@ -343,6 +370,10 @@ cd "$ROOT"
 require_tools "$target" "$interactive"
 [ "$target" = "windows" ] && require_mingw_posix "$interactive"
 
+if [ "$update_tree" -eq 1 ]; then
+    update_source_tree
+fi
+
 if [ ! -x ./configure ]; then
     ./autogen.sh
 fi
@@ -394,6 +425,7 @@ echo
 echo "Build configuration:"
 echo "  target:        $target"
 echo "  tx utility:    $([ "$with_tx" -eq 1 ] && echo yes || echo no)"
+echo "  update tree:   $([ "$update_tree" -eq 1 ] && echo yes || echo no)"
 echo "  tests:         $([ "$run_tests" -eq 1 ] && echo yes || echo no)"
 echo "  debug:         $([ "$debug" -eq 1 ] && echo yes || echo no)"
 echo "  libraries:     $([ "$with_libs" -eq 1 ] && echo yes || echo no)"

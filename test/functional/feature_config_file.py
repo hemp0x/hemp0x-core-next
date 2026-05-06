@@ -6,6 +6,7 @@
 """Test default configuration file creation and fallback handling."""
 
 import os
+import re
 import subprocess
 
 from test_framework.test_framework import Hemp0xTestFramework
@@ -59,12 +60,22 @@ class ConfigFileTest(Hemp0xTestFramework):
             with open(path, encoding="utf-8") as f:
                 config_text = f.read()
             assert "Hemp0x Core configuration file" in config_text
-            assert "#server=1" in config_text
-            assert "rpcpassword=" not in config_text
+            assert "server=1" in config_text
+            assert "rpcbind=127.0.0.1" in config_text
+            assert "rpcallowip=127.0.0.1" in config_text
+            assert re.search(r"^#rpcuser=hemp0xrpc_[0-9a-f]{8}$", config_text, re.MULTILINE)
+            assert re.search(r"^#rpcpassword=[0-9a-f]{64}$", config_text, re.MULTILINE)
+            assert "#addnode=154.38.164.123:42069" in config_text
+            assert "#addnode=147.93.185.184:42069" in config_text
             wait_until(
                 lambda: "Created default config file" in self._debug_log(datadir),
                 timeout=10,
                 err_msg="config creation was not logged",
+            )
+            wait_until(
+                lambda: os.path.exists(os.path.join(datadir, "regtest", ".cookie")),
+                timeout=10,
+                err_msg="RPC cookie was not created for first-run local RPC",
             )
         finally:
             self._stop_node(process)

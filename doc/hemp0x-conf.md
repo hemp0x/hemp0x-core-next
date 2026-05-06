@@ -46,7 +46,7 @@ rpcport=4000
 
 ## Configuration File Path
 
-On first launch, `hemp0xd` creates a commented `hemp.conf` template when the default configuration file is missing and no legacy `hemp0x.conf` fallback exists. The generated file is safe by default and does not contain static RPC credentials.
+On first launch, `hemp0xd` creates a `hemp.conf` template when the default configuration file is missing and no legacy `hemp0x.conf` fallback exists. The generated file enables loopback-only local RPC with cookie authentication, includes random static RPC credentials as commented examples, and includes commented examples for common node, index, ZMQ, and peer settings. Restart `hemp0xd` after editing the file.
 
 By default, Hemp0x Core reads `hemp.conf` from the Hemp0x data directory. For compatibility with earlier packaging and documentation, it also reads `hemp0x.conf` when `hemp.conf` is absent. If both files exist, `hemp.conf` is used.
 

@@ -74,13 +74,14 @@ sha256sum * > SHA256SUMS
 
 The list of files should be:
 ```
-hemp0x-${VERSION}-aarch64-linux-gnu.tar.gz
-hemp0x-${VERSION}-arm-linux-gnueabihf.tar.gz
-hemp0x-${VERSION}-x86_64-linux-gnu.tar.gz
-hemp0x-${VERSION}-osx64.tar.gz
 hemp0x-${VERSION}.tar.gz
+hemp0x-${VERSION}-x86_64-linux-gnu.tar.gz
 hemp0x-${VERSION}-win64.zip
 ```
+
+Community builds may also produce ARM Linux or other platform packages, but
+Linux and Windows are the validated release platforms for Core Next. Do not
+publish Qt wallet installers or local mining binaries.
 
 - GPG-sign it, delete the unsigned file:
 ```

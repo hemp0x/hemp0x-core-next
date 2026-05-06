@@ -67,28 +67,28 @@ Ubuntu, Debian, Linux Mint:
 ```bash
 sudo apt update
 sudo apt install -y build-essential autoconf automake libtool pkg-config \
-  bsdmainutils curl python3 gawk ca-certificates
+  bsdmainutils curl python3 gawk ca-certificates binutils file
 ```
 
 Fedora, Nobara:
 
 ```bash
 sudo dnf install -y gcc gcc-c++ make autoconf automake libtool pkgconf \
-  curl python3 gawk diffutils patch findutils util-linux
+  curl python3 gawk diffutils patch findutils util-linux binutils file
 ```
 
 Arch Linux:
 
 ```bash
 sudo pacman -S --needed base-devel autoconf automake libtool pkgconf \
-  curl python gawk patch util-linux
+  curl python gawk patch util-linux binutils file
 ```
 
 openSUSE:
 
 ```bash
 sudo zypper install -y gcc gcc-c++ make autoconf automake libtool \
-  pkg-config curl python3 gawk patch util-linux
+  pkg-config curl python3 gawk patch util-linux binutils file
 ```
 
 Manual Build

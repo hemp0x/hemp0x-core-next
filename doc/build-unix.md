@@ -1,5 +1,10 @@
 UNIX/LINUX BUILD NOTES
 ====================
+
+These notes cover generic Unix build details. For validated release platforms,
+see [build-linux.md](build-linux.md) (Linux) and [build-windows.md](build-windows.md)
+(Windows cross-build). Other Unix platforms are best-effort community builds.
+
 Some notes on how to build Hemp0x Core in *nix.
 
 
@@ -86,9 +91,9 @@ ZMQ dependencies (provides ZMQ API):
 
 Notes
 -----
-Release packaging should stage binaries with `make install-strip`. For manual
-test builds, `strip hemp0xd hemp0x-cli hemp0x-tx` can be used before local
-distribution.
+Do not use `make install` for release validation. Copy binaries from `src/` into
+a staging directory instead. For manual test builds, `strip src/hemp0xd
+src/hemp0x-cli src/hemp0x-tx` can be used before local distribution.
 
 
 miniupnpc
@@ -105,9 +110,9 @@ turned off by default.  See the configure options for upnp behavior desired:
 
 Berkeley DB
 -----------
-It is recommended to use Berkeley DB 4.8. If you want to build it yourself, we recommend using the install_db4.sh script
-
-	contrib/install_db4.sh
+It is recommended to use Berkeley DB 4.8. For Core Next source builds the
+recommended way to obtain it is through the tracked `depends` system
+(see the Linux and Windows build guides).
 
 **Note**: You only need Berkeley DB if the wallet is enabled (see the section *Disable-Wallet mode* below).
 
@@ -197,16 +202,15 @@ This example lists the steps necessary to setup and build a command line only, n
     make check
 
 Note:
-Enabling wallet support requires either compiling against a Berkeley DB newer than 4.8 (package `db`) using `--with-incompatible-bdb`,
-or building and depending on a local version of Berkeley DB 4.8. The readily available Arch Linux packages are currently built using
-`--with-incompatible-bdb` according to the [PKGBUILD](https://projects.archlinux.org/svntogit/community.git/tree/hemp0x/trunk/PKGBUILD).
-As mentioned above, when maintaining portability of the wallet between the standard Hemp0x Core distributions and independently built
+Enabling wallet support requires either compiling against a Berkeley DB newer than 4.8 using `--with-incompatible-bdb`,
+or building and depending on a local version of Berkeley DB 4.8. The readily available Arch Linux packages are typically built using
+`--with-incompatible-bdb`. When maintaining portability of the wallet between the standard Hemp0x Core distributions and independently built
 node software is desired, Berkeley DB 4.8 must be used.
 
 
 ARM Cross-compilation
 -------------------
-These steps can be performed on, for example, an Ubuntu VM. The depends system
+These steps can be performed on any Linux host. The depends system
 will also work on other Linux distributions, however the commands for
 installing the toolchain will be different.
 

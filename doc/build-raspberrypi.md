@@ -1,44 +1,58 @@
-RASPBERRY PI BUILD NOTES
-====================
-Origin: traysi.org/hemp0x_rpi.php
+Raspberry Pi Build Notes
+========================
 
-# Install necessary packages:
+Raspberry Pi builds are not part of the validated Hemp0x Core Next release
+matrix. The notes below are a best-effort community reference. Linux and
+Windows are the validated release platforms.
+
+These notes cover building Hemp0x Core Next on Raspberry Pi hardware. ARM
+builds are best handled through the tracked `depends` system:
+
+```bash
+./autogen.sh
+make -C depends HOST=arm-linux-gnueabihf -j"$(nproc)"
+
+CONFIG_SITE="$PWD/depends/arm-linux-gnueabihf/share/config.site" \
+./configure --enable-reduce-exports --with-tx --without-libs --disable-bench
+
+make -j"$(nproc)"
 ```
-sudo apt-get install git
-sudo apt-get install build-essential libtool autotools-dev automake pkg-config libssl-dev libevent-dev bsdmainutils python3
-sudo apt-get install libboost-all-dev
-sudo apt-get install software-properties-common
+
+The guided helper currently targets native Linux and Windows cross-builds. Use
+the manual commands above for Raspberry Pi builds until ARM targets are added
+to the helper.
+
+Dependencies
+------------
+
+Install build tools:
+
+```bash
 sudo apt-get update
-sudo apt-get install libminiupnpc-dev
-sudo apt-get install libzmq3-dev
+sudo apt-get install -y build-essential autoconf automake libtool pkg-config \
+  bsdmainutils curl python3 gawk ca-certificates git
 ```
 
-# Increase your swap size:
-```
+Increase swap size for low-memory devices
+-----------------------------------------
+
+On devices with limited RAM, increase swap before building:
+
+```bash
 sudo nano /etc/dphys-swapfile
-- In this file, change CONF_SWAPSIZE=100 to CONF_SWAPSIZE=1000
+# Change CONF_SWAPSIZE=100 to CONF_SWAPSIZE=1000
 sudo reboot
 ```
 
-# Build Berkeley DB 4.8:
-```
-cd ~
-mkdir build
-cd build
-wget http://download.oracle.com/berkeley-db/db-4.8.30.NC.tar.gz
-tar -xzvf db-4.8.30.NC.tar.gz
-cd db-4.8.30.NC/build_unix/
-../dist/configure --enable-cxx
-make -j4 # If error, remove the -j4
-sudo make install
-```
+Notes
+-----
 
-# Build Hemp0x
-```
-cd ~/build/
-git clone https://github.com/hemp0x/hemp0x-core
-cd hemp0x-core/
-./autogen.sh
-./configure --disable-tests CPPFLAGS="-I/usr/local/BerkeleyDB.4.8/include -O2" LDFLAGS="-L/usr/local/BerkeleyDB.4.8/lib"
-make
-```
+- Use `-j2` instead of `-j"$(nproc)"` if the build runs out of memory.
+- Do not use `sudo make install` for release validation. Copy binaries from
+  `src/` into a staging directory instead.
+- Core Next does not ship the old bundled desktop GUI wallet.
+- Wallet-enabled builds still require BDB 4.8-compatible wallet support;
+  the `depends` system provides this automatically.
+- For node-only builds, add `--disable-wallet` to configure.
+
+See [build-linux.md](build-linux.md) for more details on the Linux build process.

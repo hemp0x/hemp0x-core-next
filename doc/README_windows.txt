@@ -21,6 +21,7 @@ However, it downloads and stores the entire history of Hemp0x transactions;
 depending on the speed of your computer and network connection, the synchronization
 process can take anywhere from a few hours to a day or more.
 
-See the hemp0x wiki at:
-  https://hemp0x.wiki/wiki/Hemp0x_Wiki
-for more help and information.
+For build and configuration help, see the documentation in the doc directory:
+  build-windows.md
+  hemp0x-conf.md
+  wallet-migration.md

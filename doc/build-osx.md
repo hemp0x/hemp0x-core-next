@@ -1,7 +1,12 @@
-macOS Build Instructions and Notes
+macOS Build Notes
 ====================================
+
+macOS is not part of the validated Hemp0x Core Next release matrix. The notes
+below are a best-effort community reference. Linux and Windows are the
+validated release platforms.
+
 The commands in this guide should be executed in a Terminal application.
-The built-in one is located in 
+The built-in one is located in
 ```
 /Applications/Utilities/Terminal.app
 ```
@@ -25,15 +30,9 @@ If you run into issues, check [Homebrew's troubleshooting page](https://docs.bre
 See [dependencies.md](dependencies.md) for a complete overview.
 
 ## Berkeley DB
-It is recommended to use Berkeley DB 4.8. If you have to build it yourself,
-you can use [this](/contrib/install_db4.sh) script to install it
-like so:
-
-```shell
-./contrib/install_db4.sh .
-```
-
-from the root of the repository.
+It is recommended to use Berkeley DB 4.8. For Core Next source builds the
+recommended way to obtain it is through the tracked `depends` system
+(see the Linux build guide).
 
 **Note**: You only need Berkeley DB if the wallet is enabled (see [*Disable-wallet mode*](/doc/build-osx.md#disable-wallet-mode)).
 

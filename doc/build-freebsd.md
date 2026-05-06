@@ -1,22 +1,21 @@
-Build instructions for Hemp0x 
+FreeBSD Build Notes
 =================================
+
+FreeBSD is not part of the validated Hemp0x Core Next release matrix. The notes
+below are a best-effort community reference. Linux and Windows are the
+validated release platforms.
+
 FreeBSD 13.0
 ---------------------------------
-This will install most of the dependencies from FreeBSD pkg.
+Install build tools:
 
-The only one we build, is Berkeley DB 4.8.
-
-
-Install dependencies:
-----------------------------
-`# pkg install autoconf automake boost-libs git gmake libevent libtool pkgconf openssl
-`
+```bash
+pkg install autoconf automake git gmake libtool pkgconf python3 gawk
+```
 
 Directory structure
 ------------------
-Hemp0x sources in `$HOME/src`
-
-Berkeley DB will be installed to `$HOME/src/db4`
+Hemp0x sources in `$HOME/src`.
 
 
 Hemp0x
@@ -32,26 +31,27 @@ Make the directory for sources and go into it.
 
 __Download Hemp0x source.__
 
-`git clone https://github.com/hemp0x/hemp0x-core`
+`git clone https://github.com/beyondcr/hemp0x-core-next.git`
 
-`cd hemp0x-core`
+`cd hemp0x-core-next`
 
-__Download and build Berkeley DB 4.8__
+__Build dependencies__
 
-`contrib/install_db4.sh ../`
+For Core Next builds, use the tracked `depends` system so Berkeley DB and other
+third-party libraries are built consistently:
+
+```bash
+gmake -C depends HOST=x86_64-unknown-freebsd -j"$(sysctl -n hw.ncpu)"
+```
 
 __The build process:__
 
 `./autogen.sh`
 
-This is for `sh` or `bash`. 
-
-`export BDB_PREFIX=$HOME/src/db4`
-
-`./configure BDB_LIBS="-L${BDB_PREFIX}/lib -ldb_cxx-4.8" BDB_CFLAGS="-I${BDB_PREFIX}/include" CFLAGS="-fPIC" CXXFLAGS="-fPIC -I/usr/local/include" --prefix=/usr/local MAKE=gmake`
-
-_Adjust to own needs. `--prefix=/usr/local` will install the binaries to `/usr/local/bin`_
-
+```bash
+CONFIG_SITE="$PWD/depends/x86_64-unknown-freebsd/share/config.site" \
+./configure --enable-reduce-exports --with-tx --without-libs --disable-bench
+```
 
 `gmake -j$(sysctl -n hw.ncpu)`
 
@@ -60,7 +60,6 @@ hemp0xd and hemp0x-cli are in `src/`
 
 __Optional:__
 
-`gmake install`  # if you want to install the binaries to /usr/local/bin.
-
-
+`gmake install` is available, but for release validation copy binaries from
+`src/` into a staging directory instead.
 

@@ -30,7 +30,7 @@ sudo apt update
 sudo apt install libevent-dev libboost-all-dev libminiupnpc-dev libzmq3-dev software-properties-common
 ```
 
-The legacy wallet backend requires Berkeley DB 4.8 for portable `wallet.dat` compatibility. The easiest way to get it for source builds is to use the tracked `depends` system or the `contrib/install_db4.sh` helper.
+The legacy wallet backend requires Berkeley DB 4.8 for portable `wallet.dat` compatibility. The recommended way to get it for source builds is to use the tracked `depends` system.
 
 #### Fedora
 
@@ -58,19 +58,18 @@ Build from source and run `./src/hemp0xd`.
 
 ### Need Help?
 
-- See the documentation at the [Hemp0x Wiki](https://hemp0x.wiki/wiki/Hemp0x_Wiki)
-for help and more information.
-- Ask for help on [Discord](https://discord.gg/Eu4UsYPMGS), [Telegram](https://t.me/Hemp0xDev) or [Reddit](https://www.reddit.com/r/Hemp0x/).
+- Ask for help on [Discord](https://discord.gg/Eu4UsYPMGS) or [Reddit](https://www.reddit.com/r/Hemp0x/).
 
 Building from source
 ---------------------
 The following are developer notes on how to build the Hemp0x core software on your native platform. They are not complete guides, but include notes on the necessary libraries, compile flags, etc.
 
 - [Dependencies](dependencies.md)
-- [macOS Build Notes](build-osx.md)
-- [Unix Build Notes](build-unix.md)
 - [Linux Build Notes](build-linux.md)
 - [Windows Build Notes](build-windows.md)
+- [macOS Build Notes](build-osx.md)
+- [Configuration Notes](hemp0x-conf.md)
+- [Wallet Migration Notes](wallet-migration.md)
 - [OpenBSD Build Notes](build-openbsd.md)
 - [FreeBSD Build Notes](build-freebsd.md)
 - [Raspberry Pi Build Notes](build-raspberrypi.md)
@@ -90,8 +89,7 @@ The [root README](../README.md) contains relevant information on the development
 - [Benchmarking](benchmarking.md)
 
 ### Resources
-- Discuss on chat [Discord](https://discord.gg/Eu4UsYPMGS), [Telegram](https://t.me/Hemp0xDev) or [Reddit](https://www.reddit.com/r/Hemp0x/).
-- Find out more on the [Hemp0x Wiki](https://hemp0x.wiki/wiki/Hemp0x_Wiki)
+- Discuss on [Discord](https://discord.gg/Eu4UsYPMGS) or [Reddit](https://www.reddit.com/r/Hemp0x/).
 - Visit the project home [hemp0x.com](https://hemp0x.com)
 
 ### Miscellaneous
@@ -105,6 +103,6 @@ The [root README](../README.md) contains relevant information on the development
 
 License
 ---------------------
-Distributed under the [MIT software license](https://github.com/hemp0x/hemp0x-core/blob/master/COPYING).
+Distributed under the [MIT software license](../COPYING).
 This product includes software developed by the OpenSSL Project for use in the [OpenSSL Toolkit](https://www.openssl.org/). This product includes
 cryptographic software written by Eric Young ([eay@cryptsoft.com](mailto:eay@cryptsoft.com)), and UPnP software written by Thomas Bernard.

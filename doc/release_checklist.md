@@ -20,7 +20,9 @@
 
   1. Update hemp0x.com with correct popup version
   
-  2. Update hemp0x.com with correct release download urls for each platform (Windows, Linux, Mac)
+  2. Update hemp0x.com with correct release download urls for validated
+     platforms (Windows, Linux). Community builds for other platforms can
+     be listed separately.
 
 **Build Process**
 

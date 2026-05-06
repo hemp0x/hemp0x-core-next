@@ -50,7 +50,7 @@ Ubuntu, Debian, Linux Mint:
 ```bash
 sudo apt update
 sudo apt install -y build-essential autoconf automake libtool pkg-config \
-  bsdmainutils curl python3 gawk ca-certificates \
+  bsdmainutils curl python3 gawk ca-certificates binutils file \
   gcc-mingw-w64-x86-64-posix g++-mingw-w64-x86-64-posix \
   binutils-mingw-w64-x86-64 mingw-w64
 ```
@@ -67,14 +67,14 @@ Arch Linux:
 
 ```bash
 sudo pacman -S --needed base-devel autoconf automake libtool pkgconf \
-  curl python gawk patch util-linux mingw-w64-gcc
+  curl python gawk patch util-linux binutils file mingw-w64-gcc
 ```
 
 openSUSE:
 
 ```bash
 sudo zypper install -y gcc gcc-c++ make autoconf automake libtool \
-  pkg-config curl python3 gawk patch util-linux mingw64-cross-gcc \
+  pkg-config curl python3 gawk patch util-linux binutils file mingw64-cross-gcc \
   mingw64-cross-gcc-c++ mingw64-filesystem
 ```
 

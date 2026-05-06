@@ -127,13 +127,13 @@ def get_PE_dll_characteristics(executable):
     (stdout, stderr) = p.communicate()
     if p.returncode:
         raise IOError('Error opening file')
-    arch = ''
+    arch = b''
     bits = 0
-    for line in stdout.split('\n'):
+    for line in stdout.split(b'\n'):
         tokens = line.split()
-        if len(tokens)>=2 and tokens[0] == 'architecture:':
-            arch = tokens[1].rstrip(',')
-        if len(tokens)>=2 and tokens[0] == 'DllCharacteristics':
+        if len(tokens)>=2 and tokens[0] == b'architecture:':
+            arch = tokens[1].rstrip(b',')
+        if len(tokens)>=2 and tokens[0] == b'DllCharacteristics':
             bits = int(tokens[1],16)
     return (arch,bits)
 
@@ -152,10 +152,10 @@ def check_PE_DYNAMIC_BASE(executable):
 def check_PE_HIGH_ENTROPY_VA(executable):
     '''PIE: DllCharacteristics bit 0x20 signifies high-entropy ASLR'''
     (arch,bits) = get_PE_dll_characteristics(executable)
-    if arch == 'i386:x86-64': 
+    if arch == b'i386:x86-64':
         reqbits = IMAGE_DLL_CHARACTERISTICS_HIGH_ENTROPY_VA
     else: # Unnecessary on 32-bit
-        assert(arch == 'i386')
+        assert(arch == b'i386')
         reqbits = 0
     return (bits & reqbits) == reqbits
 

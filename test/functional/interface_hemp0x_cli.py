@@ -4,6 +4,8 @@
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Test hemp0x-cli"""
+import os
+
 from test_framework.test_framework import Hemp0xTestFramework
 from test_framework.util import (assert_equal, assert_raises_process_error, get_auth_cookie)
 
@@ -54,6 +56,13 @@ class TestHemp0xCli(Hemp0xTestFramework):
         assert_equal(cli_get_info['paytxfee'], wallet_info['paytxfee'])
         assert_equal(cli_get_info['relayfee'], network_info['relayfee'])
         # unlocked_until is not tested because the wallet is not encrypted
+
+        self.log.info("Test CLI JSON conversion for wallet migration booleans")
+        migration_path = os.path.join(self.nodes[0].datadir, "cli_migration_public.json")
+        migration_result = self.nodes[0].cli().exportwalletmigration(migration_path, "false", "true")
+        assert_equal(migration_result["filename"], os.path.abspath(migration_path))
+        assert_equal(migration_result["private_keys_included"], False)
+        assert os.path.exists(migration_path)
 
 if __name__ == '__main__':
     TestHemp0xCli().main()

@@ -3,6 +3,11 @@
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+SUBDIRS =
+if EMBEDDED_UNIVALUE
+SUBDIRS += univalue
+endif
+SUBDIRS += secp256k1
 DIST_SUBDIRS = secp256k1 univalue
 
 AM_LDFLAGS = $(PTHREAD_CFLAGS) $(LIBTOOL_LDFLAGS) $(HARDENED_LDFLAGS)

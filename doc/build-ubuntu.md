@@ -27,6 +27,10 @@ contrib/build-hemp0x-core.sh
 The helper asks what to build, checks for required tools, offers to install
 missing build packages on supported Linux distributions, builds dependencies
 through `depends/`, strips release binaries, and can run the build checks.
+Choose `Release binaries` for normal builds. Choose `Dev/debug binaries` only
+when debugging or testing developer integrations. The helper selects a parallel
+job count automatically from the host CPU count; use `--jobs N` only when you
+need to override it.
 
 For a one-command Linux release-style build:
 

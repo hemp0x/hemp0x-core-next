@@ -21,8 +21,8 @@ Options:
   --skip-depends      Reuse an existing depends build.
   --reuse-build       Reuse current configure/build state when possible.
   --clean             Clean builds are the default; kept for compatibility.
-  --debug             Build debug binaries and do not strip them.
-  --jobs N            Parallel build jobs.
+  --debug             Use the developer/debug profile and do not strip binaries.
+  --jobs N            Parallel build jobs. Defaults to the detected CPU count.
   --help              Show this help.
 
 Examples:
@@ -255,7 +255,7 @@ update_source_tree() {
 }
 
 interactive_menu() {
-    local choice answer
+    local choice
 
     echo "Hemp0x Core build helper"
     echo
@@ -276,14 +276,31 @@ interactive_menu() {
     ask_yes_no "Build hemp0x-tx?" yes && with_tx=1 || with_tx=0
     ask_yes_no "Update this checkout before building?" no && update_tree=1 || update_tree=0
     ask_yes_no "Run build checks after compiling?" yes && run_tests=1 || run_tests=0
-    ask_yes_no "Build debug binaries? Release binaries are smaller." no && debug=1 || debug=0
-    ask_yes_no "Build libhemp0xconsensus? Most users do not need it." no && with_libs=1 || with_libs=0
-    ask_yes_no "Reuse the current build state? Clean builds are safer." no && clean=0 || clean=1
 
-    read -r -p "Parallel build jobs [$jobs]: " answer
-    if [ -n "$answer" ]; then
-        jobs="$answer"
-    fi
+    echo
+    echo "Select build profile:"
+    echo "  1) Release binaries"
+    echo "  2) Dev/debug binaries"
+
+    while true; do
+        read -r -p "Choice [1]: " choice
+        choice="${choice:-1}"
+        case "$choice" in
+            1)
+                debug=0
+                with_libs=0
+                break
+                ;;
+            2)
+                debug=1
+                ask_yes_no "Build libhemp0xconsensus for developer integrations?" no && with_libs=1 || with_libs=0
+                break
+                ;;
+            *) echo "Choose 1 or 2." ;;
+        esac
+    done
+
+    ask_yes_no "Reuse the current build state? Clean builds are safer." no && clean=0 || clean=1
 }
 
 target=linux

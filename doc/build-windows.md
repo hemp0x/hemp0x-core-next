@@ -29,6 +29,10 @@ Choose `Windows` from the menu. The helper checks for the MinGW-w64 toolchain,
 verifies that the POSIX thread model is selected, offers to install missing
 packages on supported Linux distributions, builds dependencies, strips release
 binaries, and can run the Windows binary security check.
+Choose `Release binaries` for normal builds. Choose `Dev/debug binaries` only
+when debugging or testing developer integrations. The helper selects a parallel
+job count automatically from the host CPU count; use `--jobs N` only when you
+need to override it.
 
 For a one-command Windows release-style build:
 

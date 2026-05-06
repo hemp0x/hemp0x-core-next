@@ -71,7 +71,7 @@ apt_packages() {
     local target="$1"
     local packages=(
         build-essential autoconf automake libtool pkg-config bsdmainutils
-        curl python3 gawk ca-certificates
+        curl python3 gawk ca-certificates binutils file
     )
 
     if [ "$target" = "windows" ]; then
@@ -88,7 +88,7 @@ dnf_packages() {
     local target="$1"
     local packages=(
         gcc gcc-c++ make autoconf automake libtool pkgconf curl python3
-        gawk diffutils patch findutils util-linux
+        gawk diffutils patch findutils util-linux binutils file
     )
 
     if [ "$target" = "windows" ]; then
@@ -102,7 +102,7 @@ pacman_packages() {
     local target="$1"
     local packages=(
         base-devel autoconf automake libtool pkgconf curl python gawk patch
-        util-linux
+        util-linux binutils file
     )
 
     if [ "$target" = "windows" ]; then
@@ -116,7 +116,7 @@ zypper_packages() {
     local target="$1"
     local packages=(
         gcc gcc-c++ make autoconf automake libtool pkg-config curl python3
-        gawk patch util-linux
+        gawk patch util-linux binutils file
     )
 
     if [ "$target" = "windows" ]; then
@@ -161,7 +161,7 @@ EOF
         zypper_packages "$target" | while read -r package; do printf ' %s' "$package" >&2; done
         echo >&2
     else
-        echo "Install a C/C++ compiler, make, autoconf, automake, libtool, pkg-config, curl, python3, gawk, patch, hexdump, and the MinGW-w64 POSIX toolchain for Windows builds." >&2
+        echo "Install a C/C++ compiler, make, autoconf, automake, libtool, pkg-config, curl, python3, gawk, patch, hexdump, binutils, file, readelf, and the MinGW-w64 POSIX toolchain for Windows builds." >&2
     fi
 }
 
@@ -205,12 +205,12 @@ run_build_checks() {
 collect_missing_tools() {
     local target="$1"
     local missing_name="$2"
-    local tools=(make git curl python3 gawk sed grep patch autoconf automake libtoolize pkg-config hexdump)
+    local tools=(make git curl python3 gawk sed grep patch autoconf automake libtoolize pkg-config hexdump objdump readelf file)
     local missing_tools=()
     local tool
 
     if [ "$target" = "windows" ]; then
-        tools+=(x86_64-w64-mingw32-gcc x86_64-w64-mingw32-g++ x86_64-w64-mingw32-ar x86_64-w64-mingw32-ranlib x86_64-w64-mingw32-strip)
+        tools+=(x86_64-w64-mingw32-gcc x86_64-w64-mingw32-g++ x86_64-w64-mingw32-ar x86_64-w64-mingw32-ranlib x86_64-w64-mingw32-strip x86_64-w64-mingw32-objdump)
     else
         tools+=(gcc g++ strip)
     fi

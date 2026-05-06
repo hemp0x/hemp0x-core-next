@@ -89,7 +89,7 @@
 const int64_t nStartupTime = GetTime();
 
 const char *const HEMP0X_CONF_FILENAME = "hemp.conf";
-static const char *const HEMP0X_ALTERNATE_CONF_FILENAME = "hemp0x.conf";
+const char *const HEMP0X_ALTERNATE_CONF_FILENAME = "hemp0x.conf";
 const char *const HEMP0X_PID_FILENAME = "hemp.pid";
 
 ArgsManager gArgs;

@@ -124,6 +124,7 @@ BASE_SCRIPTS= [
     # vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv Tests less than 5s vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
     'wallet_listtransactions.py',
     'feature_minchainwork.py',
+    'feature_config_file.py',
     'wallet_encryption.py',
     'feature_listmyassets.py',
     'mempool_reorg.py',

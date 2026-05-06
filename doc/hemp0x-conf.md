@@ -46,7 +46,9 @@ rpcport=4000
 
 ## Configuration File Path
 
-The configuration file is not automatically created; you can create it using your favorite text editor. By default, Hemp0x Core reads `hemp.conf` from the Hemp0x data directory. For compatibility with earlier packaging and documentation, it also reads `hemp0x.conf` when `hemp.conf` is absent. If both files exist, `hemp.conf` is used.
+On first launch, `hemp0xd` creates a commented `hemp.conf` template when the default configuration file is missing and no legacy `hemp0x.conf` fallback exists. The generated file is safe by default and does not contain static RPC credentials.
+
+By default, Hemp0x Core reads `hemp.conf` from the Hemp0x data directory. For compatibility with earlier packaging and documentation, it also reads `hemp0x.conf` when `hemp.conf` is absent. If both files exist, `hemp.conf` is used.
 
 The Hemp0x data directory and configuration file path may be changed using the `-datadir` and `-conf` command-line options.
 

@@ -55,6 +55,7 @@ extern std::atomic<bool> fReopenDebugLog;
 extern CTranslationInterface translationInterface;
 
 extern const char *const HEMP0X_CONF_FILENAME;
+extern const char *const HEMP0X_ALTERNATE_CONF_FILENAME;
 extern const char *const HEMP0X_PID_FILENAME;
 
 extern std::atomic<uint32_t> logCategories;

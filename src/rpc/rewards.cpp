@@ -490,7 +490,7 @@ static const CRPCCommand commands[] =
             {   "rewards",      "listsnapshotrequests",         &listsnapshotrequests,         {"asset_name", "block_height"}},
             {   "rewards",      "cancelsnapshotrequest",      &cancelsnapshotrequest,      {"asset_name", "block_height"}},
             {   "rewards",      "distributereward",           &distributereward,           {"asset_name", "snapshot_height", "distribution_asset_name", "gross_distribution_amount", "exception_addresses", "change_address"}},
-            {   "rewards",      "getdistributestatus",        &getdistributestatus,            {"asset_name", "block_height", "distribution_asset_name", "gross_distribution_amount", "exception_addresses"}}
+            {   "rewards",      "getdistributestatus",        &getdistributestatus,            {"asset_name", "snapshot_height", "distribution_asset_name", "gross_distribution_amount", "exception_addresses"}}
     #endif
     };
 
@@ -499,5 +499,4 @@ void RegisterRewardsRPCCommands(CRPCTable &t)
     for (unsigned int vcidx = 0; vcidx < ARRAYLEN(commands); vcidx++)
         t.appendCommand(commands[vcidx].name, &commands[vcidx]);
 }
-
 

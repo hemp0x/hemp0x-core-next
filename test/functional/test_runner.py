@@ -147,6 +147,8 @@ BASE_SCRIPTS= [
     'rpc_exposure_warnings.py',
     'rpc_auth_throttling.py',
     'rpc_getnodestatus.py',
+    'rpc_asset_purgesnapshot.py',
+    'rpc_generation_disabled.py',
     'feature_proxy.py',
     'rpc_txindex.py',
     'p2p_disconnect_ban.py',

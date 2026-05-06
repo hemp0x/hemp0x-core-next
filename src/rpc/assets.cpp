@@ -3011,7 +3011,7 @@ UniValue purgesnapshot(const JSONRPCRequest& request)
     std::string asset_name = request.params[0].get_str();
     int block_height = 0;
     if (request.params.size() > 1) {
-        block_height = request.params[2].get_int();
+        block_height = request.params[1].get_int();
     }
 
     if (!pAssetSnapshotDb)

@@ -313,16 +313,13 @@ BOOST_FIXTURE_TEST_SUITE(dbwrapper_tests, BasicTestingSetup)
     {
         BOOST_TEST_MESSAGE("Running Iterator String Ordering Test");
 
-        char buf[10];
-
         fs::path ph = fs::temp_directory_path() / fs::unique_path();
         CDBWrapper dbw(ph, (1 << 20), true, false, false);
         for (int x = 0x00; x < 10; ++x)
         {
             for (int y = 0; y < 10; y++)
             {
-                snprintf(buf, sizeof(buf), "%d", x);
-                StringContentsSerializer key(buf);
+                StringContentsSerializer key(std::to_string(x));
                 for (int z = 0; z < y; z++)
                     key += key;
                 uint32_t value = x * x;
@@ -333,15 +330,13 @@ BOOST_FIXTURE_TEST_SUITE(dbwrapper_tests, BasicTestingSetup)
         std::unique_ptr<CDBIterator> it(const_cast<CDBWrapper &>(dbw).NewIterator());
         for (int seek_start : {0, 5})
         {
-            snprintf(buf, sizeof(buf), "%d", seek_start);
-            StringContentsSerializer seek_key(buf);
+            StringContentsSerializer seek_key(std::to_string(seek_start));
             it->Seek(seek_key);
             for (int x = seek_start; x < 10; ++x)
             {
                 for (int y = 0; y < 10; y++)
                 {
-                    snprintf(buf, sizeof(buf), "%d", x);
-                    std::string exp_key(buf);
+                    std::string exp_key(std::to_string(x));
                     for (int z = 0; z < y; z++)
                         exp_key += exp_key;
                     StringContentsSerializer key;

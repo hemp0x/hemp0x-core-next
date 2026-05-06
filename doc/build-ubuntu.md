@@ -1,70 +1,67 @@
-Build instructions for Hemp0x
-=================================
+Build Hemp0x Core on Ubuntu
+===========================
 
-This will install most of the dependencies from Ubuntu.
-The only one we build is Berkeley DB 4.8.
+These instructions build `hemp0xd`, `hemp0x-cli`, and optionally `hemp0x-tx`
+from source without installing them or touching an existing node data directory.
 
+The recommended path is to use the repository build helper. It builds the
+project through the depends system so the result does not depend on old system
+Berkeley DB, Boost, OpenSSL, or miniupnpc packages.
 
-Ubuntu 22.04 and later - Install dependencies:
-----------------------------
-`$ sudo apt install
-build-essential
-libssl-dev
-libboost-all-dev
-bison
-libevent-dev
-libminiupnpc-dev
-zlib1g-dev
-libczmq-dev
-autoconf
-automake
-libtool
-`
+Install host build tools
+------------------------
 
-Directory structure
-------------------
-Hemp0x sources in `$HOME/src`
+On Ubuntu 22.04 or later:
 
-Berkeley DB will be installed to `$HOME/src/db4`
+```bash
+sudo apt update
+sudo apt install -y build-essential autoconf automake libtool pkg-config \
+  bsdmainutils curl python3 gawk ca-certificates
+```
 
+Build native Linux binaries
+---------------------------
 
-Hemp0x
-------------------
+From the repository root:
 
-Start in $HOME
+```bash
+contrib/build-hemp0x-core.sh --target linux --with-tx --run-tests
+```
 
-Make the directory for sources and go into it.
+The binaries are written to:
 
-`mkdir src`
+```text
+src/hemp0xd
+src/hemp0x-cli
+src/hemp0x-tx
+```
 
-`cd src`
+Manual build
+------------
 
-__Download Hemp0x source.__
+The helper script runs the same basic commands:
 
-`git clone https://github.com/hemp0x/hemp0x-core`
+```bash
+./autogen.sh
+make -C depends -j"$(nproc)"
 
-`cd hemp0x-core`
+CONFIG_SITE="$PWD/depends/x86_64-pc-linux-gnu/share/config.site" \
+./configure --enable-reduce-exports --with-tx
 
-__Download and build Berkeley DB 4.8__
+make -j"$(nproc)"
+make check
+make -C src check-security
+make -C src check-symbols
+```
 
-`contrib/install_db4.sh ../`
+Notes
+-----
 
-__The build process:__
+Do not use `sudo make install` for development or release validation. Copy the
+binaries from `src/` into a staging directory instead.
 
-`./autogen.sh`
+If you need debug binaries, use:
 
-`export BDB_PREFIX=$HOME/src/db4`
-
-`./configure BDB_LIBS="-L${BDB_PREFIX}/lib -ldb_cxx-4.8" BDB_CFLAGS="-I${BDB_PREFIX}/include" --prefix=/usr/local`
-
-_Adjust to own needs. This will install the binaries to `/usr/local/bin`_
-
-
-`make -j$(nproc)`
-
-hemp0xd and hemp0x-cli are in `src/`
-
-
-__Optional:__
-
-`sudo make install`  # if you want to install the binaries to /usr/local/bin (if this prefix was used above).
+```bash
+contrib/build-hemp0x-core.sh --target linux --with-tx --debug
+```

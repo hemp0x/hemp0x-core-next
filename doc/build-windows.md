@@ -1,119 +1,90 @@
-WINDOWS BUILD NOTES
-====================
+Build Hemp0x Core for Windows
+=============================
 
-Below are some notes on how to build Hemp0x Core for Windows. Core Next release
-profiles build the daemon, CLI, transaction tool, and wallet RPC support without
-the removed Qt wallet GUI.
+The supported release path for Windows binaries is cross-compilation from Linux
+using the depends system and the POSIX MinGW-w64 toolchain. The Qt wallet GUI is
+not part of Core Next release builds.
 
-Most developers use cross-compilation from Ubuntu to build executables for
-Windows. Cross-compilation is also used to build the release binaries.
+Install cross-build tools on Ubuntu
+-----------------------------------
 
-Cross-compilation from a recent Ubuntu (22.04 or later) is the recommended way
-to build executables for Windows.
+On Ubuntu 22.04 or later:
 
-While there are potentially a number of ways to build on Windows (for example using msys / mingw-w64),
-using the Windows Subsystem For Linux is the most straightforward. If you are building with
-another method, please contribute the instructions here for others who are running versions
-of Windows that are not compatible with the Windows Subsystem for Linux.
-
-Compiling with Windows Subsystem For Linux
--------------------------------------------
-
-With Windows 10, Microsoft has released a new feature named the [Windows
-Subsystem for Linux](https://msdn.microsoft.com/commandline/wsl/about). This
-feature allows you to run a bash shell directly on Windows in an Ubuntu-based
-environment. Within this environment you can cross compile for Windows without
-the need for a separate Linux VM or server.
-
-This feature is not supported in versions of Windows prior to Windows 10 or on
-Windows Server SKUs. In addition, it is available [only for 64-bit versions of
-Windows](https://msdn.microsoft.com/en-us/commandline/wsl/install_guide).
-
-To get the bash shell, you must first activate the feature in Windows.
-
-1. Turn on Developer Mode
-  * Open Settings -> Update and Security -> For developers
-  * Select the Developer Mode radio button
-  * Restart if necessary
-2. Enable the Windows Subsystem for Linux feature
-  * From Start, search for "Turn Windows features on or off" (type 'turn')
-  * Select Windows Subsystem for Linux (beta)
-  * Click OK
-  * Restart if necessary
-3. Complete Installation
-  * Open a cmd prompt and type "bash"
-  * Accept the license
-  * Create a new UNIX user account (this is a separate account from your Windows account)
-
-After the bash shell is active, you can follow the instructions below, starting
-with the "Cross-compilation" section. Compiling the 64-bit version is
-recommended but it is possible to compile the 32-bit version.
-
-Cross-compilation
--------------------
-
-These steps can be performed on, for example, an Ubuntu VM. The depends system
-will also work on other Linux distributions, however the commands for
-installing the toolchain will be different.
-
-First, install the general dependencies:
-
-    sudo apt-get install build-essential libtool autotools-dev automake pkg-config bsdmainutils curl nsis
-
-A host toolchain (`build-essential`) is necessary because some dependency
-packages need to build host utilities that are used in the build process.
-
-See also: [dependencies.md](dependencies.md).
-
-If you're building on Ubuntu 18.04 or later, run these two commands, selecting the 'posix' variant for both,
-to work around issues with mingw-w64:
-```
-sudo update-alternatives --config x86_64-w64-mingw32-g++
-sudo update-alternatives --config x86_64-w64-mingw32-gcc
+```bash
+sudo apt update
+sudo apt install -y build-essential autoconf automake libtool pkg-config \
+  bsdmainutils curl python3 gawk ca-certificates \
+  gcc-mingw-w64-x86-64-posix g++-mingw-w64-x86-64-posix \
+  binutils-mingw-w64-x86-64 mingw-w64
 ```
 
-## Building for 64-bit Windows
+Select the POSIX MinGW variant if alternatives are present:
 
-To build executables for Windows 64-bit, install the following dependencies:
+```bash
+sudo update-alternatives --set x86_64-w64-mingw32-gcc /usr/bin/x86_64-w64-mingw32-gcc-posix
+sudo update-alternatives --set x86_64-w64-mingw32-g++ /usr/bin/x86_64-w64-mingw32-g++-posix
+```
 
-    sudo apt-get install g++-mingw-w64-x86-64 mingw-w64-x86-64-dev
+Verify the toolchain:
 
-Then build using:
+```bash
+x86_64-w64-mingw32-g++ -v 2>&1 | grep -i 'Thread model'
+```
 
-    PATH=$(echo "$PATH" | sed -e 's/:\/mnt.*//g') # strip out problematic Windows %PATH% imported var
-    cd depends
-    make HOST=x86_64-w64-mingw32
-    cd ..
-    ./autogen.sh # not required when building from tarball
-    CONFIG_SITE=$PWD/depends/x86_64-w64-mingw32/share/config.site ./configure --prefix=/
-    make
+The expected output is:
 
-## Building for 32-bit Windows
+```text
+Thread model: posix
+```
 
-To build executables for Windows 32-bit, install the following dependencies:
+Build Windows binaries
+----------------------
 
-    sudo apt-get install g++-mingw-w64-i686 mingw-w64-i686-dev
+From the repository root:
 
-Then build using:
+```bash
+contrib/build-hemp0x-core.sh --target windows --with-tx --run-tests
+```
 
-    PATH=$(echo "$PATH" | sed -e 's/:\/mnt.*//g') # strip out problematic Windows %PATH% imported var
-    cd depends
-    make HOST=i686-w64-mingw32
-    cd ..
-    ./autogen.sh # not required when building from tarball
-    CONFIG_SITE=$PWD/depends/i686-w64-mingw32/share/config.site ./configure --prefix=/
-    make
+The binaries are written to:
 
-## Depends system
+```text
+src/hemp0xd.exe
+src/hemp0x-cli.exe
+src/hemp0x-tx.exe
+```
 
-For further documentation on the depends system see [README.md](../depends/README.md) in the depends directory.
+Manual build
+------------
 
-Installation
--------------
+The helper script runs the same basic commands:
 
-After building using the Windows subsystem it can be useful to copy the compiled
-executables to a directory on the windows drive in the same directory structure
-as they appear in the release `.zip` archive. This can be done in the following
-way. This will install to `c:\workspace\hemp0x`, for example:
+```bash
+./autogen.sh
+make -C depends HOST=x86_64-w64-mingw32 -j"$(nproc)"
 
-    make install DESTDIR=/mnt/c/workspace/hemp0x
+CONFIG_SITE="$PWD/depends/x86_64-w64-mingw32/share/config.site" \
+./configure --host=x86_64-w64-mingw32 --enable-reduce-exports --with-tx
+
+make -j"$(nproc)"
+make -C src check-security
+```
+
+Troubleshooting
+---------------
+
+If the build reports that `x86_64-w64-mingw32-g++` is missing, install the
+MinGW-w64 packages listed above.
+
+If the compiler uses `Thread model: win32`, switch to the POSIX variant. The
+win32 variant does not provide the standard C++ condition-variable support that
+Hemp0x Core needs.
+
+If switching from a native Linux build to a Windows cross-build in the same
+checkout, run:
+
+```bash
+make distclean || true
+```
+
+before configuring for Windows.

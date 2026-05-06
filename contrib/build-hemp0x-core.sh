@@ -3,27 +3,31 @@ set -euo pipefail
 
 usage() {
     cat <<'EOF'
-Usage: contrib/build-hemp0x-core.sh [options]
+Usage:
+  contrib/build-hemp0x-core.sh
+  contrib/build-hemp0x-core.sh [options]
 
-Build Hemp0x Core from a source checkout without installing binaries or
-touching node data directories.
+Run without options for an interactive build menu. The script builds from the
+current source checkout without installing binaries or touching node data.
 
 Options:
-  --target linux       Build native Linux binaries (default).
+  --interactive       Force the interactive menu.
+  --target linux      Build native Linux binaries.
   --target windows    Cross-build 64-bit Windows binaries with MinGW-w64.
   --with-tx           Build hemp0x-tx in addition to hemp0xd and hemp0x-cli.
   --with-libs         Also build libhemp0xconsensus for developers.
-  --run-tests         Run make check after the build.
+  --run-tests         Run build checks after compiling.
   --skip-depends      Reuse an existing depends build.
   --reuse-build       Reuse current configure/build state when possible.
-  --clean             Accepted for compatibility; clean builds are the default.
-  --debug             Build with debug symbols and do not strip binaries.
-  --jobs N            Parallel build jobs (default: nproc or 2).
+  --clean             Clean builds are the default; kept for compatibility.
+  --debug             Build debug binaries and do not strip them.
+  --jobs N            Parallel build jobs.
   --help              Show this help.
 
 Examples:
+  contrib/build-hemp0x-core.sh
   contrib/build-hemp0x-core.sh --target linux --with-tx --run-tests
-  contrib/build-hemp0x-core.sh --target windows --with-tx
+  contrib/build-hemp0x-core.sh --target windows --with-tx --run-tests
 EOF
 }
 
@@ -40,87 +44,175 @@ repo_root() {
     git rev-parse --show-toplevel 2>/dev/null || pwd
 }
 
+ask_yes_no() {
+    local prompt="$1"
+    local default="${2:-yes}"
+    local suffix answer
+
+    case "$default" in
+        yes) suffix="[Y/n]" ;;
+        no) suffix="[y/N]" ;;
+        *) suffix="[y/n]" ;;
+    esac
+
+    while true; do
+        read -r -p "$prompt $suffix " answer
+        answer="${answer:-$default}"
+        case "$answer" in
+            y|Y|yes|YES|Yes) return 0 ;;
+            n|N|no|NO|No) return 1 ;;
+        esac
+        echo "Please answer yes or no."
+    done
+}
+
+apt_packages() {
+    local target="$1"
+    local packages=(
+        build-essential autoconf automake libtool pkg-config bsdmainutils
+        curl python3 gawk ca-certificates
+    )
+
+    if [ "$target" = "windows" ]; then
+        packages+=(
+            gcc-mingw-w64-x86-64-posix g++-mingw-w64-x86-64-posix
+            binutils-mingw-w64-x86-64 mingw-w64
+        )
+    fi
+
+    printf '%s\n' "${packages[@]}"
+}
+
+dnf_packages() {
+    local target="$1"
+    local packages=(
+        gcc gcc-c++ make autoconf automake libtool pkgconf curl python3
+        gawk diffutils patch findutils util-linux
+    )
+
+    if [ "$target" = "windows" ]; then
+        packages+=(mingw64-gcc mingw64-gcc-c++)
+    fi
+
+    printf '%s\n' "${packages[@]}"
+}
+
 package_hint() {
     local target="$1"
 
     echo
     echo "Install the missing build tools and rerun this script." >&2
     if have apt-get; then
+        echo "Ubuntu/Debian example:" >&2
+        echo "  sudo apt update" >&2
+        printf '  sudo apt install -y' >&2
+        apt_packages "$target" | while read -r package; do printf ' %s' "$package" >&2; done
+        echo >&2
         if [ "$target" = "windows" ]; then
             cat >&2 <<'EOF'
-Ubuntu/Debian example:
-  sudo apt update
-  sudo apt install -y build-essential autoconf automake libtool pkg-config \
-    bsdmainutils curl python3 gawk ca-certificates \
-    gcc-mingw-w64-x86-64-posix g++-mingw-w64-x86-64-posix \
-    binutils-mingw-w64-x86-64 mingw-w64
 
 Then select the POSIX MinGW variant if alternatives are present:
   sudo update-alternatives --set x86_64-w64-mingw32-gcc /usr/bin/x86_64-w64-mingw32-gcc-posix
   sudo update-alternatives --set x86_64-w64-mingw32-g++ /usr/bin/x86_64-w64-mingw32-g++-posix
 EOF
-        else
-            cat >&2 <<'EOF'
-Ubuntu/Debian example:
-  sudo apt update
-  sudo apt install -y build-essential autoconf automake libtool pkg-config \
-    bsdmainutils curl python3 gawk ca-certificates
-EOF
         fi
     elif have dnf; then
-        if [ "$target" = "windows" ]; then
-            cat >&2 <<'EOF'
-Fedora/Nobara example:
-  sudo dnf install -y gcc gcc-c++ make autoconf automake libtool pkgconf \
-    curl python3 gawk diffutils patch findutils mingw64-gcc mingw64-gcc-c++
-EOF
-        else
-            cat >&2 <<'EOF'
-Fedora/Nobara example:
-  sudo dnf install -y gcc gcc-c++ make autoconf automake libtool pkgconf \
-    curl python3 gawk diffutils patch findutils
-EOF
-        fi
+        echo "Fedora/Nobara example:" >&2
+        printf '  sudo dnf install -y' >&2
+        dnf_packages "$target" | while read -r package; do printf ' %s' "$package" >&2; done
+        echo >&2
     else
-        echo "Install a C/C++ compiler, make, autoconf, automake, libtool, pkg-config, curl, python3, gawk, patch, and the MinGW-w64 POSIX toolchain for Windows builds." >&2
+        echo "Install a C/C++ compiler, make, autoconf, automake, libtool, pkg-config, curl, python3, gawk, patch, hexdump, and the MinGW-w64 POSIX toolchain for Windows builds." >&2
+    fi
+}
+
+install_packages() {
+    local target="$1"
+
+    if have apt-get; then
+        sudo apt update
+        mapfile -t packages < <(apt_packages "$target")
+        sudo apt install -y "${packages[@]}"
+        if [ "$target" = "windows" ]; then
+            [ -x /usr/bin/x86_64-w64-mingw32-gcc-posix ] && sudo update-alternatives --set x86_64-w64-mingw32-gcc /usr/bin/x86_64-w64-mingw32-gcc-posix || true
+            [ -x /usr/bin/x86_64-w64-mingw32-g++-posix ] && sudo update-alternatives --set x86_64-w64-mingw32-g++ /usr/bin/x86_64-w64-mingw32-g++-posix || true
+        fi
+    elif have dnf; then
+        mapfile -t packages < <(dnf_packages "$target")
+        sudo dnf install -y "${packages[@]}"
+    else
+        return 1
+    fi
+}
+
+collect_missing_tools() {
+    local target="$1"
+    local missing_name="$2"
+    local tools=(make git curl python3 gawk sed grep patch autoconf automake libtoolize pkg-config hexdump)
+    local missing_tools=()
+    local tool
+
+    if [ "$target" = "windows" ]; then
+        tools+=(x86_64-w64-mingw32-gcc x86_64-w64-mingw32-g++ x86_64-w64-mingw32-ar x86_64-w64-mingw32-ranlib x86_64-w64-mingw32-strip)
+    else
+        tools+=(gcc g++ strip)
+    fi
+
+    for tool in "${tools[@]}"; do
+        have "$tool" || missing_tools+=("$tool")
+    done
+
+    if [ "${#missing_tools[@]}" -eq 0 ]; then
+        printf -v "$missing_name" '%s' ''
+    else
+        printf -v "$missing_name" '%s' "${missing_tools[*]}"
     fi
 }
 
 require_tools() {
     local target="$1"
-    local missing=()
-    local tools=(make git curl python3 gawk sed grep patch autoconf automake libtoolize pkg-config hexdump)
+    local interactive="$2"
+    local missing
 
-    for tool in "${tools[@]}"; do
-        have "$tool" || missing+=("$tool")
-    done
-
-    if [ "$target" = "windows" ]; then
-        for tool in x86_64-w64-mingw32-gcc x86_64-w64-mingw32-g++ x86_64-w64-mingw32-ar x86_64-w64-mingw32-ranlib x86_64-w64-mingw32-strip; do
-            have "$tool" || missing+=("$tool")
-        done
-    else
-        for tool in gcc g++; do
-            have "$tool" || missing+=("$tool")
-        done
+    collect_missing_tools "$target" missing
+    if [ -z "$missing" ]; then
+        return 0
     fi
 
-    if [ "${#missing[@]}" -ne 0 ]; then
-        echo "Missing tools: ${missing[*]}" >&2
-        package_hint "$target"
-        exit 1
+    echo "Missing tools: $missing" >&2
+    package_hint "$target"
+
+    if [ "$interactive" -eq 1 ] && ask_yes_no "Install the missing packages now?" yes; then
+        install_packages "$target" || die "automatic package installation is not available on this system"
+        collect_missing_tools "$target" missing
+        [ -z "$missing" ] || die "tools are still missing after installation: $missing"
+        return 0
     fi
+
+    exit 1
 }
 
 require_mingw_posix() {
+    local interactive="$1"
     local model
+
     model="$(x86_64-w64-mingw32-g++ -v 2>&1 | sed -n 's/^Thread model: //p' | tail -1)"
-    if [ "$model" != "posix" ]; then
-        echo "Detected MinGW thread model: ${model:-unknown}" >&2
-        echo "Hemp0x Core requires the POSIX MinGW-w64 variant for std::thread and condition_variable support." >&2
-        package_hint windows
-        exit 1
+    if [ "$model" = "posix" ]; then
+        return 0
     fi
+
+    echo "Detected MinGW thread model: ${model:-unknown}" >&2
+    echo "Hemp0x Core requires the POSIX MinGW-w64 variant for std::thread and condition_variable support." >&2
+    package_hint windows
+
+    if [ "$interactive" -eq 1 ] && ask_yes_no "Install/select the POSIX MinGW toolchain now?" yes; then
+        install_packages windows || die "automatic package installation is not available on this system"
+        model="$(x86_64-w64-mingw32-g++ -v 2>&1 | sed -n 's/^Thread model: //p' | tail -1)"
+        [ "$model" = "posix" ] || die "MinGW thread model is still ${model:-unknown}; select the POSIX variant and rerun"
+        return 0
+    fi
+
+    exit 1
 }
 
 strip_binary() {
@@ -140,6 +232,37 @@ configured_host() {
     sed -n 's/^host='\''\(.*\)'\''$/\1/p' config.log | tail -1
 }
 
+interactive_menu() {
+    local choice answer
+
+    echo "Hemp0x Core build helper"
+    echo
+    echo "Select build target:"
+    echo "  1) Linux"
+    echo "  2) Windows"
+
+    while true; do
+        read -r -p "Choice [1]: " choice
+        choice="${choice:-1}"
+        case "$choice" in
+            1) target=linux; break ;;
+            2) target=windows; break ;;
+            *) echo "Choose 1 or 2." ;;
+        esac
+    done
+
+    ask_yes_no "Build hemp0x-tx?" yes && with_tx=1 || with_tx=0
+    ask_yes_no "Run build checks after compiling?" yes && run_tests=1 || run_tests=0
+    ask_yes_no "Build debug binaries? Release binaries are smaller." no && debug=1 || debug=0
+    ask_yes_no "Build libhemp0xconsensus? Most users do not need it." no && with_libs=1 || with_libs=0
+    ask_yes_no "Reuse the current build state? Clean builds are safer." no && clean=0 || clean=1
+
+    read -r -p "Parallel build jobs [$jobs]: " answer
+    if [ -n "$answer" ]; then
+        jobs="$answer"
+    fi
+}
+
 target=linux
 with_tx=0
 with_libs=0
@@ -148,9 +271,17 @@ skip_depends=0
 clean=1
 debug=0
 jobs="$(nproc 2>/dev/null || echo 2)"
+interactive=0
+
+if [ "$#" -eq 0 ] && [ -t 0 ]; then
+    interactive=1
+fi
 
 while [ "$#" -gt 0 ]; do
     case "$1" in
+        --interactive)
+            interactive=1
+            ;;
         --target)
             shift
             target="${1:-}"
@@ -197,6 +328,10 @@ while [ "$#" -gt 0 ]; do
     shift
 done
 
+if [ "$interactive" -eq 1 ]; then
+    interactive_menu
+fi
+
 [ "$target" = "linux" ] || [ "$target" = "windows" ] || die "--target must be linux or windows"
 case "$jobs" in
     ''|*[!0-9]*) die "--jobs must be a positive integer" ;;
@@ -205,8 +340,8 @@ esac
 ROOT="$(repo_root)"
 cd "$ROOT"
 
-require_tools "$target"
-[ "$target" = "windows" ] && require_mingw_posix
+require_tools "$target" "$interactive"
+[ "$target" = "windows" ] && require_mingw_posix "$interactive"
 
 if [ ! -x ./configure ]; then
     ./autogen.sh
@@ -254,6 +389,17 @@ if [ "$debug" -eq 1 ]; then
 else
     configure_args+=(--disable-bench)
 fi
+
+echo
+echo "Build configuration:"
+echo "  target:        $target"
+echo "  tx utility:    $([ "$with_tx" -eq 1 ] && echo yes || echo no)"
+echo "  tests:         $([ "$run_tests" -eq 1 ] && echo yes || echo no)"
+echo "  debug:         $([ "$debug" -eq 1 ] && echo yes || echo no)"
+echo "  libraries:     $([ "$with_libs" -eq 1 ] && echo yes || echo no)"
+echo "  clean build:   $([ "$clean" -eq 1 ] && echo yes || echo no)"
+echo "  jobs:          $jobs"
+echo
 
 if [ "$skip_depends" -eq 0 ]; then
     make -C depends "${depends_args[@]}" -j"$jobs"

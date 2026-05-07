@@ -24,15 +24,15 @@ Then install [Homebrew](https://brew.sh).
 Dependencies
 ----------------------
 
-    brew install automake berkeley-db4 libtool boost miniupnpc openssl@3 pkg-config python libevent
+    brew install automake libtool boost miniupnpc openssl@3 pkg-config python libevent
 
 If you run into issues, check [Homebrew's troubleshooting page](https://docs.brew.sh/Troubleshooting).
 See [dependencies.md](dependencies.md) for a complete overview.
 
 ## Berkeley DB
-It is recommended to use Berkeley DB 4.8. For Core Next source builds the
-recommended way to obtain it is through the tracked `depends` system
-(see the Linux build guide).
+Wallet-enabled builds need Berkeley DB 4.8-compatible wallet support. For Core
+Next source builds, the recommended way to obtain it is through the tracked
+`depends` system used by the validated release builds.
 
 **Note**: You only need Berkeley DB if the wallet is enabled (see [*Disable-wallet mode*](/doc/build-osx.md#disable-wallet-mode)).
 

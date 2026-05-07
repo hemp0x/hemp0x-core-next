@@ -4,6 +4,8 @@ UNIX/LINUX BUILD NOTES
 These notes cover generic Unix build details. For validated release platforms,
 see [build-linux.md](build-linux.md) (Linux) and [build-windows.md](build-windows.md)
 (Windows cross-build). Other Unix platforms are best-effort community builds.
+For release-style builds, prefer the tracked `depends` system and the guided
+helper documented in those platform-specific guides.
 
 Some notes on how to build Hemp0x Core in *nix.
 
@@ -73,22 +75,6 @@ For the versions used, see [dependencies.md](dependencies.md)
 Linux distribution-specific instructions, see [build-linux.md](build-linux.md).
 
 
-### Fedora
-
-#### Dependency Build Instructions
-
-Build requirements:
-
-    sudo dnf install gcc-c++ libtool make autoconf automake openssl-devel libevent-devel boost-devel libdb4-devel libdb4-cxx-devel python3
-
-Optional:
-
-    sudo dnf install miniupnpc-devel
-
-ZMQ dependencies (provides ZMQ API):
-
-    sudo dnf install zeromq-devel
-
 Notes
 -----
 Do not use `make install` for release validation. Copy binaries from `src/` into
@@ -118,7 +104,7 @@ recommended way to obtain it is through the tracked `depends` system
 
 Boost
 -----
-If you need to build Boost yourself:
+If you need to build Boost yourself for a community build:
 
 	sudo su
 	./bootstrap.sh
@@ -192,7 +178,9 @@ A list of additional configure flags can be displayed with:
 
 Setup and Build Example: Arch Linux
 -----------------------------------
-This example lists the steps necessary to setup and build a command line only, non-wallet distribution of the latest changes on Arch Linux:
+This legacy example lists the steps necessary to setup and build a command line
+only, non-wallet distribution on Arch Linux. For wallet-enabled release builds,
+prefer the tracked `depends` system through [build-linux.md](build-linux.md).
 
     pacman -S git base-devel boost libevent python
     git clone https://github.com/hemp0x/hemp0x-core.git
@@ -202,10 +190,8 @@ This example lists the steps necessary to setup and build a command line only, n
     make check
 
 Note:
-Enabling wallet support requires either compiling against a Berkeley DB newer than 4.8 using `--with-incompatible-bdb`,
-or building and depending on a local version of Berkeley DB 4.8. The readily available Arch Linux packages are typically built using
-`--with-incompatible-bdb`. When maintaining portability of the wallet between the standard Hemp0x Core distributions and independently built
-node software is desired, Berkeley DB 4.8 must be used.
+Wallet-enabled release builds should use Berkeley DB 4.8 from the tracked
+`depends` system for portable `wallet.dat` compatibility.
 
 
 ARM Cross-compilation

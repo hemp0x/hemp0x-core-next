@@ -131,6 +131,13 @@ contrib/build-hemp0x-core.sh --target linux --with-tx --run-tests
 contrib/build-hemp0x-core.sh --target windows --with-tx --run-tests
 ```
 
+Container builds are available through [contrib/Dockerfile](contrib/Dockerfile):
+
+```bash
+docker build -f contrib/Dockerfile -t hemp0x-core-next:latest .
+docker run --rm -v "$HOME/.hemp0x:/var/lib/hemp0x" hemp0x-core-next:latest
+```
+
 Build guides:
 
 - [Linux build guide](doc/build-linux.md)

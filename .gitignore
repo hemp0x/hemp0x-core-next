@@ -1,6 +1,7 @@
 buildspecs
 Jenkinsfile
 *.tar.gz
+untracked/
 
 *.exe
 src/hemp0x

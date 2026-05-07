@@ -15,36 +15,22 @@ The following are some helpful notes on how to run Hemp0x on your native platfor
 
 1) Download and extract binaries to desired folder.
 
-2) Install distribution-specific dependencies listed below.
-
-3) Run the Hemp0x Core daemon
+2) Run the Hemp0x Core daemon:
 
    `./hemp0xd -daemon`
 
-#### Ubuntu 22.04 and later
-
-Update apt cache and install general dependencies:
-
-```
-sudo apt update
-sudo apt install libevent-dev libboost-all-dev libminiupnpc-dev libzmq3-dev software-properties-common
-```
-
-The legacy wallet backend requires Berkeley DB 4.8 for portable `wallet.dat` compatibility. The recommended way to get it for source builds is to use the tracked `depends` system.
-
-#### Fedora
-
-Install general dependencies:
-
-`sudo dnf install zeromq libevent boost libdb-cxx miniupnpc`
-
-#### CentOS Stream / RHEL 9
-
-Install general dependencies:
+Source builds should use the tracked `depends` system whenever possible. It
+builds the tested dependency set, including Berkeley DB 4.8 for portable
+legacy `wallet.dat` compatibility. The guided helper is the recommended path:
 
 ```
-sudo dnf install zeromq libevent boost libdb-cxx miniupnpc
+contrib/build-hemp0x-core.sh --target linux --with-tx --run-tests
 ```
+
+If you need to install build tools manually first, see
+[build-linux.md](build-linux.md). The older system-package approach can build a
+node on some distributions, but it is easier to end up with incompatible wallet
+or dependency versions.
 
 ### macOS
 

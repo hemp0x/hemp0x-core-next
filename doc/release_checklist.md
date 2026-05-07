@@ -1,4 +1,4 @@
-**Steps to be performed before any Pull Request is accepted into the master branch**
+**Steps to be performed before any Pull Request is accepted into the active development branch**
 
   1. Check PROTOCOL_VERSION in the following location: src/version.h
 
@@ -27,4 +27,3 @@
 **Build Process**
 
   1. Verify that the release build doesn't say ***dirty*** in the commit message
-

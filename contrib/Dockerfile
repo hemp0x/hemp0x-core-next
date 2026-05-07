@@ -3,6 +3,7 @@ FROM ubuntu:24.04 AS build
 LABEL maintainer="Hemp0x Developers"
 
 ENV DEBIAN_FRONTEND=noninteractive
+ARG BUILD_JOBS=4
 
 RUN apt-get update && \
 	apt-get install -y --no-install-recommends \
@@ -13,7 +14,7 @@ RUN apt-get update && \
 COPY . /home/hemp0x/build/hemp0x-core-next/
 WORKDIR /home/hemp0x/build/hemp0x-core-next
 
-RUN contrib/build-hemp0x-core.sh --target linux --with-tx --jobs 4
+RUN contrib/build-hemp0x-core.sh --target linux --with-tx --jobs "${BUILD_JOBS}"
 
 FROM ubuntu:24.04 AS final
 

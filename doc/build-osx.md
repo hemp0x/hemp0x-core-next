@@ -77,10 +77,13 @@ Before running, you may create an empty configuration file:
 ```shell
 mkdir -p "/Users/${USER}/Library/Application Support/Hemp0x"
 
-touch "/Users/${USER}/Library/Application Support/Hemp0x/hemp0x.conf"
+touch "/Users/${USER}/Library/Application Support/Hemp0x/hemp.conf"
 
-chmod 600 "/Users/${USER}/Library/Application Support/Hemp0x/hemp0x.conf"
+chmod 600 "/Users/${USER}/Library/Application Support/Hemp0x/hemp.conf"
 ```
+
+Core Next uses `hemp.conf` as the primary configuration file name. Existing
+`hemp0x.conf` files are still accepted as a fallback for compatibility.
 
 The first time you run hemp0xd, it will start downloading the blockchain. This process could
 take many hours, or even days on slower than average systems.

@@ -49,6 +49,16 @@ class WalletEncryptionTest(Hemp0xTestFramework):
         self.nodes[0].walletlock()
         assert_raises_rpc_error(-13, "Please enter the wallet passphrase with walletpassphrase first", self.nodes[0].dumpprivkey, address)
 
+        # Test timeout bounds
+        assert_raises_rpc_error(-8, "Timeout must be a positive value", self.nodes[0].walletpassphrase, passphrase, 0)
+        assert_raises_rpc_error(-13, "Please enter the wallet passphrase with walletpassphrase first", self.nodes[0].dumpprivkey, address)
+        assert_raises_rpc_error(-8, "Timeout must be a positive value", self.nodes[0].walletpassphrase, passphrase, -1)
+        assert_raises_rpc_error(-13, "Please enter the wallet passphrase with walletpassphrase first", self.nodes[0].dumpprivkey, address)
+        assert_raises_rpc_error(-8, "Timeout must not exceed 86400", self.nodes[0].walletpassphrase, passphrase, 86401)
+        assert_raises_rpc_error(-13, "Please enter the wallet passphrase with walletpassphrase first", self.nodes[0].dumpprivkey, address)
+        assert_raises_rpc_error(-8, "Timeout must not exceed 86400", self.nodes[0].walletpassphrase, passphrase, 999999)
+        assert_raises_rpc_error(-13, "Please enter the wallet passphrase with walletpassphrase first", self.nodes[0].dumpprivkey, address)
+
         # Test passphrase changes
         self.nodes[0].walletpassphrasechange(passphrase, passphrase2)
         assert_raises_rpc_error(-14, "wallet passphrase entered was incorrect", self.nodes[0].walletpassphrase, passphrase, 10)

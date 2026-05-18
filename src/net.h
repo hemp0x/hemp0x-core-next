@@ -54,6 +54,8 @@ static const unsigned int MAX_INV_SZ = 50000;
 static const unsigned int MAX_LOCATOR_SZ = 101;
 /** The maximum number of entries in an 'asset inv' protocol message */
 static const unsigned int MAX_ASSET_INV_SZ = 1024;
+/** The maximum number of accumulated asset getdata entries per peer */
+static const size_t MAX_ASSET_GETDATA_QUEUE_SIZE = 4096;
 /** The maximum number of new addresses to accumulate before announcing. */
 static const unsigned int MAX_ADDR_TO_SEND = 1000;
 /** Maximum length of incoming protocol messages (no message over 4 MB is currently acceptable). */

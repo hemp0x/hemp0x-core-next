@@ -1212,8 +1212,8 @@ void static ProcessAssetGetData(CNode* pfrom, const Consensus::Params& consensus
     const CNetMsgMaker msgMaker(pfrom->GetSendVersion());
     LOCK(cs_main);
 
-    while (it != pfrom->vRecvAssetGetData.end()) {
-        // Don't bother if send buffer is too full to respond anyway
+    size_t nProcessed = 0;
+    while (it != pfrom->vRecvAssetGetData.end() && nProcessed < MAX_ASSET_GETDATA_ITEMS_PER_CALL) {
         if (pfrom->fPauseSend)
             break;
 
@@ -1223,6 +1223,7 @@ void static ProcessAssetGetData(CNode* pfrom, const Consensus::Params& consensus
                 return;
 
             it++;
+            nProcessed++;
 
             if (!IsAssetNameValid(inv.name)) {
                 vNotFound.push_back(inv);
@@ -1242,15 +1243,17 @@ void static ProcessAssetGetData(CNode* pfrom, const Consensus::Params& consensus
                     push = true;
                 } else {
                     CDatabasedAssetData data;
-                    data.asset.strName = "_NF"; // Return _NF for NOT Found
+                    data.asset.strName = "_NF";
                     connman->PushMessage(pfrom, msgMaker.Make(NetMsgType::ASSETDATA, SerializedAssetData(data)));
                 }
             }
-
-//            if (!push) {
-//                vNotFound.push_back(inv);
-//            }
         }
+    }
+
+    if (nProcessed >= MAX_ASSET_GETDATA_ITEMS_PER_CALL && it != pfrom->vRecvAssetGetData.end()) {
+        LogPrint(BCLog::NET, "asset getdata: per-call cap (%u) reached for peer=%d, %u items remaining\n",
+                 static_cast<unsigned int>(MAX_ASSET_GETDATA_ITEMS_PER_CALL), pfrom->GetId(),
+                 static_cast<unsigned int>(std::distance(it, pfrom->vRecvAssetGetData.end())));
     }
 
     pfrom->vRecvAssetGetData.erase(pfrom->vRecvAssetGetData.begin(), it);
@@ -1998,7 +2001,13 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             LogPrint(BCLog::NET, "received getassetdata for: %s peer=%d\n", vInvAsset[0].ToString(), pfrom->GetId());
         }
 
-        pfrom->vRecvAssetGetData.insert(pfrom->vRecvAssetGetData.end(), vInvAsset.begin(), vInvAsset.end());
+        if (pfrom->vRecvAssetGetData.size() + vInvAsset.size() <= MAX_ASSET_GETDATA_QUEUE_SIZE) {
+            pfrom->vRecvAssetGetData.insert(pfrom->vRecvAssetGetData.end(), vInvAsset.begin(), vInvAsset.end());
+        } else {
+            LogPrint(BCLog::NET, "asset getdata queue cap (%u) reached for peer=%d, dropping %u items\n",
+                     static_cast<unsigned int>(MAX_ASSET_GETDATA_QUEUE_SIZE), pfrom->GetId(),
+                     static_cast<unsigned int>(vInvAsset.size()));
+        }
         ProcessAssetGetData(pfrom, chainparams.GetConsensus(), connman, interruptMsgProc);
     }
 

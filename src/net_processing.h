@@ -38,6 +38,9 @@ static constexpr int64_t MINIMUM_CONNECT_TIME = 30;
 /** Maximum items processed from a single getdata queue per call to avoid
  *  holding cs_main too long. Remaining items stay queued for the next pass. */
 static const size_t MAX_GETDATA_ITEMS_PER_CALL = 1000;
+/** Maximum items processed from a single asset getdata queue per call to avoid
+ *  holding cs_main too long. Remaining items stay queued for the next pass. */
+static const size_t MAX_ASSET_GETDATA_ITEMS_PER_CALL = 1000;
 /** Maximum work items when recursively resolving orphans after a parent
  *  transaction is accepted. Prevents deep chains from monopolising processing. */
 static const size_t MAX_ORPHAN_RESOLUTION_WORK_ITEMS = 1000;

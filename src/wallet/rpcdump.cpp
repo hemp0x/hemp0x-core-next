@@ -36,6 +36,20 @@ std::string static EncodeDumpTime(int64_t nTime) {
     return DateTimeStrFormat("%Y-%m-%dT%H:%M:%SZ", nTime);
 }
 
+static void CleanseBytes(std::vector<unsigned char>& bytes)
+{
+    if (!bytes.empty()) {
+        memory_cleanse(bytes.data(), bytes.size());
+    }
+}
+
+static void CleanseString(std::string& str)
+{
+    if (!str.empty()) {
+        memory_cleanse(&str[0], str.size());
+    }
+}
+
 int64_t static DecodeDumpTime(const std::string &str) {
     static const boost::posix_time::ptime epoch = boost::posix_time::from_time_t(0);
     static const std::locale loc(std::locale::classic(),
@@ -608,7 +622,10 @@ UniValue dumpwallet(const JSONRPCRequest& request)
         throw std::runtime_error(
             "dumpwallet \"filename\"\n"
             "\nDumps all wallet keys in a human-readable format to a server-side file. This does not allow overwriting existing files.\n"
-            "\nWARNING: The dump file contains private keys and may contain HD seed or mnemonic material. Store it only on trusted storage with restrictive permissions, and securely remove it when it is no longer needed.\n"
+            "\nBIP39 mnemonic, mnemonic passphrase, and HD seed lines are omitted unless\n"
+            "-allowwalletsecretexport is set.\n"
+            "For a secure wallet migration path, use exportwalletmigration instead.\n"
+            "\nWARNING: The dump file contains private keys. Store it only on trusted storage with restrictive permissions, and securely remove it when it is no longer needed.\n"
             "\nArguments:\n"
             "1. \"filename\"    (string, required) The filename with path (either absolute or relative to hemp0xd)\n"
             "\nResult:\n"
@@ -713,10 +730,20 @@ UniValue dumpwallet(const JSONRPCRequest& request)
             file << "# extended private masterkey: " << b58extkey.ToString() << "\n\n";
             file << "# extended public masterkey: " << b58extpubkey.ToString() << "\n\n";
 
-			file << "# HD seed: " << HexStr(vchSeed) << "\n";
-			file << "# mnemonic: " << std::string(vchWords.begin(), vchWords.end()).c_str() << "\n";
-			file << "# mnemonic passphrase: " << std::string(vchPassphrase.begin(), vchPassphrase.end()).c_str() << "\n";
-			file << "# hash of words: " << hash.GetHex() << "\n\n";
+            if (gArgs.GetBoolArg("-allowwalletsecretexport", false)) {
+                std::string wordsStr(vchWords.begin(), vchWords.end());
+                std::string passphraseStr(vchPassphrase.begin(), vchPassphrase.end());
+                file << "# HD seed: " << HexStr(vchSeed) << "\n";
+                file << "# mnemonic: " << wordsStr << "\n";
+                file << "# mnemonic passphrase: " << passphraseStr << "\n";
+                file << "# hash of words: " << hash.GetHex() << "\n\n";
+                CleanseString(wordsStr);
+                CleanseString(passphraseStr);
+            }
+
+            CleanseBytes(vchWords);
+            CleanseBytes(vchPassphrase);
+            CleanseBytes(vchSeed);
 		}
     }
     for (std::vector<std::pair<int64_t, CKeyID> >::const_iterator it = vKeyBirth.begin(); it != vKeyBirth.end(); it++) {
@@ -761,6 +788,9 @@ UniValue getmasterkeyinfo(const JSONRPCRequest& request)
         throw std::runtime_error(
                 "getmasterkeyinfo\n"
                 "\nFetches and displays the master private key and the master public key.\n"
+                "\nThis RPC is disabled by default. To enable it, restart with -allowwalletsecretexport\n"
+                "only on a trusted local system.\n"
+                "For a secure wallet migration path, use exportwalletmigration instead.\n"
                 "\nWARNING: This RPC reveals root and account private key material. Use it only on trusted local systems and never paste the output into logs, tickets, chat, or untrusted tools.\n"
                 "\nResult:\n"
                 "{                           (json object)\n"
@@ -774,6 +804,12 @@ UniValue getmasterkeyinfo(const JSONRPCRequest& request)
                 + HelpExampleCli("getmasterkeyinfo", "")
                 + HelpExampleRpc("getmasterkeyinfo", "")
         );
+
+    if (!gArgs.GetBoolArg("-allowwalletsecretexport", false)) {
+        throw JSONRPCError(RPC_WALLET_ERROR, "getmasterkeyinfo is disabled by default. "
+                "Restart with -allowwalletsecretexport on a trusted local system to enable legacy secret export, "
+                "or use exportwalletmigration for a secure wallet migration path.");
+    }
 
     LOCK2(cs_main, pwallet->cs_wallet);
 
@@ -831,6 +867,7 @@ UniValue getmasterkeyinfo(const JSONRPCRequest& request)
                 ret.push_back(std::make_pair("account_extended_private_key",  b58accountextprivatekey.ToString()));
                 ret.push_back(std::make_pair("account_extended_public_key",  b58actextpubkey.ToString()));
 
+                memory_cleanse(const_cast<unsigned char*>(seed.begin()), seed.size());
             }
         }
 
@@ -893,6 +930,10 @@ UniValue getmasterkeyinfo(const JSONRPCRequest& request)
             // Add the account extended public and private keys to the return
             ret.push_back(std::make_pair("account_extended_private_key",  b58accountextprivatekey.ToString()));
             ret.push_back(std::make_pair("account_extended_public_key",  b58actextpubkey.ToString()));
+
+            CleanseBytes(vchWords);
+            CleanseBytes(vchPassphrase);
+            CleanseBytes(vchSeed);
         }
     }
 

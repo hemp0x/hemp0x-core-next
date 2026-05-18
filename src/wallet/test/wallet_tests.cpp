@@ -31,6 +31,10 @@ extern UniValue dumpwallet(const JSONRPCRequest &request);
 
 extern UniValue importwallet(const JSONRPCRequest &request);
 
+extern UniValue getmywords(const JSONRPCRequest &request);
+
+extern UniValue getmasterkeyinfo(const JSONRPCRequest &request);
+
 extern UniValue getwalletmigrationinfo(const JSONRPCRequest &request);
 
 extern UniValue exportwalletmigration(const JSONRPCRequest &request);
@@ -2023,6 +2027,208 @@ BOOST_FIXTURE_TEST_SUITE(wallet_tests, WalletTestingSetup)
         if (boost::filesystem::exists(tmpExportPath)) {
             boost::filesystem::remove(tmpExportPath);
         }
+    }
+
+    BOOST_AUTO_TEST_CASE(secretexport_guard_test)
+    {
+        struct WalletVectorGuard {
+            std::vector<CWallet*> saved_wallets;
+            explicit WalletVectorGuard(CWallet* wallet) : saved_wallets(vpwallets)
+            {
+                vpwallets.clear();
+                vpwallets.push_back(wallet);
+            }
+            ~WalletVectorGuard()
+            {
+                vpwallets = saved_wallets;
+            }
+        } wallet_guard(pwalletMain);
+
+        bool hasBip44 = pwalletMain->IsHDEnabled() &&
+            pwalletMain->GetHDChain().IsBip44() &&
+            pwalletMain->HasMnemonicData();
+
+        // Reset flag at end of test
+        bool restoreFlag = gArgs.GetBoolArg("-allowwalletsecretexport", false);
+
+        // Test 1: getmywords without flag returns error
+        {
+            gArgs.ForceSetArg("-allowwalletsecretexport", "0");
+            JSONRPCRequest request;
+            request.strMethod = "getmywords";
+            request.params = UniValue(UniValue::VARR);
+            request.fHelp = false;
+
+            bool threw = false;
+            int errorCode = 0;
+            try {
+                getmywords(request);
+            } catch (const UniValue& e) {
+                threw = true;
+                errorCode = e["code"].get_int();
+            }
+
+            BOOST_CHECK_MESSAGE(threw, "getmywords should throw without -allowwalletsecretexport");
+            if (threw) {
+                BOOST_CHECK_MESSAGE(errorCode == RPC_WALLET_ERROR,
+                    "getmywords error code should be RPC_WALLET_ERROR, got " + std::to_string(errorCode));
+            }
+        }
+
+        // Test 2: getmywords with flag succeeds (guard passes)
+        {
+            gArgs.ForceSetArg("-allowwalletsecretexport", "1");
+            JSONRPCRequest request;
+            request.strMethod = "getmywords";
+            request.params = UniValue(UniValue::VARR);
+            request.fHelp = false;
+
+            bool threw = false;
+            try {
+                UniValue result = getmywords(request);
+                BOOST_CHECK_MESSAGE(result.isObject(), "getmywords with flag should return object");
+            } catch (const UniValue& e) {
+                int code = e["code"].get_int();
+                if (hasBip44 && code != RPC_WALLET_UNLOCK_NEEDED) {
+                    threw = true;
+                }
+                // If wallet is not BIP44, it's expected to throw about that
+                if (!hasBip44) {
+                    BOOST_CHECK_MESSAGE(code == RPC_WALLET_ERROR, "Non-BIP44 wallet should error");
+                }
+            }
+            BOOST_CHECK_MESSAGE(!threw || !hasBip44, "getmywords with flag should not throw guard error");
+        }
+
+        // Test 3: getmasterkeyinfo without flag returns error
+        {
+            gArgs.ForceSetArg("-allowwalletsecretexport", "0");
+            JSONRPCRequest request;
+            request.strMethod = "getmasterkeyinfo";
+            request.params = UniValue(UniValue::VARR);
+            request.fHelp = false;
+
+            bool threw = false;
+            int errorCode = 0;
+            try {
+                getmasterkeyinfo(request);
+            } catch (const UniValue& e) {
+                threw = true;
+                errorCode = e["code"].get_int();
+            }
+
+            BOOST_CHECK_MESSAGE(threw, "getmasterkeyinfo should throw without -allowwalletsecretexport");
+            if (threw) {
+                BOOST_CHECK_MESSAGE(errorCode == RPC_WALLET_ERROR,
+                    "getmasterkeyinfo error code should be RPC_WALLET_ERROR, got " + std::to_string(errorCode));
+            }
+        }
+
+        // Test 4: getmasterkeyinfo with flag succeeds (guard passes)
+        {
+            gArgs.ForceSetArg("-allowwalletsecretexport", "1");
+            JSONRPCRequest request;
+            request.strMethod = "getmasterkeyinfo";
+            request.params = UniValue(UniValue::VARR);
+            request.fHelp = false;
+
+            bool threw = false;
+            try {
+                UniValue result = getmasterkeyinfo(request);
+                BOOST_CHECK_MESSAGE(result.isObject(), "getmasterkeyinfo with flag should return object");
+            } catch (const UniValue& e) {
+                int code = e["code"].get_int();
+                if (code == RPC_WALLET_ERROR) {
+                    // Could fail for non-HD wallet, which is ok
+                } else {
+                    threw = true;
+                }
+            }
+            BOOST_CHECK_MESSAGE(!threw, "getmasterkeyinfo with flag should not throw guard error");
+        }
+
+        // Test 5: dumpwallet without flag omits BIP39 secret lines
+        if (hasBip44 && !pwalletMain->IsLocked()) {
+            boost::filesystem::path dumpPath = boost::filesystem::temp_directory_path() /
+                boost::filesystem::unique_path("hemp0x-test-dumpwallet-nosecret-%%%%%%.txt");
+
+            // Remove if exists
+            if (boost::filesystem::exists(dumpPath)) {
+                boost::filesystem::remove(dumpPath);
+            }
+
+            gArgs.ForceSetArg("-allowwalletsecretexport", "0");
+            JSONRPCRequest request;
+            request.strMethod = "dumpwallet";
+            request.params = UniValue(UniValue::VARR);
+            request.params.push_back(UniValue(dumpPath.string()));
+            request.fHelp = false;
+
+            UniValue result = dumpwallet(request);
+            BOOST_CHECK_MESSAGE(result.isObject(), "dumpwallet without flag should return object");
+
+            std::ifstream file(dumpPath.string());
+            std::string content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+            file.close();
+
+            BOOST_CHECK_MESSAGE(
+                content.find("HD seed:") == std::string::npos,
+                "dumpwallet without flag must not contain HD seed line");
+            BOOST_CHECK_MESSAGE(
+                content.find("mnemonic:") == std::string::npos,
+                "dumpwallet without flag must not contain mnemonic line");
+            BOOST_CHECK_MESSAGE(
+                content.find("mnemonic passphrase:") == std::string::npos,
+                "dumpwallet without flag must not contain mnemonic passphrase line");
+            BOOST_CHECK_MESSAGE(
+                content.find("extended private masterkey:") != std::string::npos,
+                "dumpwallet without flag should still contain extended private masterkey");
+
+            if (boost::filesystem::exists(dumpPath)) {
+                boost::filesystem::remove(dumpPath);
+            }
+        }
+
+        // Test 6: dumpwallet with flag includes BIP39 secret lines
+        if (hasBip44 && !pwalletMain->IsLocked()) {
+            boost::filesystem::path dumpPath = boost::filesystem::temp_directory_path() /
+                boost::filesystem::unique_path("hemp0x-test-dumpwallet-secret-%%%%%%.txt");
+
+            if (boost::filesystem::exists(dumpPath)) {
+                boost::filesystem::remove(dumpPath);
+            }
+
+            gArgs.ForceSetArg("-allowwalletsecretexport", "1");
+            JSONRPCRequest request;
+            request.strMethod = "dumpwallet";
+            request.params = UniValue(UniValue::VARR);
+            request.params.push_back(UniValue(dumpPath.string()));
+            request.fHelp = false;
+
+            UniValue result = dumpwallet(request);
+            BOOST_CHECK_MESSAGE(result.isObject(), "dumpwallet with flag should return object");
+
+            std::ifstream file(dumpPath.string());
+            std::string content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+            file.close();
+
+            BOOST_CHECK_MESSAGE(
+                content.find("HD seed:") != std::string::npos,
+                "dumpwallet with flag must contain HD seed line");
+            BOOST_CHECK_MESSAGE(
+                content.find("mnemonic:") != std::string::npos,
+                "dumpwallet with flag must contain mnemonic line");
+            BOOST_CHECK_MESSAGE(
+                content.find("mnemonic passphrase:") != std::string::npos,
+                "dumpwallet with flag must contain mnemonic passphrase line");
+
+            if (boost::filesystem::exists(dumpPath)) {
+                boost::filesystem::remove(dumpPath);
+            }
+        }
+
+        // Restore flag
+        gArgs.ForceSetArg("-allowwalletsecretexport", restoreFlag ? "1" : "0");
     }
 
 BOOST_AUTO_TEST_SUITE_END()

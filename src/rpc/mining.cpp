@@ -36,6 +36,7 @@
 #include <crypto/ethash/include/ethash/progpow.hpp>
 
 std::map<std::string, CBlock> mapHEMPKAWBlockTemplates;
+static const size_t MAX_KAW_BLOCK_TEMPLATES = 64;
 
 static UniValue LocalBlockGenerationDisabled()
 {
@@ -324,7 +325,7 @@ UniValue getblocktemplate(const JSONRPCRequest& request)
     if (!request.params[0].isNull())
     {
         const UniValue& oparam = request.params[0].get_obj();
-        const UniValue& modeval = find_value(oparam, "mode");
+        const UniValue modeval = find_value(oparam, "mode");
         if (modeval.isStr())
             strMode = modeval.get_str();
         else if (modeval.isNull())
@@ -337,7 +338,7 @@ UniValue getblocktemplate(const JSONRPCRequest& request)
 
         if (strMode == "proposal")
         {
-            const UniValue& dataval = find_value(oparam, "data");
+            const UniValue dataval = find_value(oparam, "data");
             if (!dataval.isStr())
                 throw JSONRPCError(RPC_TYPE_ERROR, "Missing data String key for proposal");
 
@@ -365,7 +366,7 @@ UniValue getblocktemplate(const JSONRPCRequest& request)
             return BIP22ValidationResult(state);
         }
 
-        const UniValue& aClientRules = find_value(oparam, "rules");
+        const UniValue aClientRules = find_value(oparam, "rules");
         if (aClientRules.isArray()) {
             for (unsigned int i = 0; i < aClientRules.size(); ++i) {
                 const UniValue& v = aClientRules[i];
@@ -373,7 +374,7 @@ UniValue getblocktemplate(const JSONRPCRequest& request)
             }
         } else {
             // NOTE: It is important that this NOT be read if versionbits is supported
-            const UniValue& uvMaxVersion = find_value(oparam, "maxversion");
+            const UniValue uvMaxVersion = find_value(oparam, "maxversion");
             if (uvMaxVersion.isNum()) {
                 nMaxVersionPreVB = uvMaxVersion.get_int64();
             }
@@ -480,6 +481,7 @@ UniValue getblocktemplate(const JSONRPCRequest& request)
                 throw JSONRPCError(RPC_INVALID_PARAMETER, "-miningaddress is not a valid address. Please use a valid address");
             }
         } else {
+            LogPrintf("Warning: -miningaddress is not set. Coinbase rewards will be sent to a default script (OP_TRUE). Set -miningaddress to specify a mining payout address.\n");
             script = CScript() << OP_TRUE;
         }
 
@@ -653,8 +655,13 @@ UniValue getblocktemplate(const JSONRPCRequest& request)
             pblock->hashMerkleRoot = BlockMerkleRoot(*pblock);
             result.pushKV("pprpcheader", pblock->GetKAWPOWHeaderHash().GetHex());
             result.pushKV("pprpcepoch", ethash::get_epoch_number(pblock->nHeight));
+            if (mapHEMPKAWBlockTemplates.size() >= MAX_KAW_BLOCK_TEMPLATES) {
+                mapHEMPKAWBlockTemplates.clear();
+            }
             mapHEMPKAWBlockTemplates[pblock->GetKAWPOWHeaderHash().GetHex()] = *pblock;
             lastheader = pblock->GetKAWPOWHeaderHash().GetHex();
+        } else {
+            LogPrintf("Warning: -miningaddress is not set or invalid. KAWPOW mining helper data (pprpcheader) will not be provided. Set -miningaddress to enable pool mining.\n");
         }
     }
 
@@ -719,15 +726,11 @@ static UniValue getkawpowhash(const JSONRPCRequest& request) {
         fCheckTarget = true;
     }
 
-    static ethash::epoch_context_ptr context{nullptr, nullptr};
-
-    // Get the context from the block height
     const auto epoch_number = ethash::get_epoch_number(nHeight);
-    if (!context || context->epoch_number != epoch_number)
-        context = ethash::create_epoch_context(epoch_number);
+    const auto& context = ethash::get_global_epoch_context(epoch_number);
 
     // ProgPow hash
-    const auto result = progpow::hash(*context, nHeight, header_hash, nNonce);
+    const auto result = progpow::hash(context, nHeight, header_hash, nNonce);
 
     uint256 mined_mix_hash = uint256S(to_hex(result.mix_hash));
     uint256 mined_final_hash = uint256S(to_hex(result.final_hash));

@@ -3,12 +3,11 @@
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-"""
-Test that oversized getdata queues are processed in bounded chunks.
+"""Test that oversized getdata queues remain bounded and responsive.
 
-The daemon caps per-call getdata processing at nMaxItemsPerCall (1000)
-items to avoid holding cs_main too long. This test sends a large getdata
-message and verifies the node remains responsive (does not hang or crash).
+The daemon caps both the accumulated getdata queue and per-call getdata
+processing. This test sends a large getdata message and verifies the node
+remains responsive instead of hanging or crashing.
 """
 
 from test_framework.messages import CInv, MsgGetdata

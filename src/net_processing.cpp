@@ -1966,7 +1966,16 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             LogPrint(BCLog::NET, "received getdata for: %s peer=%d\n", vInv[0].ToString(), pfrom->GetId());
         }
 
-        pfrom->vRecvGetData.insert(pfrom->vRecvGetData.end(), vInv.begin(), vInv.end());
+        const size_t nAvailable = pfrom->vRecvGetData.size() < MAX_GETDATA_QUEUE_SIZE
+                                      ? MAX_GETDATA_QUEUE_SIZE - pfrom->vRecvGetData.size()
+                                      : 0;
+        const size_t nToQueue = std::min(nAvailable, vInv.size());
+        pfrom->vRecvGetData.insert(pfrom->vRecvGetData.end(), vInv.begin(), vInv.begin() + nToQueue);
+        if (nToQueue < vInv.size()) {
+            LogPrint(BCLog::NET, "getdata queue cap (%u) reached for peer=%d, dropping %u items\n",
+                     static_cast<unsigned int>(MAX_GETDATA_QUEUE_SIZE), pfrom->GetId(),
+                     static_cast<unsigned int>(vInv.size() - nToQueue));
+        }
         ProcessGetData(pfrom, chainparams.GetConsensus(), connman, interruptMsgProc);
     }
 
@@ -2115,8 +2124,13 @@ bool static ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStr
             CInv inv;
             inv.type = State(pfrom->GetId())->fWantsCmpctWitness ? MSG_WITNESS_BLOCK : MSG_BLOCK;
             inv.hash = req.blockhash;
-            pfrom->vRecvGetData.push_back(inv);
-            ProcessGetData(pfrom, chainparams.GetConsensus(), connman, interruptMsgProc);
+            if (pfrom->vRecvGetData.size() < MAX_GETDATA_QUEUE_SIZE) {
+                pfrom->vRecvGetData.push_back(inv);
+                ProcessGetData(pfrom, chainparams.GetConsensus(), connman, interruptMsgProc);
+            } else {
+                LogPrint(BCLog::NET, "getdata queue cap (%u) reached for peer=%d, dropping getblocktxn fallback\n",
+                         static_cast<unsigned int>(MAX_GETDATA_QUEUE_SIZE), pfrom->GetId());
+            }
             return true;
         }
 

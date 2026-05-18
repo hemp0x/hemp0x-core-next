@@ -127,6 +127,7 @@ BASE_SCRIPTS= [
     'feature_config_file.py',
     'wallet_encryption.py',
     'wallet_rpc_args.py',
+    'wallet_importwallet_limits.py',
     'feature_listmyassets.py',
     'mempool_reorg.py',
     'rpc_txoutproof.py',

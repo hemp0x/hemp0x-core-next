@@ -31,6 +31,8 @@
 
 #include <univalue.h>
 
+static const int64_t MAX_IMPORTWALLET_FILE_SIZE = 64 * 1024 * 1024;
+static const size_t MAX_IMPORTWALLET_LINE_SIZE = 16 * 1024;
 
 std::string static EncodeDumpTime(int64_t nTime) {
     return DateTimeStrFormat("%Y-%m-%dT%H:%M:%SZ", nTime);
@@ -505,6 +507,9 @@ UniValue importwallet(const JSONRPCRequest& request)
     bool fGood = true;
 
     int64_t nFilesize = std::max((int64_t)1, (int64_t)file.tellg());
+    if (nFilesize > MAX_IMPORTWALLET_FILE_SIZE) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Wallet dump file exceeds maximum import size");
+    }
     file.seekg(0, file.beg);
 
     pwallet->ShowProgress(_("Importing..."), 0); // show progress dialog in GUI
@@ -512,6 +517,9 @@ UniValue importwallet(const JSONRPCRequest& request)
         pwallet->ShowProgress("", std::max(1, std::min(99, (int)(((double)file.tellg() / (double)nFilesize) * 100))));
         std::string line;
         std::getline(file, line);
+        if (line.size() > MAX_IMPORTWALLET_LINE_SIZE) {
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "Wallet dump file contains an oversized line");
+        }
         if (line.empty() || line[0] == '#')
             continue;
 

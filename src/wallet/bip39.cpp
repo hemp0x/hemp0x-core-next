@@ -42,9 +42,10 @@ SecureString CMnemonic::Generate(int strength, int languageSelected)
     if (strength % 32 || strength < 128 || strength > 256) {
         return SecureString();
     }
-    SecureVector data(32);
-    GetStrongRandBytes(&data[0], 32);
-    SecureString mnemonic = FromData(data, strength / 8, languageSelected);
+    const int entropyBytes = strength / 8;
+    SecureVector data(entropyBytes);
+    GetStrongRandBytes(&data[0], entropyBytes);
+    SecureString mnemonic = FromData(data, entropyBytes, languageSelected);
     return mnemonic;
 }
 
@@ -175,7 +176,7 @@ std::array<LanguageDetails, NUM_LANGUAGES_BIP39_SUPPORTED> CMnemonic::GetLanguag
 
 const char* const* CMnemonic::GetLanguageWords(int lang)
 {
-    if (lang >= 0 && lang <= NUM_LANGUAGES_BIP39_SUPPORTED) {
+    if (lang >= 0 && lang < NUM_LANGUAGES_BIP39_SUPPORTED) {
         return CMnemonic::GetLanguagesDetails()[lang].wordlist;
     }
 

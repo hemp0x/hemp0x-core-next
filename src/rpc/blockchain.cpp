@@ -221,9 +221,19 @@ UniValue blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool tx
     UniValue result(UniValue::VOBJ);
     result.push_back(Pair("hash", blockindex->GetBlockHash().GetHex()));
     int confirmations = -1;
+    uint256 nextblockhash;
+    bool hasNextBlock = false;
     // Only report confirmations if the block is on the main chain
-    if (chainActive.Contains(blockindex))
-        confirmations = chainActive.Height() - blockindex->nHeight + 1;
+    {
+        LOCK(cs_main);
+        if (chainActive.Contains(blockindex))
+            confirmations = chainActive.Height() - blockindex->nHeight + 1;
+        CBlockIndex *pnext = chainActive.Next(blockindex);
+        if (pnext) {
+            nextblockhash = pnext->GetBlockHash();
+            hasNextBlock = true;
+        }
+    }
     result.push_back(Pair("confirmations", confirmations));
     result.push_back(Pair("strippedsize", (int)::GetSerializeSize(block, SER_NETWORK, PROTOCOL_VERSION | SERIALIZE_TRANSACTION_NO_WITNESS)));
     result.push_back(Pair("size", (int)::GetSerializeSize(block, SER_NETWORK, PROTOCOL_VERSION)));
@@ -257,9 +267,8 @@ UniValue blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool tx
 
     if (blockindex->pprev)
         result.push_back(Pair("previousblockhash", blockindex->pprev->GetBlockHash().GetHex()));
-    CBlockIndex *pnext = chainActive.Next(blockindex);
-    if (pnext)
-        result.push_back(Pair("nextblockhash", pnext->GetBlockHash().GetHex()));
+    if (hasNextBlock)
+        result.push_back(Pair("nextblockhash", nextblockhash.GetHex()));
     return result;
 }
 
@@ -822,11 +831,15 @@ UniValue getblockhashes(const JSONRPCRequest& request)
 
     std::vector<std::pair<uint256, unsigned int> > blockHashes;
 
-    if (fActiveOnly)
+    if (fActiveOnly) {
         LOCK(cs_main);
-
-    if (!GetTimestampIndex(high, low, fActiveOnly, blockHashes)) {
-        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available for block hashes");
+        if (!GetTimestampIndex(high, low, fActiveOnly, blockHashes)) {
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available for block hashes");
+        }
+    } else {
+        if (!GetTimestampIndex(high, low, fActiveOnly, blockHashes)) {
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available for block hashes");
+        }
     }
 
     UniValue result(UniValue::VARR);
@@ -979,8 +992,6 @@ UniValue getblock(const JSONRPCRequest& request)
             + HelpExampleRpc("getblock", "\"00000000c937983704a73af28acdec37b049d214adbda81d7e2a3dd146f6ed09\"")
         );
 
-    LOCK(cs_main);
-
     std::string strHash = request.params[0].get_str();
     uint256 hash(uint256S(strHash));
 
@@ -992,14 +1003,18 @@ UniValue getblock(const JSONRPCRequest& request)
             verbosity = request.params[1].get_bool() ? 1 : 0;
     }
 
-    if (mapBlockIndex.count(hash) == 0)
-        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not found");
-
     CBlock block;
-    CBlockIndex* pblockindex = mapBlockIndex[hash];
+    CBlockIndex* pblockindex = nullptr;
+    {
+        LOCK(cs_main);
+        if (mapBlockIndex.count(hash) == 0)
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not found");
 
-    if (fHavePruned && !(pblockindex->nStatus & BLOCK_HAVE_DATA) && pblockindex->nTx > 0)
-        throw JSONRPCError(RPC_MISC_ERROR, "Block not available (pruned data)");
+        pblockindex = mapBlockIndex[hash];
+
+        if (fHavePruned && !(pblockindex->nStatus & BLOCK_HAVE_DATA) && pblockindex->nTx > 0)
+            throw JSONRPCError(RPC_MISC_ERROR, "Block not available (pruned data)");
+    }
 
     if (!ReadBlockFromDisk(block, pblockindex, GetParams().GetConsensus()))
         // Block not found on disk. This could be because we have the block

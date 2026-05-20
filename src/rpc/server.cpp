@@ -71,15 +71,13 @@ struct RPCCommandExecution
     std::list<RPCCommandExecutionInfo>::iterator it;
     explicit RPCCommandExecution(const std::string& method)
     {
-        g_rpc_server_info.mtx.lock();
+        std::lock_guard<std::mutex> lock(g_rpc_server_info.mtx);
         it = g_rpc_server_info.active_commands.insert(g_rpc_server_info.active_commands.end(), {method, GetTimeMicros()});
-        g_rpc_server_info.mtx.unlock();
     }
     ~RPCCommandExecution()
     {
-        g_rpc_server_info.mtx.lock();
+        std::lock_guard<std::mutex> lock(g_rpc_server_info.mtx);
         g_rpc_server_info.active_commands.erase(it);
-        g_rpc_server_info.mtx.unlock();
     }
 };
 
@@ -334,7 +332,7 @@ UniValue getrpcinfo(const JSONRPCRequest& jsonRequest)
                 + HelpExampleRpc("getrpcinfo", "")
         );
 
-    g_rpc_server_info.mtx.lock();
+    std::lock_guard<std::mutex> lock(g_rpc_server_info.mtx);
     UniValue active_commands(UniValue::VARR);
     for (const RPCCommandExecutionInfo& info : g_rpc_server_info.active_commands) {
         UniValue entry(UniValue::VOBJ);
@@ -345,7 +343,6 @@ UniValue getrpcinfo(const JSONRPCRequest& jsonRequest)
 
     UniValue result(UniValue::VOBJ);
     result.pushKV("active_commands", active_commands);
-    g_rpc_server_info.mtx.unlock();
 
     return result;
 }

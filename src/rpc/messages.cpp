@@ -38,6 +38,99 @@ std::string MessageActivationWarning()
     return AreMessagesDeployed() ? "" : "\nTHIS COMMAND IS NOT YET ACTIVE!\nhttps://github.com/Hemp0xProject/rips/blob/master/rip-0005.mediawiki\n";
 }
 
+static std::string DeriveAuthorityAsset(const std::string& strName)
+{
+    size_t tildePos = strName.find('~');
+    if (tildePos != std::string::npos) {
+        return strName.substr(0, tildePos) + OWNER_TAG;
+    }
+    return strName;
+}
+
+static std::string GetMessageBlockHash(const CMessage& message)
+{
+    if (message.nBlockHeight <= 0)
+        return "";
+
+    if (message.status == MessageStatus::ORPHAN)
+        return "";
+
+    LOCK(cs_main);
+    if (message.nBlockHeight > chainActive.Height())
+        return "";
+
+    CBlockIndex* pindex = chainActive[message.nBlockHeight];
+    return pindex ? pindex->GetBlockHash().ToString() : "";
+}
+
+static bool NormalizeMessageChannel(std::string& channel)
+{
+    AssetType type;
+    if (!IsAssetNameValid(channel, type))
+        return false;
+
+    if (type == AssetType::ROOT || type == AssetType::SUB || type == AssetType::RESTRICTED) {
+        channel += OWNER_TAG;
+        if (!IsAssetNameValid(channel, type))
+            return false;
+    }
+
+    return type == AssetType::OWNER || type == AssetType::MSGCHANNEL;
+}
+
+static void LoadMessagesForRPC(std::set<CMessage>& setMessages)
+{
+    pmessagedb->LoadMessages(setMessages);
+
+    LOCK(cs_messaging);
+
+    for (const auto& pair : mapDirtyMessagesOrphaned) {
+        CMessage message = pair.second;
+        message.status = MessageStatus::ORPHAN;
+        if (setMessages.count(message))
+            setMessages.erase(message);
+        setMessages.insert(message);
+    }
+
+    for (const auto& out : setDirtyMessagesRemove) {
+        CMessage message;
+        message.out = out;
+        setMessages.erase(message);
+    }
+
+    for (const auto& pair : mapDirtyMessagesAdd) {
+        setMessages.erase(pair.second);
+        setMessages.insert(pair.second);
+    }
+}
+
+static UniValue MessageEntryToJSON(const CMessage& message, const std::string& block_hash = "")
+{
+    UniValue obj(UniValue::VOBJ);
+
+    obj.push_back(Pair("Asset Name", message.strName));
+    obj.push_back(Pair("Message", EncodeAssetData(message.ipfsHash)));
+    obj.push_back(Pair("Time", DateTimeStrFormat("%Y-%m-%d %H:%M:%S", message.time)));
+    obj.push_back(Pair("Block Height", message.nBlockHeight));
+    obj.push_back(Pair("Status", MessageStatusToString(message.status)));
+    try {
+        std::string date = DateTimeStrFormat("%Y-%m-%d %H:%M:%S", message.nExpiredTime);
+        if (message.nExpiredTime)
+            obj.push_back(Pair("Expire Time", date));
+    } catch (...) {
+        obj.push_back(Pair("Expire UTC Time", message.nExpiredTime));
+    }
+
+    obj.push_back(Pair("txid", message.out.hash.ToString()));
+    obj.push_back(Pair("channel", message.strName));
+    obj.push_back(Pair("authority_asset", DeriveAuthorityAsset(message.strName)));
+    obj.push_back(Pair("authority_address", ""));
+    obj.push_back(Pair("block_hash", block_hash));
+    obj.push_back(Pair("sender_address", ""));
+
+    return obj;
+}
+
 UniValue getmessaginginfo(const JSONRPCRequest& request) {
     if (request.fHelp || request.params.size() != 0)
         throw std::runtime_error(
@@ -157,6 +250,12 @@ UniValue viewallmessages(const JSONRPCRequest& request) {
                 "\"Status:\"                         (string) Status of the message (READ, UNREAD, ORPHAN, EXPIRED, SPAM, HIDDEN, ERROR)\n"
                 "\"Expire Time:\"                    (Date, optional) If the message had an expiration date assigned, it will be shown here in the format (YY-mm-dd Hour-minute-second)\n"
                 "\"Expire UTC Time:\"                (Date, optional) If the message contains an expire date that is too large, the UTC number will be displayed\n"
+                "\"txid:\"                           (string) The transaction id of the message\n"
+                "\"channel:\"                        (string) The display channel / asset channel the message belongs to\n"
+                "\"authority_asset:\"                (string) The message authority asset (e.g. ROOT/H0XC!), if known\n"
+                "\"authority_address:\"              (string) Authority address (currently unavailable, returns \"\")\n"
+                "\"block_hash:\"                     (string) Block hash (currently unavailable without chain lookup, returns \"\")\n"
+                "\"sender_address:\"                 (string) Sender address (currently unavailable from cached data, returns \"\")\n"
                 "\nExamples:\n"
                 + HelpExampleCli("viewallmessages", "")
                 + HelpExampleRpc("viewallmessages", "")
@@ -172,50 +271,12 @@ UniValue viewallmessages(const JSONRPCRequest& request) {
         return UniValue(UniValue::VARR);
 
     std::set<CMessage> setMessages;
-    pmessagedb->LoadMessages(setMessages);
-
-    {
-        LOCK(cs_messaging);
-
-        for (auto pair : mapDirtyMessagesOrphaned) {
-            CMessage message = pair.second;
-            message.status = MessageStatus::ORPHAN;
-            if (setMessages.count(message))
-                setMessages.erase(message);
-            setMessages.insert(message);
-        }
-
-        for (auto out : setDirtyMessagesRemove) {
-            CMessage message;
-            message.out = out;
-            setMessages.erase(message);
-        }
-
-        for (auto pair : mapDirtyMessagesAdd) {
-            setMessages.erase(pair.second);
-            setMessages.insert(pair.second);
-        }
-    }
+    LoadMessagesForRPC(setMessages);
 
     UniValue messages(UniValue::VARR);
 
     for (auto message : setMessages) {
-        UniValue obj(UniValue::VOBJ);
-
-        obj.push_back(Pair("Asset Name", message.strName));
-        obj.push_back(Pair("Message", EncodeAssetData(message.ipfsHash)));
-        obj.push_back(Pair("Time", DateTimeStrFormat("%Y-%m-%d %H:%M:%S", message.time)));
-        obj.push_back(Pair("Block Height", message.nBlockHeight));
-        obj.push_back(Pair("Status", MessageStatusToString(message.status)));
-        try {
-            std::string date = DateTimeStrFormat("%Y-%m-%d %H:%M:%S", message.nExpiredTime);
-            if (message.nExpiredTime)
-                obj.push_back(Pair("Expire Time", date));
-        } catch (...) {
-            obj.push_back(Pair("Expire UTC Time", message.nExpiredTime));
-        }
-
-        messages.push_back(obj);
+        messages.push_back(MessageEntryToJSON(message));
     }
 
     return messages;
@@ -382,6 +443,130 @@ UniValue clearmessages(const JSONRPCRequest& request) {
     pmessagedb->EraseAllMessages(count);
 
     return "Erased " + std::to_string(count) + " Messages from the database and cache";
+}
+
+UniValue viewchannelmessages(const JSONRPCRequest& request) {
+    if (request.fHelp || request.params.size() != 1)
+        throw std::runtime_error(
+                "viewchannelmessages \"channel\"\n"
+                + MessageActivationWarning() +
+                "\nView messages for a specific channel.\n"
+                "\nArguments:\n"
+                "1. \"channel\"              (string, required) The channel to view messages for.\n"
+                "                              Root/sub/restricted asset names are normalized to their owner asset form.\n"
+                "                              Examples: ROOT -> ROOT!, ROOT/SUB -> ROOT/SUB!, $ASSET -> $ASSET!.\n"
+                "                              Owner assets and valid message-channel assets are used as-is.\n"
+                "                              Examples: ROOT! or ROOT~ANNOUNCEMENTS.\n"
+                "\nResult: same per-message fields as viewallmessages.\n"
+                "\nExamples:\n"
+                + HelpExampleCli("viewchannelmessages", "ROOT/H0XC!")
+                + HelpExampleRpc("viewchannelmessages", "\"ROOT/H0XC!\"")
+        );
+
+    if (!fMessaging)
+        return UniValue(UniValue::VARR);
+
+    if (!AreMessagesDeployed())
+        throw JSONRPCError(RPC_MISC_ERROR, "This command is not yet active. Messaging must be deployed first.");
+
+    if (!pMessagesCache || !pmessagedb)
+        return UniValue(UniValue::VARR);
+
+    std::string channel = request.params[0].get_str();
+
+    if (!NormalizeMessageChannel(channel))
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Channel must be an owner asset or message channel asset.");
+
+    std::set<CMessage> setMessages;
+    LoadMessagesForRPC(setMessages);
+
+    UniValue messages(UniValue::VARR);
+
+    for (const auto& message : setMessages) {
+        if (message.strName != channel)
+            continue;
+
+        messages.push_back(MessageEntryToJSON(message, GetMessageBlockHash(message)));
+    }
+
+    return messages;
+}
+
+UniValue getmessagetxid(const JSONRPCRequest& request) {
+    if (request.fHelp || request.params.size() != 3)
+        throw std::runtime_error(
+                "getmessagetxid \"channel\" timestamp \"message_hash\"\n"
+                + MessageActivationWarning() +
+                "\nResolve a message transaction id by channel, timestamp, and message hash.\n"
+                "\nArguments:\n"
+                "1. \"channel\"              (string, required) The message channel name\n"
+                "2. timestamp                (numeric, required) The Unix timestamp of the message\n"
+                "3. \"message_hash\"         (string, required) The IPFS hash of the message\n"
+                "\nResult:\n"
+                "{\n"
+                "  \"txid\": \"...\",                (string) The transaction id\n"
+                "  \"channel\": \"...\",            (string) The message channel\n"
+                "  \"block_height\": n,            (numeric) Block height of the message\n"
+                "  \"block_hash\": \"...\",         (string) Block hash\n"
+                "  \"message_hash\": \"...\",       (string) The IPFS hash of the message\n"
+                "  \"timestamp\": n                (numeric) The message timestamp\n"
+                "}\n"
+                "\nExamples:\n"
+                + HelpExampleCli("getmessagetxid", "\"ROOT/H0XC!\" 1234567890 \"QmTqu3Lk3gmTsQVtjU7rYYM37EAW4xNmbuEAp2Mjr4AV7E\"")
+                + HelpExampleRpc("getmessagetxid", "\"ROOT/H0XC!\", 1234567890, \"QmTqu3Lk3gmTsQVtjU7rYYM37EAW4xNmbuEAp2Mjr4AV7E\"")
+        );
+
+    if (!fMessaging)
+        throw JSONRPCError(RPC_DATABASE_ERROR, "Messaging is disabled.");
+
+    if (!AreMessagesDeployed())
+        throw JSONRPCError(RPC_MISC_ERROR, "This command is not yet active. Messaging must be deployed first.");
+
+    if (!pMessagesCache || !pmessagedb)
+        throw JSONRPCError(RPC_DATABASE_ERROR, "Message database is not available");
+
+    std::string channel = request.params[0].get_str();
+    int64_t timestamp = request.params[1].get_int64();
+    std::string message_hash = request.params[2].get_str();
+
+    if (!NormalizeMessageChannel(channel))
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Channel must be an owner asset or message channel asset.");
+
+    std::string decoded_hash = DecodeAssetData(message_hash);
+    if (decoded_hash.empty())
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "message_hash must be a valid IPFS hash or 64-character transaction id/message hash.");
+
+    std::set<CMessage> setMessages;
+    LoadMessagesForRPC(setMessages);
+
+    std::vector<CMessage> matches;
+    for (const auto& message : setMessages) {
+        if (message.strName != channel)
+            continue;
+        if (message.time != timestamp)
+            continue;
+        if (message.ipfsHash != decoded_hash)
+            continue;
+        matches.push_back(message);
+    }
+
+    if (matches.empty())
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No message found matching the given channel, timestamp, and message hash.");
+
+    if (matches.size() > 1)
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Multiple messages match the given criteria. Refine your query.");
+
+    CMessage msg = matches[0];
+
+    UniValue result(UniValue::VOBJ);
+    result.push_back(Pair("txid", msg.out.hash.ToString()));
+    result.push_back(Pair("channel", msg.strName));
+    result.push_back(Pair("block_height", msg.nBlockHeight));
+    result.push_back(Pair("block_hash", GetMessageBlockHash(msg)));
+    result.push_back(Pair("message_hash", EncodeAssetData(msg.ipfsHash)));
+    result.push_back(Pair("timestamp", msg.time));
+
+    return result;
 }
 
 #ifdef ENABLE_WALLET
@@ -564,6 +749,8 @@ static const CRPCCommand commands[] =
             { "messages",       "getmessaginginfo",           &getmessaginginfo,           {}},
             { "messages",       "viewallmessages",            &viewallmessages,            {}},
             { "messages",       "viewallmessagechannels",     &viewallmessagechannels,     {}},
+            { "messages",       "viewchannelmessages",        &viewchannelmessages,        {"channel"}},
+            { "messages",       "getmessagetxid",             &getmessagetxid,             {"channel","timestamp","message_hash"}},
             { "messages",       "subscribetochannel",         &subscribetochannel,         {"channel_name"}},
             { "messages",       "unsubscribefromchannel",     &unsubscribefromchannel,     {"channel_name"}},
 #ifdef ENABLE_WALLET

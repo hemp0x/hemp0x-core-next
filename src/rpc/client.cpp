@@ -201,6 +201,7 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "listassetbalancesbyaddress", 2, "count"},
     { "listassetbalancesbyaddress", 3, "start"},
     { "sendmessage", 2, "expire_time"},
+    { "getmessagetxid", 1, "timestamp"},
     { "requestsnapshot", 1, "block_height"},
     { "getsnapshotrequest", 1, "block_height"},
     { "listsnapshotrequests", 1, "block_height"},

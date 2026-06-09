@@ -44,6 +44,7 @@ static const int CLIENT_VERSION =
 
 extern const std::string CLIENT_NAME;
 extern const std::string CLIENT_BUILD;
+extern const std::string CLIENT_BUILD_COMMIT;
 
 
 std::string FormatFullVersion();

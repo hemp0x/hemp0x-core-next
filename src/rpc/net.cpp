@@ -446,6 +446,8 @@ UniValue getnetworkinfo(const JSONRPCRequest& request)
             "\nResult:\n"
             "{\n"
             "  \"version\": xxxxx,                      (numeric) the server version\n"
+            "  \"build\": \"v...\",                      (string) the full build version string\n"
+            "  \"build_commit\": \"...\",                (string) the git commit used for the build, if available\n"
             "  \"subversion\": \"/Satoshi:x.x.x/\",     (string) the server subversion string\n"
             "  \"protocolversion\": xxxxx,              (numeric) the protocol version\n"
             "  \"localservices\": \"xxxxxxxxxxxxxxxx\", (string) the services we offer to the network\n"
@@ -483,6 +485,8 @@ UniValue getnetworkinfo(const JSONRPCRequest& request)
     LOCK(cs_main);
     UniValue obj(UniValue::VOBJ);
     obj.push_back(Pair("version",       CLIENT_VERSION));
+    obj.push_back(Pair("build",         FormatFullVersion()));
+    obj.push_back(Pair("build_commit",  CLIENT_BUILD_COMMIT));
     obj.push_back(Pair("subversion",    strSubVersion));
     obj.push_back(Pair("protocolversion",PROTOCOL_VERSION));
     if(g_connman)

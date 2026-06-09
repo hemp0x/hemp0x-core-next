@@ -11,7 +11,7 @@ if [ $# -gt 0 ]; then
     FILE="$1"
     shift
     if [ -f "$FILE" ]; then
-        INFO="$(head -n 1 "$FILE")"
+        INFO="$(cat "$FILE")"
     fi
 else
     echo "Usage: $0 <filename> <srcroot>"
@@ -24,6 +24,7 @@ git_check_in_repo() {
 
 DESC=""
 SUFFIX=""
+COMMIT=""
 if [ "${HEMP0X_GENBUILD_NO_GIT}" != "1" -a -e "$(which git 2>/dev/null)" -a "$(git rev-parse --is-inside-work-tree 2>/dev/null)" = "true" ] && git_check_in_repo share/genbuild.sh; then
     # clean 'dirty' status of touched files that haven't been modified
     git diff >/dev/null 2>/dev/null 
@@ -35,7 +36,8 @@ if [ "${HEMP0X_GENBUILD_NO_GIT}" != "1" -a -e "$(which git 2>/dev/null)" -a "$(g
     fi
 
     # otherwise generate suffix from git, i.e. string like "59887e8-dirty"
-    SUFFIX=$(git rev-parse --short HEAD)
+    COMMIT=$(git rev-parse --short HEAD)
+    SUFFIX=$COMMIT
     git diff-index --quiet HEAD -- || SUFFIX="$SUFFIX-dirty"
 fi
 
@@ -45,6 +47,10 @@ elif [ -n "$SUFFIX" ]; then
     NEWINFO="#define BUILD_SUFFIX $SUFFIX"
 else
     NEWINFO="// No build information available"
+fi
+if [ -n "$COMMIT" ]; then
+    NEWINFO="$NEWINFO
+#define BUILD_COMMIT \"$COMMIT\""
 fi
 
 # only update build.h if necessary

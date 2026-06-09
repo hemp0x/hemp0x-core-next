@@ -68,7 +68,16 @@ const std::string CLIENT_NAME("Hemp0x");
 #endif
 #endif
 
+#ifndef BUILD_COMMIT
+#ifdef GIT_COMMIT_ID
+#define BUILD_COMMIT GIT_COMMIT_ID
+#else
+#define BUILD_COMMIT ""
+#endif
+#endif
+
 const std::string CLIENT_BUILD(BUILD_DESC CLIENT_VERSION_SUFFIX);
+const std::string CLIENT_BUILD_COMMIT(BUILD_COMMIT);
 
 static std::string FormatVersion(int nVersion)
 {

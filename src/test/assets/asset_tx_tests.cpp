@@ -607,4 +607,74 @@ BOOST_FIXTURE_TEST_SUITE(asset_tx_tests, BasicTestingSetup)
     }
 #endif
 
+    BOOST_AUTO_TEST_CASE(try_spend_qualifier_asset)
+    {
+        BOOST_TEST_MESSAGE("Running TrySpendCoin Qualifier Asset Test");
+
+        SelectParams(CBaseChainParams::MAIN);
+
+        // Build a qualifier asset script
+        CNewAsset qualifier("#SPENDQUAL", 5 * COIN, 0, 0, 0, "");
+        CScript scriptPubKey = GetScriptForDestination(DecodeDestination(GetParams().GlobalBurnAddress()));
+        qualifier.ConstructTransaction(scriptPubKey);
+
+        CTxOut txOut(0, scriptPubKey);
+        COutPoint outpoint(uint256S("BF50CB9A63BE0019171456252989A459A7D0A5F494735278290079D22AB704A2"), 0);
+
+        CAssetsCache cache;
+        BOOST_CHECK_MESSAGE(cache.TrySpendCoin(outpoint, txOut), "TrySpendCoin should succeed for qualifier asset");
+    }
+
+    BOOST_AUTO_TEST_CASE(try_spend_restricted_asset)
+    {
+        BOOST_TEST_MESSAGE("Running TrySpendCoin Restricted Asset Test");
+
+        SelectParams(CBaseChainParams::MAIN);
+
+        // Build a restricted asset script
+        CNewAsset restricted("$SPENDREST", 1000, 0, 0, 0, "");
+        CScript scriptPubKey = GetScriptForDestination(DecodeDestination(GetParams().GlobalBurnAddress()));
+        restricted.ConstructTransaction(scriptPubKey);
+
+        CTxOut txOut(0, scriptPubKey);
+        COutPoint outpoint(uint256S("BF50CB9A63BE0019171456252989A459A7D0A5F494735278290079D22AB704A2"), 0);
+
+        CAssetsCache cache;
+        BOOST_CHECK_MESSAGE(cache.TrySpendCoin(outpoint, txOut), "TrySpendCoin should succeed for restricted asset");
+    }
+
+    BOOST_AUTO_TEST_CASE(try_spend_msgchannel_asset)
+    {
+        BOOST_TEST_MESSAGE("Running TrySpendCoin Message Channel Asset Test");
+
+        SelectParams(CBaseChainParams::MAIN);
+
+        // Build a message channel asset script
+        CNewAsset msgchan("MYASSET~CHAN", 1000, 0, 0, 0, "");
+        CScript scriptPubKey = GetScriptForDestination(DecodeDestination(GetParams().GlobalBurnAddress()));
+        msgchan.ConstructTransaction(scriptPubKey);
+
+        CTxOut txOut(0, scriptPubKey);
+        COutPoint outpoint(uint256S("BF50CB9A63BE0019171456252989A459A7D0A5F494735278290079D22AB704A2"), 0);
+
+        CAssetsCache cache;
+        BOOST_CHECK_MESSAGE(cache.TrySpendCoin(outpoint, txOut), "TrySpendCoin should succeed for msgchannel asset");
+    }
+
+    BOOST_AUTO_TEST_CASE(try_spend_non_asset)
+    {
+        BOOST_TEST_MESSAGE("Running TrySpendCoin Non-Asset Test");
+
+        SelectParams(CBaseChainParams::MAIN);
+
+        // Build a plain P2PKH script (no asset data)
+        CScript scriptPubKey = GetScriptForDestination(DecodeDestination(GetParams().GlobalBurnAddress()));
+
+        CTxOut txOut(1 * COIN, scriptPubKey);
+        COutPoint outpoint(uint256S("BF50CB9A63BE0019171456252989A459A7D0A5F494735278290079D22AB704A2"), 0);
+
+        CAssetsCache cache;
+        BOOST_CHECK_MESSAGE(cache.TrySpendCoin(outpoint, txOut), "TrySpendCoin should succeed (return true) for non-asset script");
+    }
+
 BOOST_AUTO_TEST_SUITE_END()

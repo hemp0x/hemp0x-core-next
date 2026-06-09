@@ -696,6 +696,10 @@ bool TransferAssetFromScript(const CScript& scriptPubKey, CAssetTransfer& assetT
     return true;
 }
 
+// AssetFromScript is the universal parser for all non-owner TX_NEW_ASSET
+// subtypes (root, qualifier, restricted, message-channel). They all share
+// the same HEMP_Q script marker and CNewAsset serialization format — the
+// asset name string carries the type information.
 bool AssetFromScript(const CScript& scriptPubKey, CNewAsset& assetNew, std::string& strAddress)
 {
     int nStartingIndex = 0;
@@ -3514,6 +3518,11 @@ bool GetAssetData(const CScript& script, CAssetOutputEntry& data)
     txnouttype type = txnouttype(nType);
 
     // Get the New Asset or Transfer Asset from the scriptPubKey
+    // AssetFromScript() is the universal parser for all non-owner TX_NEW_ASSET
+    // subtypes (root, qualifier, restricted, message-channel) because they all
+    // share the same HEMP_Q script marker and CNewAsset serialization format.
+    // The MsgChannel/Qualifier/Restricted fallback branches below are defensive
+    // dead code — they cannot be reached while AssetFromScript succeeds first.
     if (type == TX_NEW_ASSET && !fIsOwner) {
         CNewAsset asset;
         if (AssetFromScript(script, asset, address)) {
@@ -3527,16 +3536,19 @@ bool GetAssetData(const CScript& script, CAssetOutputEntry& data)
             data.nAmount = asset.nAmount;
             data.destination = DecodeDestination(address);
             data.assetName = asset.strName;
+            return true;
         } else if (QualifierAssetFromScript(script, asset, address)) {
             data.type = TX_NEW_ASSET;
             data.nAmount = asset.nAmount;
             data.destination = DecodeDestination(address);
             data.assetName = asset.strName;
+            return true;
         } else if (RestrictedAssetFromScript(script, asset, address)) {
             data.type = TX_NEW_ASSET;
             data.nAmount = asset.nAmount;
             data.destination = DecodeDestination(address);
             data.assetName = asset.strName;
+            return true;
         }
     } else if (type == TX_TRANSFER_ASSET) {
         CAssetTransfer transfer;

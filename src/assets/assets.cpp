@@ -2598,7 +2598,7 @@ bool CAssetsCache::DumpCacheToDatabase()
                     dirty = true;
                     message = "_Failed Writing address qualifier to database";
                 }
-                if (fAssetIndex & !dirty) {
+                if (fAssetIndex && !dirty) {
                     if (!prestricteddb->WriteQualifierAddress(newQualifierAddress.address, newQualifierAddress.assetName))
                     {
                         dirty = true;
@@ -2620,7 +2620,7 @@ bool CAssetsCache::DumpCacheToDatabase()
                     dirty = true;
                     message = "_Failed undoing a removal of a address qualifier  from database";
                 }
-                if (fAssetIndex & !dirty) {
+                if (fAssetIndex && !dirty) {
                     if (!prestricteddb->WriteQualifierAddress(undoQualifierAddress.address, undoQualifierAddress.assetName))
                     {
                         dirty = true;
@@ -2982,7 +2982,7 @@ bool CAssetsCache::Flush()
 
         for (auto &item : mapRootQualifierAddressesRemove) {
             for (auto asset : item.second) {
-                passets->mapRootQualifierAddressesAdd[item.first].insert(asset);
+                passets->mapRootQualifierAddressesRemove[item.first].insert(asset);
             }
         }
 
@@ -4414,7 +4414,13 @@ bool VerifyWalletHasAsset(const std::string& asset_name, std::pair<int, std::str
 // Return true if the amount is valid with the units passed in
 bool CheckAmountWithUnits(const CAmount& nAmount, const int8_t nUnits)
 {
-    return nAmount % int64_t(pow(10, (MAX_UNIT - nUnits))) == 0;
+    static const int64_t pow10[9] = {
+        1, 10, 100, 1000, 10000, 100000, 1000000, 10000000, 100000000
+    };
+    int nDivisor = MAX_UNIT - nUnits;
+    if (nDivisor < 0 || nDivisor > 8)
+        return false;
+    return nAmount % pow10[nDivisor] == 0;
 }
 
 bool CheckEncoded(const std::string& hash, std::string& strError) {

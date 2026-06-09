@@ -503,7 +503,7 @@ BOOST_FIXTURE_TEST_SUITE(asset_tests, BasicTestingSetup)
 
         // Check qualifier
         CNewAsset qualifier("#QUALIFIER", 1 * COIN, MIN_UNIT, 0, 0, "");
-        BOOST_CHECK_MESSAGE(CheckNewAsset(message_channel, error), "CheckNewAsset: Qualifier Test Failed - " + error);
+        BOOST_CHECK_MESSAGE(CheckNewAsset(qualifier, error), "CheckNewAsset: Qualifier Test Failed - " + error);
 
         // Check sub_qualifier
         CNewAsset sub_qualifier("#QUALIFIER/#SUB", 1 * COIN, MIN_UNIT, 0, 0, "");

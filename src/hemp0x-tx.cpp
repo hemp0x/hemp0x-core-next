@@ -52,6 +52,11 @@ static int AppInitRawTx(int argc, char* argv[])
 
     fCreateBlank = gArgs.GetBoolArg("-create", false);
 
+    if (gArgs.IsArgSet("-version")) {
+        fprintf(stdout, "%s\n", (strprintf(_("%s hemp0x-tx utility version"), _(PACKAGE_NAME)) + " " + FormatFullVersion()).c_str());
+        return EXIT_SUCCESS;
+    }
+
     if (argc<2 || gArgs.IsArgSet("-?") || gArgs.IsArgSet("-h") || gArgs.IsArgSet("-help"))
     {
         // First part of help message is specific to this utility
@@ -68,6 +73,7 @@ static int AppInitRawTx(int argc, char* argv[])
         strUsage += HelpMessageOpt("-create", _("Create new, empty TX."));
         strUsage += HelpMessageOpt("-json", _("Select JSON output"));
         strUsage += HelpMessageOpt("-txid", _("Output only the hex-encoded transaction id of the resultant transaction."));
+        strUsage += HelpMessageOpt("-version", _("Print version and exit"));
         AppendParamsHelpMessages(strUsage);
 
         fprintf(stdout, "%s", strUsage.c_str());

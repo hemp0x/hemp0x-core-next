@@ -3482,7 +3482,6 @@ bool CAssetsCache::GetAssetMetaDataIfExists(const std::string &name, CNewAsset &
         }
     }
 
-    LogPrintf("%s : Didn't find asset meta data anywhere. Returning False\n", __func__);
     return false;
 }
 

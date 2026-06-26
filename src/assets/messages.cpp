@@ -225,7 +225,15 @@ bool ScanForMessageChannels(std::string& strError)
 
     CBlockIndex* blockIndex = chainActive[GetParams().GetAssetActivationHeight()];
 
+    const int nTipHeight = chainActive.Height();
+    int64_t nLastProgressLog = GetTime();
     while (blockIndex) {
+        if (GetTime() >= nLastProgressLog + 60) {
+            nLastProgressLog = GetTime();
+            const double dProgress = nTipHeight > 0 ? (double)blockIndex->nHeight / (double)nTipHeight : 0.0;
+            LogPrintf("%s : Scanning message channels progress=%f height=%d total=%d\n", __func__, dProgress, blockIndex->nHeight, nTipHeight);
+        }
+
         CBlock block;
         if (!ReadBlockFromDisk(block, blockIndex, GetParams().GetConsensus())) {
             strError = "Block not found on disk";

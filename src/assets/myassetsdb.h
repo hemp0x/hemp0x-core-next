@@ -29,6 +29,10 @@ public:
     bool WriteFlag(const std::string &name, bool fValue);
     bool ReadFlag(const std::string &name, bool &fValue);
 
+    // Message index metadata (synced height, last scan state, etc.)
+    bool WriteMetaInt64(const std::string &name, int64_t value);
+    bool ReadMetaInt64(const std::string &name, int64_t &value);
+
     bool Flush();
 };
 

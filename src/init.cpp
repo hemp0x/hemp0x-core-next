@@ -173,6 +173,13 @@ static bool CreateDefaultConfigFile(fs::path pathConfigFile, std::string& error)
         "#timestampindex=1\n"
         "#spentindex=1\n"
         "#\n"
+        "# Full on-chain asset message index for community chat / indexer nodes.\n"
+        "# When enabled, Core stores every valid asset message as blocks connect\n"
+        "# (no subscription required). Recover historical messages once with\n"
+        "# the rescanmessages RPC. Does not require the indexes above.\n"
+        "#\n"
+        "#messageindex=1\n"
+        "#\n"
         "# Performance tuning example. Increase only if the host has enough RAM.\n"
         "#dbcache=4000\n"
         "#\n"
@@ -544,6 +551,7 @@ std::string HelpMessage(HelpMessageMode mode)
     }
     strUsage += HelpMessageOpt("-dbcache=<n>", strprintf(_("Set database cache size in megabytes (%d to %d, default: %d)"), nMinDbCache, nMaxDbCache, nDefaultDbCache));
     strUsage += HelpMessageOpt("-disablemessaging", strprintf(_("Turn off the databasing the messages sent with assets (default: %u)"), false));
+    strUsage += HelpMessageOpt("-messageindex", strprintf(_("Maintain a full index of every on-chain asset message as blocks connect, regardless of channel subscription. Recommended for community chat / indexer nodes. Does not require txindex/address/spent/timestamp indexes and does not change consensus. Historical messages before this flag was enabled can be recovered with the rescanmessages RPC (default: %u)"), DEFAULT_MESSAGEINDEX));
     if (showDebug)
         strUsage += HelpMessageOpt("-feefilter", strprintf("Tell other nodes to filter invs to us by our mempool min fee (default: %u)", DEFAULT_FEEFILTER));
     strUsage += HelpMessageOpt("-loadblock=<file>", _("Imports blocks from external blk000??.dat file on startup"));
@@ -1735,6 +1743,20 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
                     } else {
                         LogPrintf("Messaging is enabled\n");
                     }
+
+                    // Optional full on-chain message index (-messageindex=1).
+                    // Non-consensus: only changes which messages get persisted in
+                    // the local message DB. Disabled by default to preserve the
+                    // existing subscription-gated behavior for normal wallet users.
+                    fMessageIndex = gArgs.GetBoolArg("-messageindex", DEFAULT_MESSAGEINDEX);
+                    if (fMessaging && fMessageIndex) {
+                        LogPrintf("Full message indexing is enabled (-messageindex=1)\n");
+                    }
+
+                    // Load persisted message-index metadata (synced height, enabled
+                    // flag) so getmessaginginfo can report state and detect rescan
+                    // needs across restarts.
+                    LoadMessageIndexMetadata();
                 }
                 /** HEMP END */
 

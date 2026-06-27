@@ -12,6 +12,7 @@ static const char MESSAGE_FLAG = 'Z'; // Message
 static const char MY_MESSAGE_CHANNEL = 'C'; // My followed Channels
 static const char MY_SEEN_ADDRESSES = 'S'; // Addresses that have been seen on the chain
 static const char DB_FLAG = 'D'; // Database Flags
+static const char MESSAGE_META = 'M'; // Message index metadata (int64 values)
 
 static const char MY_TAGGED_ADDRESSES = 'T'; // Addresses that have been tagged
 static const char MY_RESTRICTED_ADDRESSES = 'R'; // Addresses that have been restricted
@@ -177,6 +178,16 @@ bool CMessageDB::ReadFlag(const std::string &name, bool &fValue)
         return false;
     fValue = ch == '1';
     return true;
+}
+
+bool CMessageDB::WriteMetaInt64(const std::string &name, int64_t value)
+{
+    return Write(std::make_pair(MESSAGE_META, name), value);
+}
+
+bool CMessageDB::ReadMetaInt64(const std::string &name, int64_t &value)
+{
+    return Read(std::make_pair(MESSAGE_META, name), value);
 }
 
 

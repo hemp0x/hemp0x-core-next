@@ -52,6 +52,7 @@ class CBlockPolicyEstimator;
 class CTxMemPool;
 class CValidationState;
 class CTxUndo;
+class CBlockUndo;
 struct ChainTxData;
 
 class CAssetsDB;
@@ -156,6 +157,7 @@ static const bool DEFAULT_ASSETINDEX = false;
 static const bool DEFAULT_ADDRESSINDEX = false;
 static const bool DEFAULT_TIMESTAMPINDEX = false;
 static const bool DEFAULT_SPENTINDEX = false;
+static const bool DEFAULT_MESSAGEINDEX = false;
 static const bool DEFAULT_REWARDS_ENABLED = false;
 /** Default for -dbmaxfilesize , in MB */
 static const int64_t DEFAULT_DB_MAX_FILE_SIZE = 2;
@@ -198,6 +200,7 @@ extern CConditionVariable cvBlockChange;
 extern std::atomic_bool fImporting;
 extern std::atomic_bool fReindex;
 extern bool fMessaging;
+extern bool fMessageIndex;
 extern int nScriptCheckThreads;
 extern bool fTxIndex;
 extern bool fAssetIndex;
@@ -617,6 +620,11 @@ bool IsMessagingActive(unsigned int nBlockNumber);
 bool IsRestrictedActive(unsigned int nBlockNumber);
 
 CAssetsCache* GetCurrentAssetCache();
+
+// Read block undo data from disk. Used by rescanmessages to reconstruct the
+// per-transaction input asset address map so rescan extraction matches live
+// indexing. External linkage (defined in validation.cpp).
+bool UndoReadFromDisk(CBlockUndo& blockundo, const CDiskBlockPos& pos, const uint256& hashBlock);
 /** HEMP END */
 
 #endif // HEMP0X_VALIDATION_H

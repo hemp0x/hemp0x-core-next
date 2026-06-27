@@ -118,4 +118,94 @@ BOOST_FIXTURE_TEST_SUITE(messaging_tests, BasicTestingSetup)
         BOOST_CHECK_EQUAL(find_value(parsed.get_obj(), "expiretime").get_int64(), 9999999999);
     }
 
+    BOOST_AUTO_TEST_CASE(channel_glob_match)
+    {
+        // Empty pattern matches everything.
+        BOOST_CHECK(GlobMatchChannel("", "ROOT/H0XC!"));
+        BOOST_CHECK(GlobMatchChannel("", ""));
+
+        // Exact match (no wildcard).
+        BOOST_CHECK(GlobMatchChannel("ROOT/H0XC!", "ROOT/H0XC!"));
+        BOOST_CHECK(!GlobMatchChannel("ROOT/H0XC!", "ROOT/H0XC~ANN"));
+
+        // Leading wildcard.
+        BOOST_CHECK(GlobMatchChannel("*/H0XC!", "ROOT/H0XC!"));
+        BOOST_CHECK(GlobMatchChannel("*/H0XC!", "GRIDSHADE/H0XC!"));
+        BOOST_CHECK(!GlobMatchChannel("*/H0XC!", "ROOT/H0XC~ANN"));
+
+        // Trailing wildcard.
+        BOOST_CHECK(GlobMatchChannel("ROOT/*", "ROOT/H0XC!"));
+        BOOST_CHECK(GlobMatchChannel("ROOT/*", "ROOT/SUB!"));
+
+        // Middle wildcard.
+        BOOST_CHECK(GlobMatchChannel("R*!", "ROOT!"));
+        BOOST_CHECK(GlobMatchChannel("R*!", "RAID!"));
+        BOOST_CHECK(!GlobMatchChannel("R*!", "ROOT"));
+
+        // Multiple wildcards / full match.
+        BOOST_CHECK(GlobMatchChannel("*", "ANYTHING!"));
+        BOOST_CHECK(GlobMatchChannel("*H0XC*", "ROOT/H0XC!"));
+        BOOST_CHECK(GlobMatchChannel("*H0XC*", "ROOT/H0XC~ANN"));
+        BOOST_CHECK(!GlobMatchChannel("*H0XC*", "ROOT/OTHER!"));
+    }
+
+    BOOST_AUTO_TEST_CASE(message_index_synced_height_monotonic)
+    {
+        // SetMessageIndexSyncedHeight only advances (never decreases) so a reorg
+        // to a lower tip followed by reconnect does not regress the marker.
+        SetMessageIndexSyncedHeight(0);
+        BOOST_CHECK_EQUAL(GetMessageIndexSyncedHeight(), 0);
+
+        SetMessageIndexSyncedHeight(100);
+        BOOST_CHECK_EQUAL(GetMessageIndexSyncedHeight(), 100);
+
+        // Lower values must be ignored.
+        SetMessageIndexSyncedHeight(50);
+        BOOST_CHECK_EQUAL(GetMessageIndexSyncedHeight(), 100);
+
+        SetMessageIndexSyncedHeight(150);
+        BOOST_CHECK_EQUAL(GetMessageIndexSyncedHeight(), 150);
+
+        // Reset (as clearmessages does) brings it back to 0.
+        ResetMessageIndexMetadata();
+        BOOST_CHECK_EQUAL(GetMessageIndexSyncedHeight(), 0);
+    }
+
+    BOOST_AUTO_TEST_CASE(rescan_progress_round_trip)
+    {
+        ClearMessageRescanProgress();
+
+        MessageRescanProgress p;
+        GetMessageRescanProgress(p);
+        BOOST_CHECK(!p.fInProgress);
+        BOOST_CHECK_EQUAL(p.nScannedBlocks, 0);
+
+        p.fInProgress = true;
+        p.nStartHeight = 270144;
+        p.nStopHeight = 2787000;
+        p.nCurrentHeight = 271000;
+        p.nScannedBlocks = 856;
+        p.nMessagesFound = 12;
+        p.nMessagesAdded = 12;
+        p.strLastError = "";
+        p.nStartedAt = 1700000000;
+        SetMessageRescanProgress(p);
+
+        MessageRescanProgress q;
+        GetMessageRescanProgress(q);
+        BOOST_CHECK(q.fInProgress);
+        BOOST_CHECK_EQUAL(q.nStartHeight, 270144);
+        BOOST_CHECK_EQUAL(q.nStopHeight, 2787000);
+        BOOST_CHECK_EQUAL(q.nCurrentHeight, 271000);
+        BOOST_CHECK_EQUAL(q.nScannedBlocks, 856);
+        BOOST_CHECK_EQUAL(q.nMessagesFound, 12);
+        BOOST_CHECK_EQUAL(q.nMessagesAdded, 12);
+        BOOST_CHECK_EQUAL(q.nStartedAt, 1700000000);
+
+        ClearMessageRescanProgress();
+        GetMessageRescanProgress(q);
+        BOOST_CHECK(!q.fInProgress);
+        BOOST_CHECK_EQUAL(q.nScannedBlocks, 0);
+    }
+
 BOOST_AUTO_TEST_SUITE_END()

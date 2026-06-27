@@ -86,6 +86,7 @@ BASE_SCRIPTS= [
     'mempool_limit.py',
     'feature_assets.py',
     'feature_messaging.py',
+    'feature_messageindex.py',
     'feature_assets_reorg.py',
     'feature_assets_mempool.py',
     'feature_restricted_assets.py',

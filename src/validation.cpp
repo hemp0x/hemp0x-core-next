@@ -102,6 +102,7 @@ int nScriptCheckThreads = 0;
 std::atomic_bool fImporting(false);
 std::atomic_bool fReindex(false);
 bool fMessaging = true;
+bool fMessageIndex = false;
 bool fTxIndex = false;
 bool fAssetIndex = false;
 bool fAddressIndex = false;
@@ -1722,6 +1723,31 @@ bool UndoWriteToDisk(const CBlockUndo& blockundo, CDiskBlockPos& pos, const uint
     return true;
 }
 
+/** Abort with a message */
+bool AbortNode(const std::string& strMessage, const std::string& userMessage="")
+{
+    SetMiscWarning(strMessage);
+    LogPrintf("*** %s\n", strMessage);
+    uiInterface.ThreadSafeMessageBox(
+        userMessage.empty() ? _("Error: A fatal internal error occurred, see debug.log for details") : userMessage,
+        "", CClientUIInterface::MSG_ERROR);
+
+    StartShutdown();
+    return false;
+}
+
+bool AbortNode(CValidationState& state, const std::string& strMessage, const std::string& userMessage="")
+{
+    AbortNode(strMessage, userMessage);
+    return state.Error(strMessage);
+}
+
+} // namespace
+
+// UndoReadFromDisk is declared in validation.h so that rescanmessages (in
+// rpc/messages.cpp) can reconstruct the per-transaction input asset address map
+// from block undo data and apply the same sender-ownership filter as live
+// ConnectBlock. It is kept outside the anonymous namespace for external linkage.
 bool UndoReadFromDisk(CBlockUndo& blockundo, const CDiskBlockPos& pos, const uint256& hashBlock)
 {
     // Open history file to read
@@ -1747,27 +1773,6 @@ bool UndoReadFromDisk(CBlockUndo& blockundo, const CDiskBlockPos& pos, const uin
 
     return true;
 }
-
-/** Abort with a message */
-bool AbortNode(const std::string& strMessage, const std::string& userMessage="")
-{
-    SetMiscWarning(strMessage);
-    LogPrintf("*** %s\n", strMessage);
-    uiInterface.ThreadSafeMessageBox(
-        userMessage.empty() ? _("Error: A fatal internal error occurred, see debug.log for details") : userMessage,
-        "", CClientUIInterface::MSG_ERROR);
-
-    StartShutdown();
-    return false;
-}
-
-bool AbortNode(CValidationState& state, const std::string& strMessage, const std::string& userMessage="")
-{
-    AbortNode(strMessage, userMessage);
-    return state.Error(strMessage);
-}
-
-} // namespace
 
 enum DisconnectResult
 {
@@ -2117,7 +2122,10 @@ static DisconnectResult DisconnectBlock(const CBlock& block, const CBlockIndex* 
                         (IsAssetNameAnOwner(transfer.strName) || IsAssetNameAnMsgChannel(transfer.strName))) {
 
                         LOCK(cs_messaging);
-                        if (IsChannelSubscribed(transfer.strName)) {
+                        // With -messageindex=1, orphan every indexed message from the
+                        // disconnecting block. Otherwise preserve the existing
+                        // subscription-gated disconnect behavior.
+                        if (fMessageIndex || IsChannelSubscribed(transfer.strName)) {
                             OrphanMessage(COutPoint(hash, index));
                         }
                     }
@@ -2847,10 +2855,35 @@ static bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockInd
             if (message.nExpiredTime == 0 || GetTime() < message.nExpiredTime)
                 GetMainSignals().NewAssetMessage(message);
 
-            if (IsChannelSubscribed(message.strName)) {
+            // With -messageindex=1, store every on-chain asset message regardless
+            // of channel subscription. Otherwise preserve the existing
+            // subscription-gated behavior exactly.
+            if (fMessageIndex || IsChannelSubscribed(message.strName)) {
                 AddMessage(message);
             }
         }
+    }
+    // Advance the full-index synced height for every connected block (not only
+    // message-bearing ones) so getmessaginginfo can report progress and detect
+    // when a backfill (rescanmessages) is needed. Tracked only while full
+    // indexing is enabled.
+    //
+    // R7: Use the contiguous-advance helper instead of unconditional
+    // SetMessageIndexSyncedHeight. This ensures message_index_synced_height
+    // only advances when coverage is contiguous from the messaging activation
+    // height through this block. New blocks arriving after a historical gap
+    // (e.g. enabling -messageindex=1 over existing history, clearmessages, or
+    // a partial/failed rescan) will NOT advance the marker, so
+    // getmessaginginfo correctly reports needs_rescan=true until a full
+    // rescanmessages closes the gap. Note: AreMessagesDeployed() is
+    // intentionally not gated because the deployment state is evaluated
+    // against the previous tip during ConnectBlock; tracking the height
+    // through pre-activation blocks is harmless (no messages exist before
+    // activation) and avoids a one-block lag at the activation boundary.
+    // Message *storage* above remains correctly gated on AreMessagesDeployed().
+    if (fMessageIndex && fMessaging && pindex) {
+        AdvanceMessageIndexSyncedHeightIfContiguous(
+            pindex->nHeight, static_cast<int>(GetParams().MessagingActivationBlock()));
     }
 #ifdef ENABLE_WALLET
     if (AreRestrictedAssetsDeployed() && myNullAssetData.size() && pmyrestricteddb) {
@@ -3045,6 +3078,15 @@ bool static FlushStateToDisk(const CChainParams& chainparams, CValidationState &
                 if (pmessagechanneldb) {
                     if (!pmessagechanneldb->Flush())
                         return AbortNode(state, "Failed to Flush the message channel database");
+                }
+
+                // Persist optional -messageindex=1 metadata (synced height, enabled
+                // flag) alongside the message DB flush so it survives restarts.
+                // The return value is intentionally ignored here: this is a
+                // best-effort persistence during chain flush; a transient write
+                // failure is not fatal and will be retried on the next flush.
+                if (fMessageIndex) {
+                    PersistMessageIndexMetadata();
                 }
             }
             /** HEMP END */

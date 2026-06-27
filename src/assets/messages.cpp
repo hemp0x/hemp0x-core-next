@@ -11,6 +11,7 @@
 #include "myassetsdb.h"
 #include <primitives/block.h>
 #include <univalue.h>
+#include <vector>
 
 
 std::set<COutPoint> setDirtyMessagesRemove;
@@ -204,6 +205,31 @@ void OrphanMessage(const CMessage& message)
     mapDirtyMessagesAdd.erase(message.out);
 }
 
+bool GlobMatchChannel(const std::string& pattern, const std::string& channel)
+{
+    if (pattern.empty())
+        return true;
+
+    const size_t m = pattern.size();
+    const size_t n = channel.size();
+    std::vector<std::vector<bool>> dp(m + 1, std::vector<bool>(n + 1, false));
+    dp[0][0] = true;
+    for (size_t i = 1; i <= m; ++i) {
+        if (pattern[i - 1] == '*')
+            dp[i][0] = dp[i - 1][0];
+    }
+    for (size_t i = 1; i <= m; ++i) {
+        for (size_t j = 1; j <= n; ++j) {
+            if (pattern[i - 1] == '*') {
+                dp[i][j] = dp[i - 1][j] || dp[i][j - 1];
+            } else if (pattern[i - 1] == channel[j - 1]) {
+                dp[i][j] = dp[i - 1][j - 1];
+            }
+        }
+    }
+    return dp[m][n];
+}
+
 #ifdef ENABLE_WALLET
 bool ScanForMessageChannels(std::string& strError)
 {
@@ -333,6 +359,162 @@ void AddAddressSeen(const std::string &address)
 
     setDirtySeenAddressAdd.insert(address);
     setSubscribedChannelsAskedForFalse.erase(address);
+}
+
+// ---------------------------------------------------------------------------
+// Message index metadata and rescan progress state
+//
+// This state is non-consensus. It tracks the optional -messageindex=1 full
+// message index: the last block height indexed for messages, the last explicit
+// rescan result, and the current in-progress rescan progress (so Commander can
+// poll getmessaginginfo from a separate RPC connection while rescanmessages
+// runs in a background task).
+// ---------------------------------------------------------------------------
+
+const std::string MSG_META_SYNCED_HEIGHT = "synced_height";
+const std::string MSG_META_LAST_SCAN_START = "last_scan_start_height";
+const std::string MSG_META_LAST_SCAN_STOP = "last_scan_stop_height";
+const std::string MSG_META_LAST_SCAN_COMPLETED = "last_scan_completed";
+const std::string MSG_META_INDEX_ENABLED = "index_enabled";
+
+static int g_nMessageIndexSyncedHeight = 0;
+static MessageRescanProgress g_message_rescan;
+
+int GetMessageIndexSyncedHeight()
+{
+    LOCK(cs_messaging);
+    return g_nMessageIndexSyncedHeight;
+}
+
+void SetMessageIndexSyncedHeight(int nHeight)
+{
+    LOCK(cs_messaging);
+    if (nHeight > g_nMessageIndexSyncedHeight)
+        g_nMessageIndexSyncedHeight = nHeight;
+}
+
+void SetMessageIndexSyncedHeightExact(int nHeight)
+{
+    LOCK(cs_messaging);
+    g_nMessageIndexSyncedHeight = nHeight;
+}
+
+bool AdvanceMessageIndexSyncedHeightIfContiguous(int nHeight, int nActivationHeight)
+{
+    LOCK(cs_messaging);
+
+    // Allow advancing to or below the activation boundary unconditionally —
+    // no messages exist before activation, so there is no gap to worry about.
+    if (nHeight <= nActivationHeight) {
+        if (nHeight > g_nMessageIndexSyncedHeight)
+            g_nMessageIndexSyncedHeight = nHeight;
+        return true;
+    }
+
+    // Above activation: only advance if the index is already synced through
+    // nHeight-1 (contiguous coverage). This prevents new blocks from hiding a
+    // historical gap when -messageindex=1 was enabled over existing history,
+    // after clearmessages, or after a partial/failed rescan.
+    if (g_nMessageIndexSyncedHeight >= nHeight - 1) {
+        if (nHeight > g_nMessageIndexSyncedHeight)
+            g_nMessageIndexSyncedHeight = nHeight;
+        return true;
+    }
+
+    return false;
+}
+
+bool GetMessageRescanProgress(MessageRescanProgress &progress)
+{
+    LOCK(cs_messaging);
+    progress = g_message_rescan;
+    return true;
+}
+
+void SetMessageRescanProgress(const MessageRescanProgress &progress)
+{
+    LOCK(cs_messaging);
+    g_message_rescan = progress;
+}
+
+void ClearMessageRescanProgress()
+{
+    LOCK(cs_messaging);
+    g_message_rescan.Reset();
+}
+
+bool IsMessageRescanInProgress()
+{
+    LOCK(cs_messaging);
+    return g_message_rescan.fInProgress;
+}
+
+bool TryStartMessageRescan(const MessageRescanProgress& initialProgress)
+{
+    LOCK(cs_messaging);
+    if (g_message_rescan.fInProgress)
+        return false;
+    g_message_rescan = initialProgress;
+    g_message_rescan.fInProgress = true;
+    return true;
+}
+
+void LoadMessageIndexMetadata()
+{
+    LOCK(cs_messaging);
+
+    g_nMessageIndexSyncedHeight = 0;
+
+    if (!pmessagedb)
+        return;
+
+    int64_t value = 0;
+    if (pmessagedb->ReadMetaInt64(MSG_META_SYNCED_HEIGHT, value) && value > 0)
+        g_nMessageIndexSyncedHeight = static_cast<int>(value);
+
+    // Detect -messageindex setting transitions across restarts. If the persisted
+    // enabled flag differs from the current runtime flag, blocks were connected
+    // under a different indexing mode since the last synced-height write, so the
+    // synced height is no longer valid. Reset it so getmessaginginfo correctly
+    // reports message_index_needs_rescan.
+    bool fPersistedEnabled = false;
+    bool fHasPersistedFlag = pmessagedb->ReadFlag(MSG_META_INDEX_ENABLED, fPersistedEnabled);
+    if (fHasPersistedFlag && fPersistedEnabled != fMessageIndex) {
+        LogPrintf("Message index setting changed (was %s, now %s); resetting message index synced height\n",
+                  fPersistedEnabled ? "enabled" : "disabled",
+                  fMessageIndex ? "enabled" : "disabled");
+        g_nMessageIndexSyncedHeight = 0;
+    }
+
+    // Persist the current enabled flag immediately so the next startup can
+    // detect transitions. Without this, the flag could go stale when users
+    // disable -messageindex (PersistMessageIndexMetadata is only called during
+    // flush when fMessageIndex is true).
+    pmessagedb->WriteFlag(MSG_META_INDEX_ENABLED, fMessageIndex);
+}
+
+bool PersistMessageIndexMetadata()
+{
+    LOCK(cs_messaging);
+
+    if (!pmessagedb)
+        return false;
+
+    bool fOk = true;
+    fOk &= pmessagedb->WriteMetaInt64(MSG_META_SYNCED_HEIGHT, g_nMessageIndexSyncedHeight);
+    fOk &= pmessagedb->WriteFlag(MSG_META_INDEX_ENABLED, fMessageIndex);
+    return fOk;
+}
+
+void ResetMessageIndexMetadata()
+{
+    LOCK(cs_messaging);
+
+    g_nMessageIndexSyncedHeight = 0;
+
+    if (pmessagedb) {
+        pmessagedb->WriteMetaInt64(MSG_META_SYNCED_HEIGHT, 0);
+    }
 }
 
 size_t GetMessageDirtyCacheSize()

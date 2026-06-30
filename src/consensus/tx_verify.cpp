@@ -603,6 +603,19 @@ bool Consensus::CheckTxInputs(const CTransaction& tx, CValidationState& state, c
     return true;
 }
 
+// Overflow-safe per-asset running-total addition for CheckTxAssets. Both
+// current and amount must already be bounded to [0, MAX_MONEY]; the pre-add
+// bound check avoids signed overflow. Returns false (out untouched) when
+// current/amount are out of range or the sum would exceed MAX_MONEY.
+static bool SafeAddAssetTotal(const CAmount current, const CAmount amount, CAmount& out)
+{
+    if (current < 0 || current > MAX_MONEY) return false;
+    if (amount < 0 || amount > MAX_MONEY) return false;
+    if (amount > MAX_MONEY - current) return false;
+    out = current + amount;
+    return true;
+}
+
 //! Check to make sure that the inputs and outputs CAmount match exactly.
 bool Consensus::CheckTxAssets(const CTransaction& tx, CValidationState& state, const CCoinsViewCache& inputs, CAssetsCache* assetCache, bool fCheckMempool, std::vector<std::pair<std::string, uint256> >& vPairReissueAssets, const bool fRunningUnitTests, std::set<CMessage>* setMessages, int64_t nBlocktime,   std::vector<std::pair<std::string, CNullAssetTxData>>* myNullAssetData)
 {
@@ -627,11 +640,23 @@ bool Consensus::CheckTxAssets(const CTransaction& tx, CValidationState& state, c
             if (!GetAssetData(coin.out.scriptPubKey, data))
                 return state.DoS(100, false, REJECT_INVALID, "bad-txns-failed-to-get-asset-from-script", false, "", tx.GetHash());
 
-            // Add to the total value of assets in the inputs
+            // Validate the asset amount read from the spent UTXO before
+            // accumulating per-asset input totals.
+            if (data.nAmount < 0)
+                return state.DoS(100, false, REJECT_INVALID, "bad-txns-input-asset-amount-negative", false, "", tx.GetHash());
+            if (data.nAmount > MAX_MONEY)
+                return state.DoS(100, false, REJECT_INVALID, "bad-txns-input-asset-amount-toolarge", false, "", tx.GetHash());
+
+            // Add to the per-asset input total. Use a pre-add bound check to
+            // avoid signed overflow.
+            CAmount currentInput = totalInputs.count(data.assetName) ? totalInputs.at(data.assetName) : 0;
+            CAmount newInput = 0;
+            if (!SafeAddAssetTotal(currentInput, data.nAmount, newInput))
+                return state.DoS(100, false, REJECT_INVALID, "bad-txns-input-asset-totalInputs-toolarge", false, "", tx.GetHash());
             if (totalInputs.count(data.assetName))
-                totalInputs.at(data.assetName) += data.nAmount;
+                totalInputs.at(data.assetName) = newInput;
             else
-                totalInputs.insert(make_pair(data.assetName, data.nAmount));
+                totalInputs.insert(std::make_pair(data.assetName, newInput));
 
             if (AreMessagesDeployed()) {
                 mapAddresses.insert(make_pair(data.assetName,EncodeDestination(data.destination)));
@@ -689,14 +714,25 @@ bool Consensus::CheckTxAssets(const CTransaction& tx, CValidationState& state, c
             if (!TransferAssetFromScript(txout.scriptPubKey, transfer, address))
                 return state.DoS(100, false, REJECT_INVALID, "bad-tx-asset-transfer-bad-deserialize", false, "", tx.GetHash());
 
+            // Validate the transfer amount before contextual checks and per-asset totals.
+            if (transfer.nAmount < 0)
+                return state.DoS(100, false, REJECT_INVALID, "bad-txns-transfer-asset-amount-negative", false, "", tx.GetHash());
+            if (transfer.nAmount > MAX_MONEY)
+                return state.DoS(100, false, REJECT_INVALID, "bad-txns-transfer-asset-amount-toolarge", false, "", tx.GetHash());
+
             if (!ContextualCheckTransferAsset(assetCache, transfer, address, strError))
                 return state.DoS(100, false, REJECT_INVALID, strError, false, "", tx.GetHash());
 
-            // Add to the total value of assets in the outputs
+            // Add to the per-asset output total. Use a pre-add bound check to
+            // avoid signed overflow.
+            CAmount currentOutput = totalOutputs.count(transfer.strName) ? totalOutputs.at(transfer.strName) : 0;
+            CAmount newOutput = 0;
+            if (!SafeAddAssetTotal(currentOutput, transfer.nAmount, newOutput))
+                return state.DoS(100, false, REJECT_INVALID, "bad-txns-transfer-asset-totalOutputs-toolarge", false, "", tx.GetHash());
             if (totalOutputs.count(transfer.strName))
-                totalOutputs.at(transfer.strName) += transfer.nAmount;
+                totalOutputs.at(transfer.strName) = newOutput;
             else
-                totalOutputs.insert(make_pair(transfer.strName, transfer.nAmount));
+                totalOutputs.insert(std::make_pair(transfer.strName, newOutput));
 
             if (!fRunningUnitTests) {
                 if (IsAssetNameAnOwner(transfer.strName)) {

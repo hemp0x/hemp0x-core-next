@@ -19,6 +19,23 @@
 #include <wallet/wallet.h>
 #endif
 
+// Synthetic transfer-asset fixtures for the asset-amount boundary tests below.
+// Built straight from C++ objects (bypassing the wallet/RPC spend path) so that
+// exact boundary amounts can be exercised. Defensive sentinels only.
+static CTxOut MakeTransferOut(const std::string& name, const CAmount amount)
+{
+    CAssetTransfer transfer(name, amount);
+    CScript script = GetScriptForDestination(DecodeDestination(GetParams().GlobalBurnAddress()));
+    transfer.ConstructTransaction(script);
+    return CTxOut(0, script);
+}
+
+static void FundTransferCoin(CCoinsViewCache& coins, const COutPoint& outpoint,
+                             const std::string& name, const CAmount amount)
+{
+    coins.AddCoin(outpoint, Coin(MakeTransferOut(name, amount), 10, 0), true);
+}
+
 BOOST_FIXTURE_TEST_SUITE(asset_tx_tests, BasicTestingSetup)
 
     BOOST_AUTO_TEST_CASE(asset_tx_valid_test)
@@ -675,6 +692,201 @@ BOOST_FIXTURE_TEST_SUITE(asset_tx_tests, BasicTestingSetup)
 
         CAssetsCache cache;
         BOOST_CHECK_MESSAGE(cache.TrySpendCoin(outpoint, txOut), "TrySpendCoin should succeed (return true) for non-asset script");
+    }
+
+    // --- Asset amount boundary tests (defensive) ---
+    // These exercise the range/overflow guards added to CheckTxAssets. They use
+    // synthetic boundary sentinels (0, -1, MAX_MONEY, MAX_MONEY+1, and a pair of
+    // sub-MAX_MONEY values whose sum exceeds MAX_MONEY). No transaction recipe.
+
+    BOOST_AUTO_TEST_CASE(asset_tx_input_amount_negative_test)
+    {
+        BOOST_TEST_MESSAGE("Running Asset TX Input Amount Negative Test");
+        SelectParams(CBaseChainParams::MAIN);
+
+        CCoinsView view;
+        CCoinsViewCache coins(&view);
+
+        COutPoint outpoint(uint256S("BF50CB9A63BE0019171456252989A459A7D0A5F494735278290079D22AB704A2"), 1);
+        FundTransferCoin(coins, outpoint, "HEMP0XTEST", -1);
+
+        CMutableTransaction mutTx;
+        mutTx.vin.emplace_back(CTxIn(outpoint));
+        mutTx.vout.emplace_back(MakeTransferOut("HEMP0XTEST", 1));
+
+        CTransaction tx(mutTx);
+        CValidationState state;
+        std::vector<std::pair<std::string, uint256>> vReissueAssets;
+        BOOST_CHECK_MESSAGE(!Consensus::CheckTxAssets(tx, state, coins, nullptr, false, vReissueAssets, true),
+                             "CheckTxAssets should reject a negative input asset amount");
+        BOOST_CHECK_MESSAGE(state.GetRejectReason() == "bad-txns-input-asset-amount-negative",
+                             "got: " + state.GetRejectReason());
+    }
+
+    BOOST_AUTO_TEST_CASE(asset_tx_input_amount_toolarge_test)
+    {
+        BOOST_TEST_MESSAGE("Running Asset TX Input Amount Toolarge Test");
+        SelectParams(CBaseChainParams::MAIN);
+
+        CCoinsView view;
+        CCoinsViewCache coins(&view);
+
+        COutPoint outpoint(uint256S("BF50CB9A63BE0019171456252989A459A7D0A5F494735278290079D22AB704A2"), 1);
+        FundTransferCoin(coins, outpoint, "HEMP0XTEST", MAX_MONEY + 1);
+
+        CMutableTransaction mutTx;
+        mutTx.vin.emplace_back(CTxIn(outpoint));
+        mutTx.vout.emplace_back(MakeTransferOut("HEMP0XTEST", 1));
+
+        CTransaction tx(mutTx);
+        CValidationState state;
+        std::vector<std::pair<std::string, uint256>> vReissueAssets;
+        BOOST_CHECK_MESSAGE(!Consensus::CheckTxAssets(tx, state, coins, nullptr, false, vReissueAssets, true),
+                             "CheckTxAssets should reject an input asset amount above MAX_MONEY");
+        BOOST_CHECK_MESSAGE(state.GetRejectReason() == "bad-txns-input-asset-amount-toolarge",
+                             "got: " + state.GetRejectReason());
+    }
+
+    BOOST_AUTO_TEST_CASE(asset_tx_input_total_toolarge_test)
+    {
+        BOOST_TEST_MESSAGE("Running Asset TX Input Running Total Toolarge Test");
+        SelectParams(CBaseChainParams::MAIN);
+
+        CCoinsView view;
+        CCoinsViewCache coins(&view);
+
+        // Two inputs of the same asset; each individually within [0, MAX_MONEY]
+        // but their sum exceeds MAX_MONEY. The second input must trip the
+        // running-total guard without the per-input guard firing first.
+        const CAmount half = MAX_MONEY / 2 + 5;
+        BOOST_REQUIRE(half <= MAX_MONEY);
+        BOOST_REQUIRE(half + half > MAX_MONEY);
+
+        COutPoint outpoint1(uint256S("BF50CB9A63BE0019171456252989A459A7D0A5F494735278290079D22AB704A2"), 1);
+        COutPoint outpoint2(uint256S("BF50CB9A63BE0019171456252989A459A7D0A5F494735278290079D22AB704A2"), 2);
+        FundTransferCoin(coins, outpoint1, "HEMP0XTEST", half);
+        FundTransferCoin(coins, outpoint2, "HEMP0XTEST", half);
+
+        CMutableTransaction mutTx;
+        mutTx.vin.emplace_back(CTxIn(outpoint1));
+        mutTx.vin.emplace_back(CTxIn(outpoint2));
+        mutTx.vout.emplace_back(MakeTransferOut("HEMP0XTEST", 1));
+
+        CTransaction tx(mutTx);
+        CValidationState state;
+        std::vector<std::pair<std::string, uint256>> vReissueAssets;
+        BOOST_CHECK_MESSAGE(!Consensus::CheckTxAssets(tx, state, coins, nullptr, false, vReissueAssets, true),
+                             "CheckTxAssets should reject an input asset running total above MAX_MONEY");
+        BOOST_CHECK_MESSAGE(state.GetRejectReason() == "bad-txns-input-asset-totalInputs-toolarge",
+                             "got: " + state.GetRejectReason());
+    }
+
+    BOOST_AUTO_TEST_CASE(asset_tx_transfer_output_toolarge_test)
+    {
+        BOOST_TEST_MESSAGE("Running Asset TX Transfer Output Amount Toolarge Test");
+        SelectParams(CBaseChainParams::MAIN);
+
+        CCoinsView view;
+        CCoinsViewCache coins(&view);
+
+        COutPoint outpoint(uint256S("BF50CB9A63BE0019171456252989A459A7D0A5F494735278290079D22AB704A2"), 1);
+        FundTransferCoin(coins, outpoint, "HEMP0XTEST", 1);
+
+        CMutableTransaction mutTx;
+        mutTx.vin.emplace_back(CTxIn(outpoint));
+        mutTx.vout.emplace_back(MakeTransferOut("HEMP0XTEST", MAX_MONEY + 1));
+
+        CTransaction tx(mutTx);
+        CValidationState state;
+        std::vector<std::pair<std::string, uint256>> vReissueAssets;
+        BOOST_CHECK_MESSAGE(!Consensus::CheckTxAssets(tx, state, coins, nullptr, false, vReissueAssets, true),
+                             "CheckTxAssets should reject a transfer output amount above MAX_MONEY");
+        BOOST_CHECK_MESSAGE(state.GetRejectReason() == "bad-txns-transfer-asset-amount-toolarge",
+                             "got: " + state.GetRejectReason());
+    }
+
+    BOOST_AUTO_TEST_CASE(asset_tx_transfer_output_total_toolarge_test)
+    {
+        BOOST_TEST_MESSAGE("Running Asset TX Transfer Output Running Total Toolarge Test");
+        SelectParams(CBaseChainParams::MAIN);
+
+        CCoinsView view;
+        CCoinsViewCache coins(&view);
+
+        // Two outputs of the same asset; each individually within [0, MAX_MONEY]
+        // but their sum exceeds MAX_MONEY. The first output accumulates, the
+        // second trips the running-total guard.
+        const CAmount half = MAX_MONEY / 2 + 5;
+        BOOST_REQUIRE(half <= MAX_MONEY);
+        BOOST_REQUIRE(half + half > MAX_MONEY);
+
+        COutPoint outpoint(uint256S("BF50CB9A63BE0019171456252989A459A7D0A5F494735278290079D22AB704A2"), 1);
+        FundTransferCoin(coins, outpoint, "HEMP0XTEST", 1);
+
+        CMutableTransaction mutTx;
+        mutTx.vin.emplace_back(CTxIn(outpoint));
+        mutTx.vout.emplace_back(MakeTransferOut("HEMP0XTEST", half));
+        mutTx.vout.emplace_back(MakeTransferOut("HEMP0XTEST", half));
+
+        CTransaction tx(mutTx);
+        CValidationState state;
+        std::vector<std::pair<std::string, uint256>> vReissueAssets;
+        BOOST_CHECK_MESSAGE(!Consensus::CheckTxAssets(tx, state, coins, nullptr, false, vReissueAssets, true),
+                             "CheckTxAssets should reject a transfer output running total above MAX_MONEY");
+        BOOST_CHECK_MESSAGE(state.GetRejectReason() == "bad-txns-transfer-asset-totalOutputs-toolarge",
+                             "got: " + state.GetRejectReason());
+    }
+
+    // Negative transfer output amount. The consensus range check runs before
+    // ContextualCheckTransferAsset, so the explicit rejection code is reached.
+    BOOST_AUTO_TEST_CASE(asset_tx_transfer_output_negative_test)
+    {
+        BOOST_TEST_MESSAGE("Running Asset TX Transfer Output Negative Test");
+        SelectParams(CBaseChainParams::MAIN);
+
+        CCoinsView view;
+        CCoinsViewCache coins(&view);
+
+        COutPoint outpoint(uint256S("BF50CB9A63BE0019171456252989A459A7D0A5F494735278290079D22AB704A2"), 1);
+        FundTransferCoin(coins, outpoint, "HEMP0XTEST", 1);
+
+        CMutableTransaction mutTx;
+        mutTx.vin.emplace_back(CTxIn(outpoint));
+        mutTx.vout.emplace_back(MakeTransferOut("HEMP0XTEST", -1));
+
+        CTransaction tx(mutTx);
+        CValidationState state;
+        std::vector<std::pair<std::string, uint256>> vReissueAssets;
+        BOOST_CHECK_MESSAGE(!Consensus::CheckTxAssets(tx, state, coins, nullptr, false, vReissueAssets, true),
+                             "CheckTxAssets should reject a negative transfer output");
+        BOOST_CHECK_MESSAGE(state.GetRejectReason() == "bad-txns-transfer-asset-amount-negative",
+                             "got: " + state.GetRejectReason());
+    }
+
+    // Valid-boundary regression: a transfer whose input and output are both
+    // exactly MAX_MONEY (the largest accepted value) must still pass. This
+    // confirms the new guards use a strict upper bound (> MAX_MONEY) and do not
+    // over-reject legitimate large transfers at the boundary.
+    BOOST_AUTO_TEST_CASE(asset_tx_transfer_valid_boundary_test)
+    {
+        BOOST_TEST_MESSAGE("Running Asset TX Transfer Valid Boundary Test");
+        SelectParams(CBaseChainParams::MAIN);
+
+        CCoinsView view;
+        CCoinsViewCache coins(&view);
+
+        COutPoint outpoint(uint256S("BF50CB9A63BE0019171456252989A459A7D0A5F494735278290079D22AB704A2"), 1);
+        FundTransferCoin(coins, outpoint, "HEMP0XTEST", MAX_MONEY);
+
+        CMutableTransaction mutTx;
+        mutTx.vin.emplace_back(CTxIn(outpoint));
+        mutTx.vout.emplace_back(MakeTransferOut("HEMP0XTEST", MAX_MONEY));
+
+        CTransaction tx(mutTx);
+        CValidationState state;
+        std::vector<std::pair<std::string, uint256>> vReissueAssets;
+        BOOST_CHECK_MESSAGE(Consensus::CheckTxAssets(tx, state, coins, nullptr, false, vReissueAssets, true),
+                             "CheckTxAssets should accept a valid transfer at the MAX_MONEY boundary: " + state.GetDebugMessage());
     }
 
 BOOST_AUTO_TEST_SUITE_END()

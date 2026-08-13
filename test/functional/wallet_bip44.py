@@ -15,18 +15,19 @@ MNEMONIC_0 = 'climb imitate repair vacant moral analyst barely night enemy fault
 MNEMONIC_PASS_0 = 'test0'
 MNEMONIC_1 = 'glass random such ginger media want pink comfort portion large ability spare'
 MNEMONIC_PASS_2 = 'test2'
+SECRET_EXPORT_ARG = '-allowwalletsecretexport=1'
 
 
 class Bip44Test(Hemp0xTestFramework):
     def set_test_params(self):
         self.setup_clean_chain = True
         self.num_nodes = 6
-        self.extra_args = [['-bip44=1', '-mnemonic=' + MNEMONIC_0, '-mnemonicpassphrase=' + MNEMONIC_PASS_0], # BIP44 wallet with user-generated 12-words and passphrase
-                           ['-bip44=1', '-mnemonic=' + MNEMONIC_1], # BIP44 wallet with user-generated 12-words, but no passphrase
-                           ['-bip44=1', '-mnemonicpassphrase=' + MNEMONIC_PASS_2], # BIP44 wallet with auto-generated 12-words but user-generated passphrase
-                           ['-bip44=1'],    # BIP44 wallet with auto-generated 12-words and no passphrase
-                           ['-bip44=0'],    # BIP44 wallet disabled but supplied with words and passphrase
-                           ['-bip44=0']]    # BIP44 wallet disabled
+        self.extra_args = [[SECRET_EXPORT_ARG, '-bip44=1', '-mnemonic=' + MNEMONIC_0, '-mnemonicpassphrase=' + MNEMONIC_PASS_0], # BIP44 wallet with user-generated 12-words and passphrase
+                           [SECRET_EXPORT_ARG, '-bip44=1', '-mnemonic=' + MNEMONIC_1], # BIP44 wallet with user-generated 12-words, but no passphrase
+                           [SECRET_EXPORT_ARG, '-bip44=1', '-mnemonicpassphrase=' + MNEMONIC_PASS_2], # BIP44 wallet with auto-generated 12-words but user-generated passphrase
+                           [SECRET_EXPORT_ARG, '-bip44=1'],    # BIP44 wallet with auto-generated 12-words and no passphrase
+                           [SECRET_EXPORT_ARG, '-bip44=0'],    # BIP44 wallet disabled but supplied with words and passphrase
+                           [SECRET_EXPORT_ARG, '-bip44=0']]    # BIP44 wallet disabled
 
 
     def run_test(self):
@@ -63,20 +64,20 @@ class Bip44Test(Hemp0xTestFramework):
         self.log.info("Testing that BIP-44 wallets are intransigent")
         self.stop_node(4)
         self.stop_node(5)
-        self.start_node(4, extra_args=['-bip44=1', '-mnemonicpassphrase=test4'])
-        self.start_node(5, extra_args=['-bip44=1', '-mnemonic=' + MNEMONIC_0, '-mnemonicpassphrase=' + MNEMONIC_PASS_0])
+        self.start_node(4, extra_args=[SECRET_EXPORT_ARG, '-bip44=1', '-mnemonicpassphrase=test4'])
+        self.start_node(5, extra_args=[SECRET_EXPORT_ARG, '-bip44=1', '-mnemonic=' + MNEMONIC_0, '-mnemonicpassphrase=' + MNEMONIC_PASS_0])
         assert_raises_rpc_error(-4, "Wallet doesn't have 12 words.", nodes[4].getmywords)
         assert_raises_rpc_error(-4, "Wallet doesn't have 12 words.", nodes[5].getmywords)
 
         # Try to add a passphrase to an existing bip44 wallet (should not add passphrase)
         self.stop_node(3)
-        self.start_node(3, extra_args=['-mnemonicpassphrase=test3'])
+        self.start_node(3, extra_args=[SECRET_EXPORT_ARG, '-mnemonicpassphrase=test3'])
         assert_does_not_contain(str(nodes[3].getmywords()), 'passphrase') # Passphrase does not exist
 
         # Cannot change an already created bip44 wallet to a non-bip44 wallet
         word_list_3 = nodes[3].getmywords()['word_list']
         self.stop_node(3)
-        self.start_node(3, extra_args=['-bip44=0'])
+        self.start_node(3, extra_args=[SECRET_EXPORT_ARG, '-bip44=0'])
         assert_equal(nodes[3].getmywords()['word_list'], word_list_3) # Word list matches
 
         # All 4 bip44 enabled wallets word-lists are in the bip39 word-list

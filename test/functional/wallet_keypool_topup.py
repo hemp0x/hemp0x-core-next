@@ -22,7 +22,7 @@ class KeypoolRestoreTest(Hemp0xTestFramework):
     def set_test_params(self):
         self.setup_clean_chain = True
         self.num_nodes = 2
-        self.extra_args = [[], ['-keypool=100', '-keypoolmin=20']]
+        self.extra_args = [['-paytxfee=0.01'], ['-keypool=100', '-keypoolmin=20']]
 
     def run_test(self):
         self.tmpdir = self.options.tmpdir
@@ -47,9 +47,9 @@ class KeypoolRestoreTest(Hemp0xTestFramework):
 
         self.log.info("Send funds to wallet")
 
-        self.nodes[0].sendtoaddress(addr_oldpool, 10)
+        self.nodes[0].sendtoaddress(addr_oldpool, 5)
         self.nodes[0].generate(1)
-        self.nodes[0].sendtoaddress(addr_extpool, 5)
+        self.nodes[0].sendtoaddress(addr_extpool, 3)
         self.nodes[0].generate(1)
         sync_blocks(self.nodes)
 
@@ -64,12 +64,13 @@ class KeypoolRestoreTest(Hemp0xTestFramework):
         self.start_node(1, self.extra_args[1])
         connect_nodes_bi(self.nodes, 0, 1)
         self.sync_all()
+        self.nodes[1].rescanblockchain()
 
-        assert_equal(self.nodes[1].getbalance(), 15)
+        assert_equal(self.nodes[1].getbalance(), 8)
         assert_equal(self.nodes[1].listtransactions()[0]['category'], "receive")
 
         # Check that we have marked all keys up to the used keypool key as used
-        assert_equal(self.nodes[1].validateaddress(self.nodes[1].getnewaddress())['hdkeypath'], "m/44'/1'/0'/0/110")
+        assert_equal(self.nodes[1].validateaddress(self.nodes[1].getnewaddress())['hdkeypath'], "m/44'/420'/0'/0/110")
 
 if __name__ == '__main__':
     KeypoolRestoreTest().main()

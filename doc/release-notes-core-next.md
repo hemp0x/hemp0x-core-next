@@ -1,9 +1,10 @@
 Hemp0x Core Next Release Notes
 ==============================
 
-This document describes the first Core Next release. It is a non-consensus
-modernization release that keeps all live Hemp0x chain rules intact while
-improving the software around them.
+This document describes the first Core Next release. It modernizes the daemon,
+wallet RPC surface, service RPCs, build system, and operator defaults while
+preserving the live Hemp0x chain parameters. It also includes a coordinated
+KAWPOW header-height safety check for production rollout.
 
 Compatibility Statement
 -----------------------
@@ -15,14 +16,13 @@ change:
 - network magic or message-start bytes
 - default P2P port (42069) or RPC port (8766)
 - address prefixes (0x3c, "R" addresses)
-- KAWPOW proof-of-work validation
+- KAWPOW mining algorithm
 - Dark Gravity Wave difficulty adjustment (180-block lookback)
 - subsidy schedule (10 HEMP initial, halving via integer right-shift)
 - asset consensus rules
-- transaction or block validation semantics
 
-Operators can run Core Next binaries alongside existing Hemp0x Core nodes on
-the same chain.
+KAWPOW declared-header-height enforcement activates at block 3,894,000.
+Operators should update mining and service infrastructure before that height.
 
 Major Changes
 -------------
@@ -121,11 +121,12 @@ Security Hardening
 
 - KAWPOW epoch context cache hardening
 - Hash guardrail tests for PoW verification
+- Declared-header-height enforcement staged for activation at block 3,894,000
 
 ### Trust Anchors
 
 - Verified mainnet `nMinimumChainWork` and `defaultAssumeValid` values
-- Refreshed checkpoint data at block 2,000,000
+- Refreshed checkpoint data through block 3,887,915
 - Updated chain transaction statistics
 
 Dependency Updates

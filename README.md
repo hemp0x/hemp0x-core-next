@@ -11,9 +11,11 @@ transaction utility, peer-to-peer networking, block and transaction validation,
 native asset support, and the interfaces used by Hemp0x services.
 
 The first Core Next release is designed to be fully compatible with the current
-Hemp0x chain and existing Hemp0x Core operations. It does not introduce
-consensus-changing features. Operators should be able to test Core Next beside
-existing Hemp0x Core nodes without changing chain data or network rules.
+Hemp0x chain and existing Hemp0x Core operations. It preserves the existing
+chain parameters and KAWPOW mining algorithm while adding a coordinated
+KAWPOW header-height safety check for production rollout. Operators should
+update mining and service infrastructure before the activation height noted in
+the release notes.
 
 What Changed
 ------------
@@ -41,6 +43,8 @@ around them:
 - invalid-block storage checks and reorg diagnostics
 - verified mainnet trust anchors, refreshed checkpoint data, and updated chain
   transaction statistics
+- KAWPOW declared-header-height enforcement staged for activation at block
+  3,894,000, with block 3,887,915 added as the verified rollout checkpoint
 - RPC exposure warnings, repeated-auth throttling, auth-cookie hardening, log
   redaction, and a node-status summary RPC
 - wallet input shuffling to mitigate CVE-2021-37492-style privacy leakage
@@ -69,19 +73,20 @@ in production releases.
 Compatibility
 -------------
 
-This release is a non-consensus compatibility release. It does not change:
+This release keeps the live Hemp0x chain parameters compatible. It does not change:
 
 - genesis block data
 - network magic or message-start bytes
 - default P2P ports or address prefixes
-- proof-of-work validation
+- KAWPOW mining algorithm
 - difficulty adjustment rules
 - subsidy rules
 - asset consensus rules
-- transaction or block validation semantics
 
-The intent is practical: let operators test the modernized software on the live
-network while keeping the old and new binaries compatible during the transition.
+The release does include a KAWPOW declared-header-height safety check that
+activates at block 3,894,000. The intent is practical: give operators a clear
+upgrade window while keeping normal node, wallet, mining, and service workflows
+unchanged.
 
 Wallet Direction
 ----------------

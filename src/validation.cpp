@@ -4029,10 +4029,10 @@ static bool FindUndoPos(CValidationState &state, int nFile, CDiskBlockPos &pos, 
 
 static bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, const Consensus::Params& consensusParams, bool fCheckPOW = true)
 {
-    // If we are checking a KAWPOW block below a know checkpoint height. We can validate the proof of work using the mix_hash
-    if (fCheckPOW && block.nTime >= nKAWPOWActivationTime) {
+    // If we are checking a KAWPOW block below a known checkpoint height. We can validate the proof of work using the mix_hash
+    if (fCheckPOW && fCheckpointsEnabled && block.nTime >= nKAWPOWActivationTime) {
         CBlockIndex* pcheckpoint = Checkpoints::GetLastCheckpoint(GetParams().Checkpoints());
-        if (fCheckPOW && pcheckpoint && block.nHeight <= (uint32_t)pcheckpoint->nHeight) {
+        if (pcheckpoint && block.nHeight <= (uint32_t)pcheckpoint->nHeight) {
            if (!CheckProofOfWork(block.GetHash(), block.nBits, consensusParams)) {
                return state.DoS(50, false, REJECT_INVALID, "high-hash", false, "proof of work failed with mix_hash only check");
            }
@@ -4231,6 +4231,22 @@ static bool ContextualCheckBlockHeader(const CBlockHeader& block, CValidationSta
     const Consensus::Params& consensusParams = params.GetConsensus();
     if (block.nBits != GetNextWorkRequired(pindexPrev, &block, consensusParams))
         return state.DoS(100, false, REJECT_INVALID, "bad-diffbits", false, "incorrect proof of work");
+
+    // The height declared inside the KAWPOW header feeds the PoW hash, the DAG epoch
+    // and the ProgPoW period. It must match the actual height of the block, or a
+    // block could opt into the cheap mix_hash-only checkpoint path in
+    // CheckBlockHeader from any position in the chain.
+    // Chains that need to stage deployment can set this to a future height;
+    // test chains enforce it from genesis.
+    if (consensusParams.nHeightHeaderCheckActivation >= 0 &&
+        nHeight >= consensusParams.nHeightHeaderCheckActivation &&
+        block.nTime >= nKAWPOWActivationTime &&
+        block.nHeight != (uint32_t)nHeight) {
+        return state.DoS(100,
+                         error("%s: declared header height %u does not match chain height %d",
+                               __func__, block.nHeight, nHeight),
+                         REJECT_INVALID, "bad-blk-height");
+    }
 
     // Check against checkpoints
     if (fCheckpointsEnabled) {

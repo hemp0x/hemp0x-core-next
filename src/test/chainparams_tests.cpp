@@ -418,6 +418,13 @@ BOOST_AUTO_TEST_CASE(mainnet_checkpoint_trust_anchors)
         BOOST_CHECK_EQUAL(cps.at(2000000).GetHex(),
             "000000002f781ea4d01f5866a8f26747c245ec90111099af851a40144b37e118");
     }
+
+    // Block 3,887,915 (KAWPOW declared-height rollout anchor)
+    BOOST_CHECK_MESSAGE(cps.count(3887915) > 0, "Missing checkpoint at height 3887915");
+    if (cps.count(3887915)) {
+        BOOST_CHECK_EQUAL(cps.at(3887915).GetHex(),
+            "0000000b68a76df70e3a0451ec1deb9959c3df733968970ed7b8769ce365c11e");
+    }
 }
 
 // -----------------------------------------------------------------------
@@ -643,6 +650,23 @@ BOOST_AUTO_TEST_CASE(mainnet_kawpow_activation_time)
     const auto chainParams = CreateChainParams(CBaseChainParams::MAIN);
     BOOST_CHECK_EQUAL(nKAWPOWActivationTime, 1766126932u);
     BOOST_CHECK(nKAWPOWActivationTime > chainParams->GenesisBlock().nTime);
+}
+
+// -----------------------------------------------------------------------
+// KAWPOW declared header height check activation
+// -----------------------------------------------------------------------
+BOOST_AUTO_TEST_CASE(kawpow_header_height_check_activation)
+{
+    BOOST_TEST_MESSAGE("KAWPOW header height check activation");
+
+    const auto mainnetParams = CreateChainParams(CBaseChainParams::MAIN);
+    BOOST_CHECK_EQUAL(mainnetParams->GetConsensus().nHeightHeaderCheckActivation, 3894000);
+
+    const auto testnetParams = CreateChainParams(CBaseChainParams::TESTNET);
+    BOOST_CHECK_EQUAL(testnetParams->GetConsensus().nHeightHeaderCheckActivation, 0);
+
+    const auto regtestParams = CreateChainParams(CBaseChainParams::REGTEST);
+    BOOST_CHECK_EQUAL(regtestParams->GetConsensus().nHeightHeaderCheckActivation, 0);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

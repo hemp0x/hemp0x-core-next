@@ -33,19 +33,20 @@ MNEMONIC_6 = '가슴 법적 잔디 약호
 MNEMONIC_PASS_6 = 'test6'
 MNEMONIC_7 = 'monviso marcire lavagna snodo appunto inodore radunato ceto olandese orecchino ravveduto fontana' #italian
 MNEMONIC_PASS_7 = 'test7'
+SECRET_EXPORT_ARG = '-allowwalletsecretexport=1'
 
 class Bip44Test(Hemp0xTestFramework):
     def set_test_params(self):
         self.setup_clean_chain = True
         self.num_nodes = 8
-        self.extra_args = [['-bip44=1', '-mnemonic=' + MNEMONIC_0, '-mnemonicpassphrase=' + MNEMONIC_PASS_0], # BIP44 wallet with user-generated 12-words and passphrase
-                           ['-bip44=1', '-mnemonic=' + MNEMONIC_1], # BIP44 wallet with user-generated 12-words, but no passphrase
-                           ['-bip44=1', '-mnemonic=' + MNEMONIC_2, '-mnemonicpassphrase=' + MNEMONIC_PASS_2], # BIP44 wallet with user-generated 12-words and passphrase
-                           ['-bip44=1', '-mnemonic=' + MNEMONIC_3, '-mnemonicpassphrase=' + MNEMONIC_PASS_3], # BIP44 wallet with user-generated 12-words and passphrase
-                           ['-bip44=1', '-mnemonic=' + MNEMONIC_4, '-mnemonicpassphrase=' + MNEMONIC_PASS_4], # BIP44 wallet with user-generated 12-words and passphrase
-                           ['-bip44=1', '-mnemonic=' + MNEMONIC_5, '-mnemonicpassphrase=' + MNEMONIC_PASS_5], # BIP44 wallet with user-generated 12-words and passphrase
-                           ['-bip44=1', '-mnemonic=' + MNEMONIC_6, '-mnemonicpassphrase=' + MNEMONIC_PASS_6], # BIP44 wallet with user-generated 12-words and passphrase
-                           ['-bip44=1', '-mnemonic=' + MNEMONIC_7, '-mnemonicpassphrase=' + MNEMONIC_PASS_7] # BIP44 wallet with user-generated 12-words and passphrase
+        self.extra_args = [[SECRET_EXPORT_ARG, '-bip44=1', '-mnemonic=' + MNEMONIC_0, '-mnemonicpassphrase=' + MNEMONIC_PASS_0], # BIP44 wallet with user-generated 12-words and passphrase
+                           [SECRET_EXPORT_ARG, '-bip44=1', '-mnemonic=' + MNEMONIC_1], # BIP44 wallet with user-generated 12-words, but no passphrase
+                           [SECRET_EXPORT_ARG, '-bip44=1', '-mnemonic=' + MNEMONIC_2, '-mnemonicpassphrase=' + MNEMONIC_PASS_2], # BIP44 wallet with user-generated 12-words and passphrase
+                           [SECRET_EXPORT_ARG, '-bip44=1', '-mnemonic=' + MNEMONIC_3, '-mnemonicpassphrase=' + MNEMONIC_PASS_3], # BIP44 wallet with user-generated 12-words and passphrase
+                           [SECRET_EXPORT_ARG, '-bip44=1', '-mnemonic=' + MNEMONIC_4, '-mnemonicpassphrase=' + MNEMONIC_PASS_4], # BIP44 wallet with user-generated 12-words and passphrase
+                           [SECRET_EXPORT_ARG, '-bip44=1', '-mnemonic=' + MNEMONIC_5, '-mnemonicpassphrase=' + MNEMONIC_PASS_5], # BIP44 wallet with user-generated 12-words and passphrase
+                           [SECRET_EXPORT_ARG, '-bip44=1', '-mnemonic=' + MNEMONIC_6, '-mnemonicpassphrase=' + MNEMONIC_PASS_6], # BIP44 wallet with user-generated 12-words and passphrase
+                           [SECRET_EXPORT_ARG, '-bip44=1', '-mnemonic=' + MNEMONIC_7, '-mnemonicpassphrase=' + MNEMONIC_PASS_7] # BIP44 wallet with user-generated 12-words and passphrase
                         ]
 
     def run_test(self):
@@ -103,13 +104,13 @@ class Bip44Test(Hemp0xTestFramework):
 
         # Try to add a passphrase to an existing bip44 wallet (should not add passphrase)
         self.stop_node(3)
-        self.start_node(3, extra_args=['-mnemonicpassphrase=test3'])
+        self.start_node(3, extra_args=[SECRET_EXPORT_ARG, '-mnemonicpassphrase=test3'])
         assert_does_not_contain(str(nodes[3].getmywords()), 'passphrase') # Passphrase does not exist
 
         # Cannot change an already created bip44 wallet to a non-bip44 wallet
         word_list_3 = nodes[3].getmywords()['word_list']
         self.stop_node(3)
-        self.start_node(3, extra_args=['-bip44=0'])
+        self.start_node(3, extra_args=[SECRET_EXPORT_ARG, '-bip44=0'])
         assert_equal(nodes[3].getmywords()['word_list'], word_list_3) # Word list matches
 
         # All 4 bip44 enabled wallets word-lists are in the bip39 word-list

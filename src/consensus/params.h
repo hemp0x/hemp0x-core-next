@@ -79,6 +79,8 @@ struct Params {
     bool nSegwitEnabled;
     bool nCSVEnabled;
     int nDGWFixHeight;
+    /** Block height at which the declared KAWPOW header height must match the chain height. */
+    int nHeightHeaderCheckActivation;
 };
 } // namespace Consensus
 

@@ -221,6 +221,7 @@ public:
                 { 1000000, uint256S("0000000489c1038667e941aeafe4177115300da01843adaf36b889a804810bca") },
                 { 1500000, uint256S("00000004cfb28dcb6c737915b008f8c5824c8201670875f7461f4019f8e65ebb") },
                 { 2000000, uint256S("000000002f781ea4d01f5866a8f26747c245ec90111099af851a40144b37e118") },
+                { 3887915, uint256S("0000000b68a76df70e3a0451ec1deb9959c3df733968970ed7b8769ce365c11e") },
             }
         };
 
@@ -269,6 +270,10 @@ public:
 
         // KAWPOW active immediately
         nKAWPOWActivationTime = 1766126932;
+        // Enforce declared KAWPOW header height after the verified-clean rollout
+        // window. Historical blocks are protected by checkpoints; blocks at and
+        // above this height must declare the same height as their chain position.
+        consensus.nHeightHeaderCheckActivation = 3894000;
         /** HEMP End **/
     }
 };
@@ -476,6 +481,7 @@ public:
         nRestrictedActivationBlock = 1; // Restricted activated block height
 
         nKAWPOWActivationTime = 1766126932;  // KAWPOW active immediately
+        consensus.nHeightHeaderCheckActivation = 0;  // Enforce declared header height from genesis
         /** HEMP End **/
     }
 };
@@ -671,10 +677,10 @@ public:
         nMessagingActivationBlock = 1; // Messaging activated block height
         nRestrictedActivationBlock = 1; // Restricted activated block height
 
-        // TODO, we need to figure out what to do with this for regtest. This effects the unit tests
-        // For now we can use a timestamp very far away
-        // If you are looking to test the kawpow hashing function in regtest. You will need to change this number
+        // Keep regtest KAWPOW reachable for header validation tests. Test blocks use
+        // current adjusted time, so this mainnet-aligned activation timestamp is in the past.
         nKAWPOWActivationTime = 1766126932;  // KAWPOW active immediately;
+        consensus.nHeightHeaderCheckActivation = 0;  // Enforce declared header height from genesis
         /** HEMP End **/
     }
 };
